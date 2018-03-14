@@ -183,13 +183,15 @@ std::vector<unsigned long> prime_factor_list(unsigned long n)
     return list;
 }
 
+using Prime_Fac = std::vector<std::array<unsigned long,2> >;
+
 // returns a vector of pairs (prime, exponent) that make up n
-std::vector<std::array<unsigned long,2> > prime_factor_pairs(unsigned long n)
+Prime_Fac prime_factor_pairs(unsigned long n)
 {
     std::vector<unsigned long> factors = prime_factor_list(n);
     std::sort(factors.begin(),factors.end());
     
-    std::vector<std::array<unsigned long,2> > pair_list;
+    Prime_Fac pair_list;
     unsigned long prev = 0;
     for (unsigned long f : factors)
     {
@@ -205,6 +207,43 @@ std::vector<std::array<unsigned long,2> > prime_factor_pairs(unsigned long n)
     }
 
     return pair_list;
+}
+
+namespace
+{
+    void list_factors(Prime_Fac const & list,
+		      std::size_t const index,
+		      unsigned long value,
+		      std::vector<unsigned long> & result)
+    {
+	if (index < list.size())
+	{
+	    unsigned long const & prime = list[index][0];
+	    unsigned long const & pow = list[index][1];
+	    for (unsigned long count = 0; count <= pow; ++count)
+	    {
+		list_factors(list,index+1,value,result);
+		value *= prime;
+	    }
+	}
+	else
+	{
+	    result.push_back(value);
+	}
+    }
+}
+
+// returns a sorted vector of factors of n
+// for n = 0, returns {}
+std::vector<unsigned long> factors(unsigned long n)
+{
+    if (n == 0)
+	return {};
+    Prime_Fac prime_factors = prime_factor_pairs(n);
+    std::vector<unsigned long> result;
+    list_factors(prime_factors,0,1,result);
+    std::sort(result.begin(),result.end());
+    return result;
 }
 
 
