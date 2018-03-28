@@ -54,7 +54,7 @@ std::vector<T> phiUpTo(T n) {
 // returns if n is likely prime using the Miller-Rabin primality test
 bool is_likely_prime(unsigned long n)
 {
-    static const std::vector<bool> low_results(isPrimeUpTo(1e6));
+    static std::vector<bool> const low_results(isPrimeUpTo(1e6));
     if (n < low_results.size())
 	return low_results[n];
     
@@ -209,6 +209,18 @@ Prime_Fac prime_factor_pairs(unsigned long n)
     return pair_list;
 }
 
+// returns the product of all the specified prime factors
+// note that this cannot return 0
+unsigned long to_number(Prime_Fac const & p)
+{
+    unsigned long result = 1;
+    for (auto const & pair : p)
+	for (unsigned long f = pair[0], pow = pair[1]; pow > 0; f*=f, pow/=2)
+	    if (pow & 1)
+		result *= f;
+    return result;
+}
+
 namespace
 {
     void list_factors(Prime_Fac const & list,
@@ -233,17 +245,65 @@ namespace
     }
 }
 
-// returns a sorted vector of factors of n
-// for n = 0, returns {}
-std::vector<unsigned long> factors(unsigned long n)
+// returns a sorted vector of factors of the input given as prime factorization
+std::vector<unsigned long> factors(Prime_Fac const & prime_factors)
 {
-    if (n == 0)
-	return {};
-    Prime_Fac prime_factors = prime_factor_pairs(n);
     std::vector<unsigned long> result;
     list_factors(prime_factors,0,1,result);
     std::sort(result.begin(),result.end());
     return result;
+}
+
+// returns a sorted vector of factors of n
+std::vector<unsigned long> factors(unsigned long n)
+{
+    return factors(prime_factor_pairs(n));
+}
+
+namespace
+{
+    void list_factors_prime_fac(Prime_Fac const & list,
+				std::size_t const index,
+				Prime_Fac & modifiable,
+				std::vector<Prime_Fac> & result)
+    {
+	if (index < list.size())
+	{
+	    list_factors_prime_fac(list,
+				   index+1,
+				   modifiable,
+				   result);
+	    unsigned long const & prime = list[index][0];
+	    unsigned long const & pow = list[index][1];
+	    std::size_t modifiable_index = modifiable.size();
+	    modifiable.push_back({{prime,0}});
+	    while (++modifiable[modifiable_index][1] <= pow)
+		list_factors_prime_fac(list,
+				       index+1,
+				       modifiable,
+				       result);
+	    modifiable.pop_back();
+	}
+	else
+	{
+	    result.push_back(modifiable);
+	}
+    }
+}
+
+// returns a somewhat-sorted list of the factors of the input given as prime factorization
+// somewhat-sorted: if a|b|n and a<b, the prime factorization of a preceeds the prime factorization of b in the list.
+std::vector<Prime_Fac> factors_prime_fac(Prime_Fac const & prime_factors)
+{
+    Prime_Fac factor_prime_fac;
+    std::vector<Prime_Fac> result;
+    list_factors_prime_fac(prime_factors,0,factor_prime_fac,result);
+    return result;
+}
+
+std::vector<Prime_Fac> factors_prime_fac(unsigned long n)
+{
+    return factors_prime_fac(prime_factor_pairs(n));
 }
 
 

@@ -398,6 +398,14 @@ public:
 	{
 	    return value > 0;
 	}
+    explicit operator double() const
+	{
+	    return value;
+	}
+    unsigned int get_mod() const
+	{
+	    return mod;
+	}
     template<class T>
     Mod create(T val) const
 	{
@@ -452,6 +460,14 @@ struct to_string_helper<Mod>
 	    return x.to_string();
 	}
 };
+
+unsigned long factorial(unsigned long x)
+{
+    unsigned long result = 1;
+    for (; x>0; x--)
+	result *= x;
+    return result;
+}
 
 
 #endif /* MATH_UTILS */
