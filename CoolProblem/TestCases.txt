@@ -1,0 +1,7 @@
+displayDiff("same_prefix_1233_same_suffix”,"same_prefix23123_same_suffix”); // "same_prefix(_1)23[12]3_same_suffix"
+displayDiff(“a”,”b”); // "(a)[b]"
+displayDiff(“a”,”a”); // “a”
+displayDiff(“ab”,”bb”); // "(a)b[b]"
+displayDiff("a2_3b42c_78d”,"a_34c27_8ed”); // "a(2)_3(b)4(2)c(_)[2]7[_]8[e]d"
+displayDiff("same_prefix_12533_same_suffix”,"same_prefix23123_same_suffix”); // "same_prefix(_1)2(5)3[12]3_same_suffix"
+displayDiff("same_prefix_1233_same_suffix”,"same_prefix231233_same_suffix”); // "same_prefix(_)[23]1233_same_suffix"

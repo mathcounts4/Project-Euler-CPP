@@ -1,0 +1,60 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, graphics, setspace, geometry,mathtools,fancyhdr,hyperref}
+
+\newcommand{\eps}{\epsilon}
+\newcommand{\mysum}{\displaystyle \sum}
+\newcommand{\myprod}{\displaystyle \prod}
+\newcommand{\ceil}[1]{\left \lceil{#1}\right \rceil}
+\newcommand\tab[1][1cm]{\hspace*{#1}}
+
+\pagestyle{fancy}
+\lhead{David Fink}
+\chead{The Circular Prison of Unknown Size}
+\rhead{Page \thepage}
+
+\begin{document}
+
+\title{The Circular Prison of Unknown Size}
+\author{David Fink}
+\maketitle{}
+
+
+\section*{Problem}
+\url{http://puzzling.stackexchange.com/questions/16168/the-circular-prison-of-unknown-size}\\
+\\
+You are the president of a secret society of mathematicians with $n$ members, including yourself. No one in the society knows what $n$ is. The dictator of the world, in an effort to erase mathematics from human history, has finally managed to capture all $n$ members of the society, and has placed them in prison.\\
+\\
+The prison has a funny design. There are $n$ identical soundproof, windowless prison cells arranged in a circle, each containing a mathematician. The cells all have a light switch the prisoners can use, but the wiring system is screwed up, so the switch controls the light bulb in the clockwise neighboring cell. Furthermore, the switch is only capable of delivering a single flash of light at noon each day. Specifically, if this switch is set to "on" at noon, it will flash the next cell, and do nothing otherwise.\\
+\\
+The prison warden worries that the prisoners might try to communicate using the lights, so every night at midnight, he fills all of the cells with knockout gas, cleans the cells so they can't communicate by leaving messages, sets all of the light switches to "off", and rearranges the prisoners in whatever fashion he pleases (still one prisoner per cell).\\
+\\
+One day, the warden visits your cell. He confesses that he loves mathematics, and decides to offer your society a game to win their freedom. If any of the prisoners are able to figure out what $n$ is, they may shout out loud "There are $n$ prisoners!" (the cells are monitored with security cameras/mics). If they are correct, all prisoners will go free, and if not, they will all be executed.\\
+\\
+The warden allows you to devise a plan for everyone else to follow. He will make $n-1$ copies of this plan, and allow every other prisoner to read it. The warden of course will also read your plan, and will perform the cell rearrangements in such a way to make it fail if he can.\\
+\\
+What plan allows the prisoners to guarantee their freedom?\\
+\\
+Extra for Experts: Can you find a plan which doesn't require the prisoners to make random decisions?
+Notes: There is no lateral thinking required to solve this. Assume the prisoners have perfect, infinite memory, including knowledge of how many days have elapsed.\\
+\\
+\\
+It is significant that you are one of the prisoners, and that you devise the plan. It means that while all $n-1$ other prisoners must follow the same strategy, you may follow a different strategy.\\
+\\
+I will give priority to accepting answers which fulfill the "Extra for Experts" condition. This means there must exist a function $B(n)$ such your plan is guaranteed to stop after $B(n)$ days when there are $n$ prisoners.\\
+\\
+This is the hardest puzzle I know, but there is a solution.
+
+
+
+\section*{Solution}
+We construct two processes $(A)$ and $(B)$. With $(A)$ we will find an upper bound on $n$, then using $(A)$ and $(B)$ we will find $n$ exactly. "The others" refers to the other prisoners, and "everyone" refers to the others AND you.
+
+\subsection*{A}
+Perform the following procedure for integer $k$, beginning with $k=1$ and incrementing $k$ by $1$ until the result of the procedure is "light" (read on for an explanation):
+
+\subsubsection*{1.} The others begin by leaving their switch off, while you begin by leaving your switch on. This is the first of $k$ days. For the other $k-1$ days, everyone follows the rule of "on if my switch was on yesterday or my light was on yesterday". We note that each day the number of people with their lights on can at most double, and due to the circular nature of the prison lighting system, if not all prisoners have their switches on one day, at least one more prisoner will have his switch on the next day. In addition, if all prisoners have their switches on during this, they will all continue to have their switches on. Thus, on the $k^{th}$ day, there will be $m$ people with their switches on, where $min(n,k) \leq m \leq 2^{k-1}$.\\
+\\
+
+
+
+\end{document}
