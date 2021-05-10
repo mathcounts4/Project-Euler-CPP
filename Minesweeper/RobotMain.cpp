@@ -1,4 +1,6 @@
 #include "Board.hpp"
+#include "Keyboard.hpp"
+#include "../DebugPrint.hpp"
 #include "../Now.hpp"
 #include "../TypeUtils.hpp"
 #include "../Wait.hpp"
@@ -6,26 +8,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
-
-[[noreturn]] static void dieWith(std::string const& message) {
-    throw std::runtime_error(message);
-}
-
-[[noreturn]] static void noBoard(std::string const& timeout) {
-    dieWith("No board found within " + timeout + ".");
-}
-
-[[noreturn]] static void noMove() {
-    dieWith("No move found.");
-}
-
-[[noreturn]] static void manualMove() {
-    dieWith("Mouse manually moved.");
-}
-
-[[noreturn]] static void noBoardChange() {
-    dieWith("No board change after automatic move.");
-}
 
 template<class Speed>
 static SI mainn(Speed&& speed) {
@@ -37,26 +19,35 @@ static SI mainn(Speed&& speed) {
 	std::optional<ScreenBoard> screenBoard = ScreenBoard::findFromScreen(timeout);
 	auto mousePositionBeforeGame = Mouse::position();
 	if (!screenBoard) {
-	    noBoard(time);
+	    std::cout << "No board found within " << time << "." << std::endl;
+	    continue;
 	}
 
 	ScreenBoard& board = *screenBoard;
 	auto lastMousePos = mousePositionBeforeGame;
-	bool isFirstMove = true;
-	while (true) {
+	Optional<void> ok;
+	bool manualCancel = false;
+	for (bool isFirstMove = true; true; isFirstMove = false) {
 	    auto fast = speed(); (void)fast;
-	    board.print();
+	    if (debug::doPrint) {
+		board.print();
+	    }
 	    if (lastMousePos != Mouse::position()) {
-		manualMove();
+		manualCancel = true;
+		ok = Failure("Mouse manually moved.");
+		break;
 	    }
 	    auto beforeMove = now();
 	    auto moveResult = board.doNextMove();
 	    lastMousePos = Mouse::position();
 	    switch (moveResult) {
 	      case ScreenBoard::MoveResult::NONE_AVAILABLE:
-		noMove();
+		ok = Failure("No move found.");
+		break;
 	      case ScreenBoard::MoveResult::MANUALLY_CANCELLED:
-		manualMove();
+		manualCancel = true;
+		ok = Failure("Mouse manually moved.");
+		break;
 	      case ScreenBoard::MoveResult::MOVED:
 		break;
 	      case ScreenBoard::MoveResult::MOVED_BUT_NO_CHANGE:
@@ -65,30 +56,44 @@ static SI mainn(Speed&& speed) {
 		    // from another program to the one with minesweeper
 		    // in which case the first click had no change in board.
 		    // In this case, just ignore and move again.
-		    noBoardChange();
+		    ok = Failure("No board change after automatic move.");
 		}
+		break;
 	    }
-	    if (board.isDone()) {
+	    if (board.isDone() || !ok) {
 		break;
 	    }
 	    auto timeSoFar = timeFrom(beforeMove);
 	    if (timeSoFar < reactionTime) {
 		waitFor(reactionTime - timeSoFar);
 	    }
-	    isFirstMove = false;
 	}
 	if (board.won()) {
-	    std::cout << "Won! Finished board:" << std::endl;
+	    std::cout << "Won!" << std::endl;
 	} else if (board.lost()) {
-	    std::cout << "Lost :( board:" << std::endl;
+	    std::cout << "Lost :(" << std::endl;
+	} else if (ok) {
+	    std::cout << "Finished but unsure of result." << std::endl;
 	} else {
-	    std::cout << "Finished board (unsure if win or loss since squares didn't update):" << std::endl;
+	    std::cout << ok.cause() << std::endl;
 	}
+	std::cout << "Final board:" << std::endl;
 	board.print();
-        Mouse::realisticMove(mousePositionBeforeGame);
-	waitFor(reactionTime);
-	if (board.lost()) {
-	    std::cout << "Starting new game in 2s. Move mouse to cancel." << std::endl;
+	if (!manualCancel && !board.lost()) {
+	    auto const currentPos = Mouse::position();
+	    std::cout << "Pressing [Return] in 5 seconds. Move mouse to cancel." << std::endl;
+	    waitFor(Time(5));
+	    if (currentPos == Mouse::position()) {
+		// In case a "won" popup is here:
+		Keyboard::pressKey(Key::RETURN);
+	    } else {
+		manualCancel = true;
+	    }
+	}
+	if (!manualCancel) {
+	    Mouse::realisticMove(mousePositionBeforeGame);
+	    waitFor(reactionTime);
+	    std::cout << "Clicking to start a new game in 2s. Move mouse to cancel." << std::endl;
 	    waitFor(Time(2));
 	    if (Mouse::position() == mousePositionBeforeGame) {
 		Mouse::leftClick();

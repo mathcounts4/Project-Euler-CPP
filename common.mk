@@ -77,7 +77,7 @@ endif
 ifeq (0,$(DEBUG))
 BUILD_T := -Ofast
 else
-BUILD_T := -O0 -g
+BUILD_T := -O0 -g -DDEBUG
 endif
 
 CC      := clang++

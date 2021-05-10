@@ -61,12 +61,12 @@ constexpr char end = '}';
 std::string const ellipsis = "...";
 
 template<class T>
-void insert(std::vector<T> & v, T&& t) { v.push_back(std::forward<T>(t)); }
+void insert(std::vector<T>& v, T&& t) { v.push_back(std::forward<T>(t)); }
 
 template<class T>
-void insert(std::set<T> & s, T&& t) { s.insert(std::forward<T>(t)); }
+void insert(std::set<T>& s, T&& t) { s.insert(std::forward<T>(t)); }
 
 template<class T>
-void insert(std::unordered_set<T> & s, T&& t) { s.insert(std::forward<T>(t)); }
+void insert(std::unordered_set<T>& s, T&& t) { s.insert(std::forward<T>(t)); }
 
 } /* namespace Container */

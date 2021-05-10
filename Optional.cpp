@@ -11,7 +11,7 @@ Optional<void>::Optional()
 }
 
 Optional<void>::Optional(Failure f)
-    : value{std::in_place,std::move(f.reason)} {
+    : value{std::in_place, std::move(f.reason)} {
 }
 
 Optional<void>::operator bool() const {
@@ -19,18 +19,21 @@ Optional<void>::operator bool() const {
 }
 
 std::string const & Optional<void>::cause() const {
-    if (*this)
+    if (*this) {
 	throw_exception<BadOptionalAccess>("cause() called on a valid Optional");
+    }
     return *value;
 }
 
 void Optional<void>::operator*() const {
-    if (!*this)
+    if (!*this) {
 	throw_exception<BadOptionalAccess>(cause());
+    }
 }
 
 void Optional<void>::deref_without_stack() const {
-    if (!*this)
+    if (!*this) {
 	throw_exception_no_stack<BadOptionalAccess>(cause());
+    }
 }
 

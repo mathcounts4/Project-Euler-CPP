@@ -2,6 +2,7 @@
 
 #include "MouseController.hpp"
 #include "View.hpp"
+#include "../MyHashUtil.hpp"
 #include "../Optional.hpp"
 #include "../Wait.hpp"
 
@@ -24,11 +25,22 @@ struct PixelPosition {
 	return p1.x < p2.x;
     }
 };
+MAKE_HASHABLE(PixelPosition, p, p.x, p.y);
 
 struct BoardPosition {
     unsigned int x;
     unsigned int y;
+    friend inline bool operator==(BoardPosition const& p1, BoardPosition const& p2) {
+	return p1.x == p2.x && p1.y == p2.y;
+    }
+    friend inline bool operator<(BoardPosition const& p1, BoardPosition const& p2) {
+	if (p1.y != p2.y) {
+	    return p1.y < p2.y;
+	}
+	return p1.x < p2.x;
+    }
 };
+MAKE_HASHABLE(BoardPosition, p, p.x, p.y);
 
 class Board {
   public:
@@ -39,11 +51,13 @@ class Board {
   public:
     static constexpr Data UNKNOWN = ' ';
     static constexpr Data MINE = '*';
+    static constexpr Data EXPLODED_MINE = 'X';
+    static constexpr Data SAFE_UNKNOWN = '#';
     
   public:
     Board(unsigned int width, unsigned int height, unsigned int mines);
 
-    std::vector<Move> nextCorrectMoves() const;
+    std::vector<Move> nextCorrectMoves();
     Optional<Move> nextGuessMove() const;
     std::vector<BoardPosition> neighbors(BoardPosition const& position) const;
     void print() const;
@@ -55,6 +69,7 @@ class Board {
     }
     bool isDone() const;
     bool isUnknown(BoardPosition const& position) const;
+    bool isSafeUnknown(BoardPosition const& position) const;
     bool isMine(BoardPosition const& position) const;
 
     void mark(BoardPosition const& position, Data value);
@@ -73,6 +88,7 @@ class Board {
     unsigned int const fWidth;
     unsigned int const fHeight;
     std::vector<std::vector<Data>> fTiles;
+    bool fCanRevealSurrounding;
     unsigned int fMinesLeft;
 };
 

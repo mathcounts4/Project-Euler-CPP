@@ -39,7 +39,7 @@ SI main(Argc const, Argv const) {
 	for (SZ j = 0; j < 200; ++j) {
 	    auto pixel = screenshot.at(j, i);
 	    char colorCode = code(pixel);
-	    // changes terminal color then prints a space
+	    // changes terminal text color and background color then prints a space
 	    std::cout << "\x1b[3" << colorCode << ";4" << colorCode << "m";
 	    std::cout << " ";
 	}

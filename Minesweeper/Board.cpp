@@ -2,6 +2,7 @@
 #include "Keyboard.hpp"
 #include "MouseController.hpp"
 #include "View.hpp"
+#include "../DebugPrint.hpp"
 #include "../Now.hpp"
 #include "../Rand.hpp"
 #include "../Wait.hpp"
@@ -10,11 +11,17 @@
 #include <fstream>
 #include <map>
 #include <set>
+#include <unistd.h>
+#include <unordered_map>
+#include <unordered_set>
+
+#define CAN_REVEAL_SURROUNDING false
 
 Board::Board(unsigned int width, unsigned int height, unsigned int mines)
     : fWidth(width)
     , fHeight(height)
     , fTiles(height, std::vector<Data>(width, UNKNOWN))
+    , fCanRevealSurrounding(CAN_REVEAL_SURROUNDING)
     , fMinesLeft(mines) {
 }
 
@@ -57,20 +64,19 @@ std::vector<Board::Move> Board::movesFromTryingPossibilities(BoardPosition const
     };
 
     std::vector<BoardPosition> unknownNeighbors;
-    std::map<std::pair<unsigned int, unsigned int>, MineInfo> affected;
+    std::unordered_map<BoardPosition, MineInfo> affected;
     for (auto const& neighbor : neighbors(pos)) {
 	if (isUnknown(neighbor)) {
 	    unknownNeighbors.push_back(neighbor);
 	    for (auto const& nn : neighbors(neighbor)) {
-		auto const& [x, y] = nn;
 		auto const nnVal = getData(nn);
 		if ('0' <= nnVal && nnVal <= '8') {
-		    if (!affected.count({x, y})) {
+		    if (!affected.count(nn)) {
 			unsigned int const expectedMines = static_cast<unsigned int>(nnVal - '0');
 			auto [numUnknown, numMines] = adj(nn);
 			auto numAdjMines = expectedMines - numMines;
 			auto numAdjSafe = numUnknown - numAdjMines;
-			affected.insert({{x, y}, {numAdjMines, numAdjSafe}});
+			affected.insert({nn, {numAdjMines, numAdjSafe}});
 		    }
 		}
 	    }
@@ -90,8 +96,8 @@ std::vector<Board::Move> Board::movesFromTryingPossibilities(BoardPosition const
 	    auto const neighbor = unknownNeighbors[ni];
 	    auto const mask = 1U << ni;
 	    bool const isMine = (i & mask) != 0U;
-	    for (auto const& [nnx, nny] : neighbors(neighbor)) {
-		if (auto it = affectedCopy.find({nnx, nny}); it != affectedCopy.end()) {
+	    for (auto const& nn : neighbors(neighbor)) {
+		if (auto it = affectedCopy.find(nn); it != affectedCopy.end()) {
 		    MineInfo& info = it->second;
 		    unsigned int& maxCount = isMine ? info.fMaxAdjUnknownMines : info.fMaxAdjUnknownSafe;
 		    if (maxCount > 0) {
@@ -127,85 +133,108 @@ std::vector<Board::Move> Board::movesFromTryingPossibilities(BoardPosition const
     return moves;
 }
 
-std::vector<Board::Move> Board::nextCorrectMoves() const {
-    // ... should make judements about neighboring numbers with shared unknown neighbors:
-    // x?
-    // 1?
-    // 2?
-    // y?
-    // x and y are known, but values don't matter
-    // 1 and 2 share the 2 ?s to their right,
-    // so we can conclude that the ? right of x is safe,
-    // and that the ? right of y is a bomb.
-    std::vector<Move> moves;
-    using FakePosForSet = std::pair<unsigned int, unsigned int>;
-    std::set<FakePosForSet> willBeRevealedSafe;
-    std::set<FakePosForSet> willBeRevealedMine;
+std::vector<Board::Move> Board::nextCorrectMoves() {
+    std::unordered_set<BoardPosition> willBeRevealed;
+    // As we add to this set, we also mark the board:
+    // Mines are marked as mines,
+    // Safe unknown spaces are marked as SAFE_UNKNOWN.
+    // Spaces to reveal all around (after marking all mines in the list) are already marked with their number.
 
-    // first: look for squares where all remaining neighbors are all mines or all safe
-    for (unsigned int y = 0; y < fHeight; ++y) {
-	auto const& row = fTiles[y];
-	for (unsigned int x = 0; x < fWidth; ++x) {
-	    auto val = row[x];
-	    if (!('0' <= val && val <= '8')) {
-		continue;
-	    }
-	    auto expectedMines = static_cast<unsigned int>(val - '0');
-	    auto [numUnknown, numMines] = adj({x, y});
-	    if (numUnknown == 0) {
-		continue;
-	    }
-	    if (expectedMines < numMines) {
-		continue;
-	    }
-	    auto numUnknownMines = expectedMines - numMines;
-	    if (numUnknownMines == 0 && (false)) {
-		moves.push_back({{x, y}, Mark::REVEAL_SURROUNDING});
-		for (auto [i, j] : neighbors({x, y})) {
-		    if (isUnknown({i, j})) {
-			willBeRevealedSafe.insert({i, j});
-		    }
+    bool anyChange = true;
+    auto mark = [this, &willBeRevealed, &anyChange](BoardPosition const& position, Data data) {
+	if (willBeRevealed.emplace(position).second) {
+	    this->mark(position, data);
+	    anyChange = true;
+	}
+    };
+    while (anyChange) {
+	anyChange = false;
+	for (unsigned int y = 0; y < fHeight; ++y) {
+	    for (unsigned int x = 0; x < fWidth; ++x) {
+		auto val = getData({x, y});
+		if (!('0' <= val && val <= '8')) {
+		    continue;
 		}
-	    } else if (numUnknownMines == numUnknown) {
-		for (auto [i, j] : neighbors({x, y})) {
-		    if (isUnknown({i, j})) {
-			if (willBeRevealedMine.insert({i, j}).second) {
-			    moves.push_back({{i, j}, Mark::MINE});
+		BoardPosition const pos{x, y};
+		// first: look for squares where all remaining neighbors are all mines or all safe
+		auto expectedMines = static_cast<unsigned int>(val - '0');
+		auto [numUnknown, numMines] = adj(pos);
+		if (numUnknown == 0) {
+		    continue;
+		}
+		if (expectedMines < numMines) {
+		    throw_exception<std::logic_error>("(" + std::to_string(x) + "," + std::to_string(y) + "): found " + std::to_string(numMines) + " mines, but only expected " + std::to_string(expectedMines));
+		}
+		auto numUnknownMines = expectedMines - numMines;
+		if (numUnknownMines == 0) {
+		    if (fCanRevealSurrounding) {
+			mark(pos, val);
+		    }
+		    for (auto const& n : neighbors(pos)) {
+			if (isUnknown(n)) {
+			    mark(n, SAFE_UNKNOWN);
 			}
 		    }
-		}
-	    } else {
-		for (auto const& move : movesFromTryingPossibilities({x, y}, numUnknownMines)) {
-		    auto [mx, my] = move.first;
-		    auto mark = move.second;
-		    if (mark == Mark::MINE && !willBeRevealedMine.count({mx, my})) {
-			moves.push_back(move);
-			willBeRevealedMine.insert({mx, my});
-		    } else if (mark == Mark::REVEAL && !willBeRevealedSafe.count({mx, my})) {
-			moves.push_back(move);
-			willBeRevealedSafe.insert({mx, my});
+		} else if (numUnknownMines == numUnknown) {
+		    for (auto const& n : neighbors(pos)) {
+			if (isUnknown(n)) {
+			    mark(n, MINE);
+			}
+		    }
+		} else {
+		    for (auto const& move : movesFromTryingPossibilities(pos, numUnknownMines)) {
+			auto [markPos, markKind] = move;
+			if (markKind == Mark::MINE) {
+			    mark(markPos, MINE);
+			} else if (markKind == Mark::REVEAL) {
+			    mark(markPos, SAFE_UNKNOWN);
+			}
 		    }
 		}
 	    }
 	}
     }
     
-    for (auto const& move : moves) {
-	auto const& [pos, mark] = move;
-	auto [x, y] = pos;
-	switch (mark) {
-	  case Mark::MINE:
-	    std::cout << "Marking as mine: ";
-	    break;
-	  case Mark::REVEAL_SURROUNDING:
-	    std::cout << "Revealing surrounding: ";
-	    break;
-	  case Mark::REVEAL:
-	    std::cout << "Revealing: ";
-	    break;
+    std::vector<Move> moves;
+    for (auto const& pos : willBeRevealed) {
+	if (isMine(pos)) {
+	    moves.emplace_back(pos, Mark::MINE);
+	} else if (isSafeUnknown(pos)) {
+	    bool needToReveal = true;
+	    for (auto const& n : neighbors(pos)) {
+		if (willBeRevealed.count(n) && !isMine(n) && !isSafeUnknown(n)) {
+		    // revelaing all around neighbor n, so don't need to reveal this one by itself.
+		    needToReveal = false;
+		    break;
+		}
+	    }
+	    if (needToReveal) {
+		moves.emplace_back(pos, Mark::REVEAL);
+	    }
+	} else {
+	    // should be a number, and we reveal surrounding squares
+	    moves.emplace_back(pos, Mark::REVEAL_SURROUNDING);
 	}
-	std::cout << x << " " << y << std::endl;
     }
+
+    std::sort(moves.begin(), moves.end(), [](Move const& a, Move const& b) {
+	auto const& [aPos, aMark] = a;
+	auto const& [bPos, bMark] = b;
+	auto preference = [](Mark m) {
+	    switch (m) {
+	      case Mark::MINE:
+		return 1;
+	      case Mark::REVEAL:
+		return 2;
+	      case Mark::REVEAL_SURROUNDING:
+		return 3;
+	    }
+	};
+	if (aMark != bMark) {
+	    return preference(aMark) < preference(bMark);
+	}
+	return aPos < bPos;
+    });
     
     return moves;
 }
@@ -234,25 +263,27 @@ Optional<Board::Move> Board::nextGuessMove() const {
 	for (unsigned int x = 0; x < fWidth; ++x) {
 	    auto data = getData({x, y});
 	    if (data == UNKNOWN) {
-		considerMove(1, {{x, y}, Mark::REVEAL});
-	    } else if ('0' <= data && data <= '8') {
-		auto mines = static_cast<unsigned int>(data - '0');
-		auto const& [numUnknown, foundMines] = adj({x, y});
-		if (numUnknown > 0) {
-		    auto unknownMines = mines - foundMines;
-		    auto mineProbability = static_cast<double>(unknownMines) / numUnknown;
-		    for (auto const& n : neighbors({x, y})) {
-			if (isUnknown(n)) {
-			    considerMove(mineProbability, {n, Mark::REVEAL});
-			}
+		double maxProbFromNeighbors = -1;
+		for (auto const& neighbor : neighbors({x, y})) {
+		    auto neighborData = getData(neighbor);
+		    if ('0' <= neighborData && neighborData <= '8') {
+			unsigned int numMines = static_cast<unsigned int>(neighborData - '0');
+			auto const& [numUnknown, foundMines] = adj(neighbor);
+			auto minesLeft = numMines - foundMines;
+			maxProbFromNeighbors = std::max(maxProbFromNeighbors, static_cast<double>(minesLeft) / numUnknown);
 		    }
 		}
+		if (maxProbFromNeighbors < 0) {
+		    // no known neighbors - treat just worse than 0.5
+		    maxProbFromNeighbors = 0.51;
+		}
+		considerMove(maxProbFromNeighbors, {{x, y}, Mark::REVEAL});
 	    }
 	}
     }
     auto move = bestMove();
     if (move) {
-	std::cout << "No idea! Randomly revealing: " << move->first.x << " " << move->first.y << std::endl;
+	debug::cout << "No idea! Randomly revealing: " << move->first.x << " " << move->first.y << std::endl;
     }
     return move;
 }
@@ -276,15 +307,73 @@ std::vector<BoardPosition> Board::neighbors(BoardPosition const& position) const
 void Board::print() const {
     std::cout << "\n";
     std::cout << " " << std::string(width(), '-') << " " << "\n";
+    auto const canColorFormat = isatty(fileno(stdout));
     for (auto const& row : fTiles) {
 	std::cout << "|";
 	for (Data data : row) {
-	    if (data == ' ') {
-		std::cout << "?";
-	    } else if (data == '0') {
-		std::cout << ' ';
-	    } else {
+	    if (!canColorFormat) {
+		if (data == UNKNOWN) {
+		    data = '?';
+		} else if (data == '0') {
+		    data = ' ';
+		}
 		std::cout << data;
+	    } else {
+		// canColorFormat
+		char textColor = '0'; // black
+		char const* extra = "";
+		Optional<char const*> altData(Failure("No alt data"));
+		switch (data) {
+		  case '3':
+		    textColor = '1'; // red
+		    break;
+		  case '2':
+		    textColor = '2'; // green
+		    break;
+		  case '4':
+		    textColor = '3'; // yellow
+		    break;
+		  case '1':
+		    textColor = '4'; // blue
+		    break;
+		  case '5':
+		    textColor = '5'; // magenta
+		    break;
+		  case '6':
+		    textColor = '6'; // cyan
+		    break;
+		  case '7':
+		  case '8':
+		    textColor = '7'; // white
+		    break;
+		  case '0':
+		    data = ' ';
+		    break;
+		  case UNKNOWN:
+		    altData = "\u25A0"; // unicode square
+		    textColor = '7'; // white
+		    break;
+		  case SAFE_UNKNOWN:
+		    textColor = '7'; // white
+		    break;
+		  case MINE:
+		    altData = "\u25A0"; // unicode square
+		    textColor = '1'; // red
+		    break;
+		  case EXPLODED_MINE:
+		    data = MINE;
+		    textColor = '0'; // black
+		    extra = ";41"; // background: red
+		    break;
+		}
+		std::cout << "\x1b[3" << textColor << extra << "m";
+		if (altData) {
+		    std::cout << *altData;
+		    //std::cout << "A";
+		} else {
+		    std::cout << data;
+		}
+		std::cout << "\x1b[0m"; // reset
 	    }
 	}
 	std::cout << "|" << "\n";
@@ -309,8 +398,12 @@ bool Board::isUnknown(BoardPosition const& position) const {
     return hasValue(position, UNKNOWN);
 }
 
+bool Board::isSafeUnknown(BoardPosition const& position) const {
+    return hasValue(position, SAFE_UNKNOWN);
+}
+
 bool Board::isMine(BoardPosition const& position) const {
-    return hasValue(position, MINE);
+    return hasValue(position, MINE) || hasValue(position, EXPLODED_MINE);
 }
 
 void Board::mark(BoardPosition const& position, Data value) {
@@ -319,7 +412,7 @@ void Board::mark(BoardPosition const& position, Data value) {
 	value += '0';
     }
     fTiles[position.y][position.x] = value;
-    if (value == MINE) {
+    if (isMine(position)) {
 	--fMinesLeft;
     }
 }
@@ -369,14 +462,45 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
     if (nextMoves.empty()) {
 	return MoveResult::NONE_AVAILABLE;
     }
+
+    // TODO: make set of to-be-revealed positions
+    // prefer mines, then individual reveals not covered by another move, then group reveals.
+    // When going super fast, making a mine then revealing adjacent sometimes fails to update fast enough.
+    // If there are mines and group reveals but no individual reveals, add a dummy individual reveal.
+
+    
+
+    std::sort(nextMoves.begin(), nextMoves.end(), [](Board::Move const& x, Board::Move const& y) {
+	auto [xPos, xKind] = x;
+	auto [yPos, yKind] = y;
+	auto xMine = xKind == Board::Mark::MINE;
+	auto yMine = yKind == Board::Mark::MINE;
+	auto xSurrounding = xKind == Board::Mark::REVEAL_SURROUNDING;
+	auto ySurrounding = yKind == Board::Mark::REVEAL_SURROUNDING;
+	if (xMine != yMine) {
+	    // prefer mines first
+	    return xMine;
+	}
+	if (xSurrounding != ySurrounding) {
+	    // prefer surrounding over plain reveal
+	    return xSurrounding;
+	}
+	auto [xx, xy] = xPos;
+	auto [yx, yy] = yPos;
+	if (xy != yy) {
+	    return xy < yy;
+	}
+	return xx < yx;
+    });
+    
     std::vector<std::pair<BoardPosition, LookFor>> updateAfter;
-    std::set<std::pair<unsigned int, unsigned int>> revealedPositions;
+    std::unordered_set<BoardPosition> revealedPositions;
     for (auto const& [boardPos, mark] : nextMoves) {
 	switch (mark) {
 	    // may not need to do this move, if the tile(s) are already revealed
 	  case Board::Mark::REVEAL:
 	  case Board::Mark::MINE: {
-	      if (!fBoard.isUnknown(boardPos) && !revealedPositions.count({boardPos.x, boardPos.y})) {
+	      if (revealedPositions.count(boardPos)) {
 		  continue;
 	      }
 	      break;
@@ -384,7 +508,7 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
 	  case Board::Mark::REVEAL_SURROUNDING: {
 	      bool shouldReveal = false;
 	      for (auto const& neighbor : fBoard.neighbors(boardPos)) {
-		  if (fBoard.isUnknown(neighbor) && !revealedPositions.count({neighbor.x, neighbor.y})) {
+		  if (!revealedPositions.count(neighbor)) {
 		      shouldReveal = true;
 		      break;
 		  }
@@ -398,17 +522,20 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
 	if (!moveToBoardPosition(boardPos)) {
 	    return MoveResult::MANUALLY_CANCELLED;
 	}
+	auto [x, y] = boardPos;
 	switch (mark) {
 	  case Board::Mark::REVEAL: {
+	      debug::cout << "Revealing: " << x << " " << y << std::endl;
 	      auto manualMoved = Mouse::cancellableLeftClick();
 	      if (manualMoved == Mouse::Moved::YES) {
 		  return MoveResult::MANUALLY_CANCELLED;
 	      }
 	      updateAfter.emplace_back(boardPos, LookFor::EXACT_SQUARE);
-	      revealedPositions.insert({boardPos.x, boardPos.y});
+	      revealedPositions.insert(boardPos);
 	      break;
 	  }
 	  case Board::Mark::MINE: {
+	      debug::cout << "Marking as mine: " << x << " " << y << std::endl;
 	      fBoard.mark(boardPos, Board::MINE);
 	      auto manualMoved = Mouse::cancellableRightClick();
 	      if (manualMoved == Mouse::Moved::YES) {
@@ -417,7 +544,15 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
 	      break;
 	  }
 	  case Board::Mark::REVEAL_SURROUNDING: {
+	      debug::cout << "Revealing surrounding: " << x << " " << y << std::endl;
 	      if (fUsesSpaceForSurrounding) {
+		  // Pressing space too fast sometimes fails.
+		  // Always wait, but speed up by a decent factor.
+		  // But alwaysWait() can hamper entire program optimization, even if never called at runtime (needs evidence).
+#if CAN_REVEAL_SURROUNDING
+		  auto wait = alwaysWait();
+		  auto speed = NormalDuration::speedUpBy(7);
+#endif
 		  Keyboard::pressKey(Key::SPACE);
 	      } else {
 		  auto manualMoved = Mouse::cancellableLeftClick();
@@ -427,7 +562,7 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
 	      }
 	      updateAfter.emplace_back(boardPos, LookFor::ADJACENT_UNKNOWN);
 	      for (auto const& neighbor : fBoard.neighbors(boardPos)) {
-		  revealedPositions.insert({neighbor.x, neighbor.y});
+		  revealedPositions.insert(neighbor);
 	      }
 	      break;
 	  }
@@ -439,7 +574,7 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
 	Mouse::realisticMove(boardToNormalPixel({fBoard.width() + 1, fBoard.height() + 1}));
 	failedToUpdate = true;
         auto before = now();
-	while (failedToUpdate && timeFrom(before).count() < 0.2) {
+	for (auto attempt = 1; failedToUpdate && timeFrom(before).count() < 0.2; ++attempt) {
 	    auto screen = Screen::capture();
 	    if (!isValidOuterBorder(screen,
 				    fOutsideBorder,
@@ -447,11 +582,14 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
 				    fOuterBorderMaxX,
 				    fOuterBorderMinY,
 				    fOuterBorderMaxY)) {
+		debug::cout << "Try " << attempt << ": couldn't find the board border" << std::endl;
 		continue;
 	    }
 	    failedToUpdate = false;
 	    for (auto const& [pos, lookFor] : updateAfter) {
 		if (!updateFromScreen(screen, pos, lookFor)) {
+		    auto [x, y] = pos;
+		    debug::cout << "Try " << attempt << ": failed to update " << x << " " << y << std::endl;
 		    failedToUpdate = true;
 		    break;
 		} else if (lookFor == LookFor::EXACT_SQUARE && fBoard.isMine(pos)) {
@@ -468,9 +606,10 @@ ScreenBoard::MoveResult ScreenBoard::doNextMove() {
 	auto const width = fBoard.width();
 	for (unsigned int i = 0; i < width; ++i) {
 	    for (unsigned int j = 0; j < height; ++j) {
-		if (fBoard.isUnknown({i, j}) && !revealedPositions.count({i, j})) {
-		    // Found a truly unknown square.
+		if (fBoard.isUnknown({i, j}) || fBoard.isSafeUnknown({i, j})) {
+		    // Found an unknown square.
 		    // Give up!
+		    debug::cout << "Unknown at " << i << " " << j << std::endl;
 		    return MoveResult::MOVED_BUT_NO_CHANGE;
 		}
 	    }
@@ -692,6 +831,12 @@ std::optional<ScreenBoard> ScreenBoard::findFromCurrentScreen() {
     auto [firstTileXStart, firstTileYStart] = topLeft;
     auto [boardWidth, boardHeight] = boardSize;
     auto [xDistBetween, yDistBetween] = distBetween;
+    if (xDistBetween != yDistBetween) {
+	return std::nullopt;
+    }
+    if (boardWidth < 5 || boardHeight < 5) {
+	return std::nullopt;
+    }
     for (decltype(boardWidth) i = 0; i < boardWidth; ++i) {
 	for (decltype(boardHeight) j = 0; j < boardHeight; ++j) {
 	    auto eachRectPixel = screen[firstTileYStart + j * yDistBetween][firstTileXStart + i * xDistBetween];
@@ -848,7 +993,7 @@ bool ScreenBoard::updateFromScreen(Screen const& screen, BoardPosition const& po
     switch (lookFor) {
       case LookFor::ADJACENT_UNKNOWN: {
 	  for (auto [i, j] : fBoard.neighbors(position)) {
-	      if (fBoard.isUnknown({i, j})) {
+	      if (fBoard.isUnknown({i, j}) || fBoard.isSafeUnknown({i, j})) {
 		  if (!updateFromScreen(screen, {i, j}, LookFor::EXACT_SQUARE)) {
 		      return false;
 		  }

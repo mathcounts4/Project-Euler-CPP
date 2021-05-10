@@ -5,6 +5,7 @@
 #include <chrono>
 
 using Time = std::chrono::duration<double>;
+static constexpr auto forever = Time::max();
 
 class NormalDuration {
   public:
@@ -23,6 +24,9 @@ class NormalDuration {
 	: NormalDuration(time, Time(0)) {
     }
     double toDouble() const;
+    bool isForever() const {
+	return fMean == forever;
+    }
     friend void waitFor(NormalDuration const& duration);
 
   public:
@@ -41,4 +45,5 @@ static constexpr NormalDuration Immediately(std::chrono::milliseconds(0),
 
 Time timeFrom(std::chrono::time_point<std::chrono::system_clock> const& start);
 void waitFor(NormalDuration const& duration);
-ScopedSetValue<bool> neverWait();
+[[nodiscard]] ScopedSetValue<bool> alwaysWait();
+[[nodiscard]] ScopedSetValue<bool> neverWait();

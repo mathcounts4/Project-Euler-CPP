@@ -32,6 +32,10 @@ void waitFor(NormalDuration const& duration) {
     }
 }
 
+ScopedSetValue<bool> alwaysWait() {
+    return ScopedSetValue(neverWaitFlag, false);
+}
+
 ScopedSetValue<bool> neverWait() {
     return ScopedSetValue(neverWaitFlag, true);
 }

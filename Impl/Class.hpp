@@ -8,6 +8,7 @@
 #include "../TypeUtils.hpp"
 
 #include <array>
+#include <iostream>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -34,11 +35,13 @@ namespace std {
 template<class T> constexpr bool predefined_basic_ostream_shift_out =
     !is_a<std::basic_string,No_cvref<T> > && !std::is_pointer_v<No_cvref<T> > && !is_same<std::__1::__iom_t1,No_cvref<T> > && !is_same<std::__1::__iom_t2,No_cvref<T> > && !is_same<std::__1::__iom_t3,No_cvref<T> > && !is_a<std::__1::__iom_t4,No_cvref<T> > && !is_same<std::__1::__iom_t5,No_cvref<T> > && !is_same<std::__1::__iom_t6,No_cvref<T> > && !is_a<std::__1::__iom_t7,No_cvref<T> > && !is_a<std::__1::__iom_t8,No_cvref<T> > && !is_a<std::__1::__iom_t9,No_cvref<T> > && !is_a<std::__1::__iom_t10,No_cvref<T> >;
 
+namespace std {
 template<class... Args, class T>
 std::enable_if_t<predefined_basic_ostream_shift_out<T>,
 		 std::basic_ostream<Args...>&> operator<<(std::basic_ostream<Args...>& oss, T&& t) {
     return Class<No_cvref<T> >::print(oss,t);
 }
+} /* namespace std */
 
 /* global io and class info functions */
 template<class T> std::string to_string(T const & t) {
@@ -75,7 +78,7 @@ template<class T> Optional<T> from_string(std::string const & s) {
 template<class T> std::string class_name() {
     return Class<T>::name();
 }
-    
+
 template<class T> std::string cvref_string() {
     std::string result;
     for (std::pair<int,char const *> p :

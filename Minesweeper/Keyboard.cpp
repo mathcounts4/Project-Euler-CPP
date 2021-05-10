@@ -19,8 +19,6 @@ static std::atomic<int> capsLockCount{0};
 static std::atomic<int> functionCount{0};
 static std::atomic<int> helpCount{0};
 
-static constexpr auto forever = std::chrono::duration<double>::max();
-
 static std::atomic<int>* keyToModifierCount(Key key) {
     // https://developer.apple.com/documentation/coregraphics/cgeventflags
     switch (key) {
@@ -46,7 +44,6 @@ static std::atomic<int>* keyToModifierCount(Key key) {
 	return nullptr;
     }
 }
-
 static void triggerKeyEvent(Key key, bool down) {
     SafeCGEvent event = CGEventCreateKeyboardEvent(nullptr, static_cast<KeyInt>(key), down);
     event.trigger();
@@ -70,10 +67,12 @@ static void holdKeyThread(Key key,
 			  NormalDuration const& timeBetweenRepeats) {
     auto thisThreadId = std::this_thread::get_id();
     lastRepeatedHeldKeyThreadId = thisThreadId;
-    waitFor(delayBeforeFirstRepeat);
-    while (*keyStillHeld && thisThreadId == lastRepeatedHeldKeyThreadId) {
-	triggerKeyDownEvent(key);
-	waitFor(timeBetweenRepeats);
+    if (!delayBeforeFirstRepeat.isForever()) {
+	waitFor(delayBeforeFirstRepeat);
+	while (*keyStillHeld && thisThreadId == lastRepeatedHeldKeyThreadId) {
+	    triggerKeyDownEvent(key);
+	    waitFor(timeBetweenRepeats);
+	}
     }
     lastRepeatedHeldKeyThreadId.compare_exchange_strong(thisThreadId, std::thread::id());
 }

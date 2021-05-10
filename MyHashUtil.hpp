@@ -9,7 +9,7 @@ In the custom class file:
 3a. If using a non-template custom class:
     MAKE_HASHABLE(MyClass,x,x.member1,x.member2,...);
 3b. If using a template custom class:
-    MAKE_HASHABLE_TEMPLATE(<class A COMMA class B>,MyClass<A,B>,x,x.member1,...);
+    MAKE_HASHABLE_TEMPLATE(<class A COMMA_MACRO class B>,MyClass<A,B>,x,x.member1,...);
 */
 
 #pragma once
@@ -18,7 +18,7 @@ In the custom class file:
 #include <tuple> /* std::apply */
 #include <utility> /* std::forward */
 
-#define COMMA ,
+#define COMMA_MACRO ,
 
 #define MAKE_HASHABLE_TEMPLATE(hashTypes,Class,obj,...)		\
     template hashTypes						\
