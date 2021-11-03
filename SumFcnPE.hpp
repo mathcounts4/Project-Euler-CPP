@@ -11,7 +11,7 @@ namespace PE {
     Output<Function> SumFcn(std::vector<Input_Tuple<Function> > inputs) {
 	static_assert(is_a<Optional,Output<Function> >, "Function output should be Optional");
 	Output<Function> result(Failure("No inputs provided in list"));
-	for (auto const & input : inputs) {
+	for (auto const& input : inputs) {
 	    if (auto output = apply_tuple(Function,input)) {
 		if (result) {
 		    *result += std::move(*output);

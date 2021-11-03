@@ -1,13 +1,12 @@
 #include "BigInt.hpp"
 #include "Class.hpp"
 #include "ExitUtils.hpp"
-#include "Str.hpp"
 #include "TypeUtils.hpp"
 #include "Vec.hpp"
 
 // private data:
-Str const BigInt::INF_STR = "INF";
-Str const BigInt::NEG_INF_STR = "-INF";
+std::string const BigInt::INF_STR = "INF";
+std::string const BigInt::NEG_INF_STR = "-INF";
 
 
 // private functions:
@@ -66,25 +65,22 @@ BigInt BigInt::sqrt() const {
 // constructors
 BigInt::BigInt()
     : infinite(Infinite::False)
-    , negative(Negative::False) {}
-BigInt::BigInt(Str const & s) {
+    , negative(Negative::False) {
+}
+BigInt::BigInt(std::string const& s) {
     *this = *from_string<BigInt>(s);
 }
 BigInt::BigInt(Infinite inf, Negative neg)
     : infinite(inf)
-    , negative(neg) {}
-BigInt::BigInt(BigInt const &) = default;
-BigInt::BigInt(BigInt &&) = default;
-BigInt& BigInt::operator=(BigInt const &) = default;
-BigInt& BigInt::operator=(BigInt &&) = default;
-BigInt::~BigInt() = default;
+    , negative(neg) {
+}
 
 // infinite constants
-BigInt const & BigInt::Inf() {
+BigInt const& BigInt::Inf() {
     static BigInt const result{Infinite::True,Negative::False};
     return result;
 }
-BigInt const & BigInt::NegInf() {
+BigInt const& BigInt::NegInf() {
     static BigInt const result{Infinite::True,Negative::True};
     return result;
 }
@@ -103,7 +99,7 @@ SI BigInt::cmp() const {
 }
 
 // swap
-void BigInt::swap(BigInt & other) {
+void BigInt::swap(BigInt& other) {
     std::swap(infinite,other.infinite);
     std::swap(negative,other.negative);
     std::swap(data,other.data);
@@ -114,11 +110,11 @@ void BigInt::swap(BigInt & other) {
 BigInt::operator bool() const {
     return data.size() || inf();
 }
-BigInt::operator Str() const {
+BigInt::operator std::string() const {
     if (inf())
 	return neg() ? NEG_INF_STR : INF_STR;
     
-    Str result;
+    std::string result;
     BigInt copy = abs();
     
     do {
@@ -134,28 +130,27 @@ BigInt::operator Str() const {
 }
 
 // comparison operators
-B BigInt::operator<(BigInt const & other) const {
-    auto scale = [](BigInt const & x) -> SL {
-	return (x.neg() ? -1 : 1) *
-	SL(x.inf() ? 1L << 60 : x.data.size());
+B operator<(BigInt const& x, BigInt const& y) {
+    auto scale = [](BigInt const& b) -> SL {
+	return (b.neg() ? -1 : 1) *
+	SL(b.inf() ? 1L << 60 : b.data.size());
     };
 
-    if (scale(*this) != scale(other))
-	return scale(*this) < scale(other);
-	    
-    for (SZ i = data.size(); i--; )
-	if (data[i] != other.data[i])
-	    return (data[i] < other.data[i]) ^ neg();
+    if (scale(x) != scale(y))
+	return scale(x) < scale(y);
+    
+    for (SZ i = x.data.size(); i--; )
+	if (x.data[i] != y.data[i])
+	    return (x.data[i] < y.data[i]) ^ x.neg();
     return false;
 }
-B BigInt::operator>(BigInt const & o) const { return o < *this; }
-B BigInt::operator<=(BigInt const & o) const { return !(o < *this); }
-B BigInt::operator>=(BigInt const & o) const { return !(*this < o); }
-B BigInt::operator==(BigInt const & other) const
-{
-    return infinite == other.infinite && negative == other.negative && data == other.data;
+B operator>(BigInt const& x, BigInt const& y) { return y < x; }
+B operator<=(BigInt const& x, BigInt const& y) { return !(y < x); }
+B operator>=(BigInt const& x, BigInt const& y) { return !(x < y); }
+B operator==(BigInt const& x, BigInt const& y) {
+    return x.infinite == y.infinite && x.negative == y.negative && x.data == y.data;
 }
-B BigInt::operator!=(BigInt const & o) const { return !(*this == o); }
+B operator!=(BigInt const& x, BigInt const& y) { return !(x == y); }
 
 // arithmetic operators
 BigInt& BigInt::absMe() {
@@ -178,8 +173,8 @@ BigInt const BigInt::operator-() const { return BigInt(*this).negateMe(); }
 BigInt& BigInt::operator++() { return *this += 1; }
 BigInt& BigInt::operator--() { return *this -= 1; }
 
-BigInt& BigInt::operator+=(BigInt const & o) { return *this -= -o; }
-BigInt& BigInt::operator-=(BigInt const & other) {
+BigInt& BigInt::operator+=(BigInt const& o) { return *this -= -o; }
+BigInt& BigInt::operator-=(BigInt const& other) {
     if (this->abs() < other.abs()) {
 	*this = other - *this;
 	negateMe();
@@ -227,7 +222,7 @@ BigInt& BigInt::operator-=(BigInt const & other) {
 
     return *this;
 }
-BigInt& BigInt::operator*=(BigInt const & other) {
+BigInt& BigInt::operator*=(BigInt const& other) {
     if (!*this)
 	return *this;
     if (!other)
@@ -259,8 +254,8 @@ BigInt& BigInt::operator*=(BigInt const & other) {
     if (other.neg())
 	negateMe();
     BigInt result{Infinite::False,negative};
-    auto & rdata = result.data;
-    auto const & odata = other.data;
+    auto& rdata = result.data;
+    auto const& odata = other.data;
     SZ size = data.size();
     SZ osize = odata.size();
 	    
@@ -298,7 +293,7 @@ BigInt& BigInt::operator*=(BigInt const & other) {
     return *this;
 }
 // always rounds towards 0
-BigInt& BigInt::operator/=(BigInt const & other) {
+BigInt& BigInt::operator/=(BigInt const& other) {
     if (!other)
 	throw_exception<std::domain_error>("Division by zero");
     if (inf() && other.inf())
@@ -356,7 +351,7 @@ BigInt& BigInt::operator/=(BigInt const & other) {
     swap(result);
     return *this;
 }
-BigInt& BigInt::operator%=(BigInt const & other) {
+BigInt& BigInt::operator%=(BigInt const& other) {
     if (!other)
 	throw_exception<std::domain_error>("Mod by zero");
     if (inf())
@@ -481,18 +476,18 @@ BigInt& BigInt::operator>>=(SL shift) {
     return *this;
 }
 
-BigInt BigInt::operator+(BigInt const & o) const { return BigInt(*this) += o; }
-BigInt BigInt::operator-(BigInt const & o) const { return BigInt(*this) -= o; }
-BigInt BigInt::operator*(BigInt const & o) const { return BigInt(*this) *= o; }
-BigInt BigInt::operator/(BigInt const & o) const { return BigInt(*this) /= o; }
-BigInt BigInt::operator%(BigInt const & o) const { return BigInt(*this) %= o; }
+BigInt operator+(BigInt const& x, BigInt const& y) { return BigInt(x) += y; }
+BigInt operator-(BigInt const& x, BigInt const& y) { return BigInt(x) -= y; }
+BigInt operator*(BigInt const& x, BigInt const& y) { return BigInt(x) *= y; }
+BigInt operator/(BigInt const& x, BigInt const& y) { return BigInt(x) /= y; }
+BigInt operator%(BigInt const& x, BigInt const& y) { return BigInt(x) %= y; }
 BigInt BigInt::operator^(std::size_t exp) const { return BigInt(*this) ^= exp; }
 BigInt BigInt::operator<<(SL const l) const { return BigInt(*this) <<= l; }
 BigInt BigInt::operator>>(SL const l) const { return BigInt(*this) >>= l; }
 
 // Class<BigInt>
-template<> std::ostream& Class<BigInt>::print(std::ostream& oss, BigInt const & bi) {
-    return oss << Str(bi);
+template<> std::ostream& Class<BigInt>::print(std::ostream& oss, BigInt const& bi) {
+    return oss << std::string(bi);
 }
 
 template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is) {
@@ -535,10 +530,10 @@ template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is) {
     return result;
 }
 
-template<> Str Class<BigInt>::name() {
+template<> std::string Class<BigInt>::name() {
     return "BigInt";
 }
 
-template<> Str Class<BigInt>::format() {
+template<> std::string Class<BigInt>::format() {
     return "[-]?[0-9]{1+}";
 }

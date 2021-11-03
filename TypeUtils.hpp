@@ -111,6 +111,8 @@ namespace std {
     template<> struct make_unsigned<F> { using type = F; };
     template<> struct make_unsigned<D> { using type = D; };
     template<> struct make_unsigned<LD> { using type = LD; };
+    template<> struct make_unsigned<__int128_t> { using type = __uint128_t; };
+    template<> struct make_unsigned<__uint128_t> { using type = __uint128_t; };
 }
 
 /* common type between two inputs */
@@ -262,14 +264,14 @@ namespace detail {
     template<class T> struct Rem_S<T&,'l'> { using Type = T; };
     template<class T> struct Rem_S<T  ,'r'> { using Type = T; };
     template<class T> struct Rem_S<T&&,'r'> { using Type = T; };
-    template<class T> struct Rem_S<T         ,'c'> { using Type = T; };
-    template<class T> struct Rem_S<T const   ,'c'> { using Type = T; };
-    template<class T> struct Rem_S<T const & ,'c'> { using Type = T &; };
-    template<class T> struct Rem_S<T const &&,'c'> { using Type = T &&; };
-    template<class T> struct Rem_S<T            ,'v'> { using Type = T; };
-    template<class T> struct Rem_S<T volatile   ,'v'> { using Type = T; };
-    template<class T> struct Rem_S<T volatile & ,'v'> { using Type = T &; };
-    template<class T> struct Rem_S<T volatile &&,'v'> { using Type = T &&; };
+    template<class T> struct Rem_S<T        ,'c'> { using Type = T; };
+    template<class T> struct Rem_S<T const  ,'c'> { using Type = T; };
+    template<class T> struct Rem_S<T const& ,'c'> { using Type = T&; };
+    template<class T> struct Rem_S<T const&&,'c'> { using Type = T&&; };
+    template<class T> struct Rem_S<T           ,'v'> { using Type = T; };
+    template<class T> struct Rem_S<T volatile  ,'v'> { using Type = T; };
+    template<class T> struct Rem_S<T volatile& ,'v'> { using Type = T&; };
+    template<class T> struct Rem_S<T volatile&&,'v'> { using Type = T&&; };
     
     
     /* Copy_S details */

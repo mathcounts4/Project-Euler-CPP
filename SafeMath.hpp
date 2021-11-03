@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Class.hpp"
+#include "DebugPrint.hpp"
 #include "Math.hpp"
 #include "Memory.hpp"
 #include "TypeUtils.hpp"
@@ -15,6 +16,7 @@ template<class X> struct SafeMath {
     static_assert(is_pure<X>,"SafeMath can only be used with non-cvref types");
     enum State { Ok, Failed_Construction, Failed_Math };
     friend struct Class<SafeMath>;
+    template<class Y> friend struct SafeMath;
   private:
     Lazy<X> lazy_x;
     State state;
@@ -23,45 +25,61 @@ template<class X> struct SafeMath {
     X& x();
   public:
     template<class... Args> SafeMath(Args&&... args);
-    template<class Y, class = std::enable_if_t<is_same<SafeMath,No_cvref<Y> > > >
+    template<class Y, class = std::enable_if_t<is_same<SafeMath,No_cvref<Y>>>>
     SafeMath(Y&& y);
+    SafeMath(SafeMath const&);
     SafeMath(Fail_Construct);
     ~SafeMath();
     
     [[nodiscard]] bool ok() const; // returns if the value is valid
     void check() const; // throws if the value is invalid
-    [[nodiscard]] X const & value() const; // calls check() and returns the value
-    [[nodiscard]] X const & operator*() const; // same as value()
-    [[nodiscard]] operator X const &() const; // implicit conversion to value()
+    [[nodiscard]] X const& value() const; // calls check() and returns the value
+    [[nodiscard]] X const& operator*() const; // same as value()
+    [[nodiscard]] operator X const&() const; // implicit conversion to value()
 
     static SafeMath failure();
-    template<class Y> static SafeMath cast(Y const & y);
-    template<class Y> static SafeMath cast(SafeMath<Y> const & y);
+    template<class Y> static SafeMath cast(Y const& y);
+    template<class Y> static SafeMath cast(SafeMath<Y> const& y);
     
-    template<class Y> SafeMath<bool> operator<(Y const & y) const;
-    template<class Y> SafeMath<bool> operator>(Y const & y) const;
-    template<class Y> SafeMath<bool> operator<=(Y const & y) const;
-    template<class Y> SafeMath<bool> operator>=(Y const & y) const;
-    template<class Y> SafeMath<bool> operator==(Y const & y) const;
-    template<class Y> SafeMath<bool> operator!=(Y const & y) const;
+    template<class Y> SafeMath<bool> operator<(Y const& y) const;
+    template<class Y> SafeMath<bool> operator>(Y const& y) const;
+    template<class Y> SafeMath<bool> operator<=(Y const& y) const;
+    template<class Y> SafeMath<bool> operator>=(Y const& y) const;
+    template<class Y> SafeMath<bool> operator==(Y const& y) const;
+    template<class Y> SafeMath<bool> operator!=(Y const& y) const;
     
-    template<class Y> SafeMath& operator+=(Y const & y);
-    template<class Y> SafeMath& operator-=(Y const & y);
-    template<class Y> SafeMath& operator*=(Y const & y);
-    template<class Y> SafeMath& operator/=(Y const & y);
-    template<class Y> SafeMath& operator%=(Y const & y);
-    template<class Y> SafeMath& operator<<=(Y const & y);
-    template<class Y> SafeMath& operator>>=(Y const & y);
+    template<class Y> SafeMath<bool> operator<(SafeMath<Y> const& y) const;
+    template<class Y> SafeMath<bool> operator>(SafeMath<Y> const& y) const;
+    template<class Y> SafeMath<bool> operator<=(SafeMath<Y> const& y) const;
+    template<class Y> SafeMath<bool> operator>=(SafeMath<Y> const& y) const;
+    template<class Y> SafeMath<bool> operator==(SafeMath<Y> const& y) const;
+    template<class Y> SafeMath<bool> operator!=(SafeMath<Y> const& y) const;
     
-    template<class Y> [[nodiscard]] auto operator+(Y const & y) const;
-    template<class Y> [[nodiscard]] auto operator-(Y const & y) const;
-    template<class Y> [[nodiscard]] auto operator*(Y const & y) const;
-    template<class Y> [[nodiscard]] auto operator/(Y const & y) const;
-    template<class Y> [[nodiscard]] auto operator%(Y const & y) const;
-    template<class Y> [[nodiscard]] auto operator<<(Y const & y) const;
-    template<class Y> [[nodiscard]] auto operator>>(Y const & y) const;
+    template<class Y> SafeMath& operator+=(Y const& y);
+    template<class Y> SafeMath& operator-=(Y const& y);
+    template<class Y> SafeMath& operator*=(Y const& y);
+    template<class Y> SafeMath& operator/=(Y const& y);
+    template<class Y> SafeMath& operator%=(Y const& y);
+    template<class Y> SafeMath& operator<<=(Y const& y);
+    template<class Y> SafeMath& operator>>=(Y const& y);
+    
+    template<class Y> SafeMath& operator+=(SafeMath<Y> const& y);
+    template<class Y> SafeMath& operator-=(SafeMath<Y> const& y);
+    template<class Y> SafeMath& operator*=(SafeMath<Y> const& y);
+    template<class Y> SafeMath& operator/=(SafeMath<Y> const& y);
+    template<class Y> SafeMath& operator%=(SafeMath<Y> const& y);
+    template<class Y> SafeMath& operator<<=(SafeMath<Y> const& y);
+    template<class Y> SafeMath& operator>>=(SafeMath<Y> const& y);
+    
+    template<class Y> [[nodiscard]] auto operator+(Y const& y) const;
+    template<class Y> [[nodiscard]] auto operator-(Y const& y) const;
+    template<class Y> [[nodiscard]] auto operator*(Y const& y) const;
+    template<class Y> [[nodiscard]] auto operator/(Y const& y) const;
+    template<class Y> [[nodiscard]] auto operator%(Y const& y) const;
+    template<class Y> [[nodiscard]] auto operator<<(Y const& y) const;
+    template<class Y> [[nodiscard]] auto operator>>(Y const& y) const;
 };
-template<class X> SafeMath(X&&) -> SafeMath<No_cvref<X> >;
+template<class X> SafeMath(X&&) -> SafeMath<No_cvref<X>>;
 
 
 
@@ -105,6 +123,21 @@ SafeMath<X>::SafeMath(Y&& y)
 }
 
 template<class X>
+SafeMath<X>::SafeMath(SafeMath const& y)
+    : state(y.state) {
+    fastFail();
+    if (y.ok()) {
+	try {
+	    lazy_x.construct(y.value());
+	} catch (...) {
+	    state = Failed_Construction;
+	    fastFail();
+	}
+    }
+}
+    
+
+template<class X>
 SafeMath<X>::SafeMath(Fail_Construct)
     : state(Failed_Construction) {
     fastFail();
@@ -134,94 +167,88 @@ void SafeMath<X>::check() const {
 }
 
 template<class X>
-X const & SafeMath<X>::value() const {
+X const& SafeMath<X>::value() const {
     check();
     return lazy_x;
 }
 
 template<class X>
-X const & SafeMath<X>::operator*() const {
+X const& SafeMath<X>::operator*() const {
     return value();
 }
 
 template<class X>
-SafeMath<X>::operator X const &() const {
+SafeMath<X>::operator X const&() const {
     return value();
 }
 
 template<class X> template<class Y>
-SafeMath<X> SafeMath<X>::cast(Y const & y) {
+SafeMath<X> SafeMath<X>::cast(Y const& y) {
     SafeMath result(X(0));
     result += y;
     return result;
 }
 
 template<class X> template<class Y>
-SafeMath<X> SafeMath<X>::cast(SafeMath<Y> const & y) {
+SafeMath<X> SafeMath<X>::cast(SafeMath<Y> const& y) {
     if (!y.ok())
 	return Fail_Construct();
     return cast(*y);
 }
 
 template<class X> template<class Y>
-SafeMath<B> SafeMath<X>::operator<(Y const & y) const {
-    if (!ok())
+SafeMath<B> SafeMath<X>::operator<(SafeMath<Y> const& y) const {
+    if (!ok() || !y.ok()) {
 	return Fail_Construct();
+    }
     B const x_neg = value() < X(0);
-    B const y_neg = y < Y(0);
-    if (x_neg != y_neg)
+    B const y_neg = y.value() < Y(0);
+    if (x_neg != y_neg) {
 	return x_neg;
+    }
     auto const abs_x = my_abs(value());
-    auto const abs_y = my_abs(y);
-    if (x_neg)
-	return abs_y < abs_x;
+    auto const abs_y = my_abs(y.value());
+    if (x_neg) {
+	auto ret = abs_y < abs_x;
+	// If we don't debug print here, -O3 messes up SafeMath<__int128>(-1) < SafeMath<__int128>(intmin<__int128>())
+	debug::cout << __FUNCTION__ << ": " << abs_x << " " << abs_y << std::endl;
+	return ret;
+    }
     return abs_x < abs_y;
 }
 
 template<class X> template<class Y>
-SafeMath<B> SafeMath<X>::operator>(Y const & y) const {
-    if (!ok())
-	return Fail_Construct();
-    B const x_neg = value() < X(0);
-    B const y_neg = y < Y(0);
-    if (x_neg != y_neg)
-	return y_neg;
-    auto const abs_x = my_abs(value());
-    auto const abs_y = my_abs(y);
-    if (x_neg)
-	return abs_y > abs_x;
-    return abs_x > abs_y;
+SafeMath<B> SafeMath<X>::operator>(SafeMath<Y> const& y) const {
+    return y < *this;
 }
 
 template<class X> template<class Y>
-SafeMath<B> SafeMath<X>::operator<=(Y const & y) const {
+SafeMath<B> SafeMath<X>::operator<=(SafeMath<Y> const& y) const {
     auto result = *this > y;
-    if (result.ok())
+    if (result.ok()) {
 	result.x() = !result.x();
+    }
     return result;
 }
 
 template<class X> template<class Y>
-SafeMath<B> SafeMath<X>::operator>=(Y const & y) const {
-    auto result = *this < y;
-    if (result.ok())
-	result.x() = !result.x();
-    return result;
+SafeMath<B> SafeMath<X>::operator>=(SafeMath<Y> const& y) const {
+    return y <= *this;
 }
 
 template<class X> template<class Y>
-SafeMath<B> SafeMath<X>::operator==(Y const & y) const {
-    if (!ok())
+SafeMath<B> SafeMath<X>::operator==(SafeMath<Y> const& y) const {
+    if (!ok() || !y.ok())
 	return Fail_Construct();
     B const x_neg = value() < X(0);
-    B const y_neg = y < Y(0);
+    B const y_neg = y.value() < Y(0);
     if (x_neg != y_neg)
 	return false;
-    return my_abs(value()) == my_abs(y);
+    return my_abs(value()) == my_abs(y.value());
 }
 
 template<class X> template<class Y>
-SafeMath<B> SafeMath<X>::operator!=(Y const & y) const {
+SafeMath<B> SafeMath<X>::operator!=(SafeMath<Y> const& y) const {
     auto result = *this == y;
     if (result.ok())
 	result.x() = !result.x();
@@ -229,9 +256,43 @@ SafeMath<B> SafeMath<X>::operator!=(Y const & y) const {
 }
 
 template<class X> template<class Y>
-SafeMath<X>& SafeMath<X>::operator+=(Y const & y) {
-    if (!ok())
+SafeMath<B> SafeMath<X>::operator<(Y const& y) const {
+    return *this < SafeMath<Y>(y);
+}
+
+template<class X> template<class Y>
+SafeMath<B> SafeMath<X>::operator>(Y const& y) const {
+    return *this > SafeMath<Y>(y);
+}
+
+template<class X> template<class Y>
+SafeMath<B> SafeMath<X>::operator<=(Y const& y) const {
+    return *this <= SafeMath<Y>(y);
+}
+
+template<class X> template<class Y>
+SafeMath<B> SafeMath<X>::operator>=(Y const& y) const {
+    return *this >= SafeMath<Y>(y);
+}
+
+template<class X> template<class Y>
+SafeMath<B> SafeMath<X>::operator==(Y const& y) const {
+    return *this == SafeMath<Y>(y);
+}
+
+template<class X> template<class Y>
+SafeMath<B> SafeMath<X>::operator!=(Y const& y) const {
+    return *this != SafeMath<Y>(y);
+}
+
+template<class X> template<class Y>
+SafeMath<X>& SafeMath<X>::operator+=(SafeMath<Y> const& yS) {
+    if (!ok() || !yS.ok()) {
+	state = Failed_Math;
+	fastFail();
 	return *this;
+    }
+    auto y = yS.value();
     // x_min <= x+y <= x_max
     bool const x_neg = value() < X(0);
     bool const y_neg = y < Y(0);
@@ -266,16 +327,21 @@ SafeMath<X>& SafeMath<X>::operator+=(Y const & y) {
 	    }
 	}
     }
-    if (ok())
+    if (ok()) {
 	x() += static_cast<X>(y);
+    }
     return *this;
 }
 
 template<class X> template<class Y>
-SafeMath<X>& SafeMath<X>::operator-=(Y const & y) {
+SafeMath<X>& SafeMath<X>::operator-=(SafeMath<Y> const& yS) {
     // x_min <= x-y <= x_max
-    if (!ok())
+    if (!ok() || !yS.ok()) {
+	state = Failed_Math;
+	fastFail();
 	return *this;
+    }
+    auto y = yS.value();
     bool const x_neg = x() < X(0);
     bool const y_neg = y < Y(0);
     if (y_neg) {
@@ -303,15 +369,19 @@ SafeMath<X>& SafeMath<X>::operator-=(Y const & y) {
 }
 
 template<class X>
-static inline bool equals(X const & x, X const & y) {
+static inline bool equals(X const& x, X const& y) {
     // implemented so clang doesn't complain about floating-point equality comparison
     return x <= y && y <= x;
 }
 
 template<class X> template<class Y>
-SafeMath<X>& SafeMath<X>::operator*=(Y const & y) {
-    if (!ok())
+SafeMath<X>& SafeMath<X>::operator*=(SafeMath<Y> const& yS) {
+    if (!ok() || !yS.ok()) {
+	state = Failed_Math;
+	fastFail();
 	return *this;
+    }
+    auto y = yS.value();
     if (!equals(x(),X(0)) && !equals(y,Y(0))) {
 	if (equals(x(),X(-1)) && X(-1) < X(0)) {
 	    // special case for -1 because, with some type combinations,
@@ -338,9 +408,13 @@ SafeMath<X>& SafeMath<X>::operator*=(Y const & y) {
 }
 
 template<class X> template<class Y>
-SafeMath<X>& SafeMath<X>::operator/=(Y const & y) {
-    if (!ok())
+SafeMath<X>& SafeMath<X>::operator/=(SafeMath<Y> const& yS) {
+    if (!ok() || !yS.ok()) {
+	state = Failed_Math;
+	fastFail();
 	return *this;
+    }
+    auto y = yS.value();
     if (y == Y(0)) {
 	state = Failed_Math;
 	fastFail();
@@ -366,12 +440,18 @@ SafeMath<X>& SafeMath<X>::operator/=(Y const & y) {
     return *this;
 }
 
-#define SafeMath_OP_DECL(OP)				\
-    template<class X> template<class Y> [[nodiscard]]	\
-    auto SafeMath<X>::operator OP(Y const & y) const {	\
-	using Z = decltype(**this OP y);		\
-	return SafeMath<Z>::cast(*this) OP##= y;	\
-    }
+#define SafeMath_OP_DECL(OP)					\
+    template<class X> template<class Y>				\
+    SafeMath<X>& SafeMath<X>::operator OP##=(Y const& y) {	\
+	return *this OP##= SafeMath<Y>(y);			\
+    }								\
+	template<class X> template<class Y> [[nodiscard]]	\
+	auto SafeMath<X>::operator OP(Y const& y) const {	\
+	    using Z = decltype(**this OP y);			\
+	    SafeMath<Z> z = SafeMath<Z>::cast(*this);		\
+	    z OP##= y;						\
+	    return z;						\
+	}
 SafeMath_OP_DECL(+);
 SafeMath_OP_DECL(-);
 SafeMath_OP_DECL(*);
@@ -382,7 +462,7 @@ SafeMath_OP_DECL(>>);
 
 template<class X> struct Class<SafeMath<X> > {
     using T = SafeMath<X>;
-    static std::ostream& print(std::ostream& os, T const & t) {
+    static std::ostream& print(std::ostream& os, T const& t) {
 	switch (t.state) {
 	  case T::Ok:
 	    return os << t.value();
@@ -406,3 +486,7 @@ template<class X> struct Class<SafeMath<X> > {
     }
 };
 
+
+namespace std {
+    template<class T> struct make_unsigned<SafeMath<T>> { using type = SafeMath<Make_u<T>>; };
+}

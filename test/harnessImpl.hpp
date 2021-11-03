@@ -5,35 +5,35 @@ extern bool global_success;
 int registerTest(void(*function)(), char const * test, char const * file, unsigned int line);
 
 struct TrueFunctor {
-    template<class X> bool operator()(X const & x) { return static_cast<bool>(x); }
+    template<class X> bool operator()(X const& x) { return static_cast<bool>(x); }
 };
 
 struct FalseFunctor {
-    template<class X> bool operator()(X const & x) { return !static_cast<bool>(x); }
+    template<class X> bool operator()(X const& x) { return !static_cast<bool>(x); }
 };
 
-template<class T> auto equals(T const & y) {
-    return [&y](auto const & x) -> bool { return x == y; };
+template<class T> auto equals(T const& y) {
+    return [&y](auto const& x) -> bool { return x == y; };
 }
 
-template<class T> auto isNotEqualTo(T const & y) {
-    return [&y](auto const & x) -> bool { return x != y; };
+template<class T> auto isNotEqualTo(T const& y) {
+    return [&y](auto const& x) -> bool { return x != y; };
 }
 
-template<class T> auto isLessThan(T const & y) {
-    return [&y](auto const & x) -> bool { return x < y; };
+template<class T> auto isLessThan(T const& y) {
+    return [&y](auto const& x) -> bool { return x < y; };
 }
 
-template<class T> auto isLeq(T const & y) {
-    return [&y](auto const & x) -> bool { return x <= y; };
+template<class T> auto isLeq(T const& y) {
+    return [&y](auto const& x) -> bool { return x <= y; };
 }
 
-template<class T> auto isGreaterThan(T const & y) {
-    return [&y](auto const & x) -> bool { return x > y; };
+template<class T> auto isGreaterThan(T const& y) {
+    return [&y](auto const& x) -> bool { return x > y; };
 }
 
-template<class T> auto isGeq(T const & y) {
-    return [&y](auto const & x) -> bool { return x >= y; };
+template<class T> auto isGeq(T const& y) {
+    return [&y](auto const& x) -> bool { return x >= y; };
 }
 
 #define TEST_IMPL_DETAILS(DEF_NAME,PRINT_NAME)			\
@@ -54,10 +54,10 @@ template<class T> auto isGeq(T const & y) {
 	    #VALUE << " " << #__VA_ARGS__ << " failed due to ";		\
 	};								\
 	try {								\
-	    auto && value = VALUE;					\
+	    auto&& value = VALUE;					\
 	    if (!(__VA_ARGS__(value)))					\
 		disp_fail() << "incorrect value: " << value << std::endl; \
-	} catch (std::exception const & ex) {				\
+	} catch (std::exception const& ex) {				\
 	    disp_fail() << "exception: " << ex.what() << std::endl;	\
 	} catch (...) {							\
 	    disp_fail() << "unknown exception" << std::endl;		\

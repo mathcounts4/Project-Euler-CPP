@@ -3,8 +3,8 @@
 #include "StringUtils.hpp"
 
 std::string string_concat(
-    std::string const & delimeter,
-    std::vector<std::string> const & args) {
+    std::string const& delimeter,
+    std::vector<std::string> const& args) {
     std::string result;
     if (args.size() > 0)
 	result += args[0];
@@ -15,7 +15,7 @@ std::string string_concat(
     return result;
 }
 
-bool string_eq_ignore_case(char const * x, char const * y, std::size_t len) {
+bool string_eq_ignore_case(char const* x, char const* y, std::size_t len) {
     for (std::size_t i = 0; i < len; ++i) {
 	if (std::tolower(x[i]) != std::tolower(y[i])) {
 	    return false;
@@ -26,7 +26,7 @@ bool string_eq_ignore_case(char const * x, char const * y, std::size_t len) {
     return true;
 }
 
-std::string quoted(std::string const & in) {
+std::string quoted(std::string const& in) {
     return '"' + in + '"';
 }
 

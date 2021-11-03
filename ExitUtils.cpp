@@ -27,7 +27,7 @@ static std::string process_name_with_path_impl() {
     return buf;//std::filesystem::path(buf).string();
 }
 
-std::string const & process_name_with_path() {
+std::string const& process_name_with_path() {
     static std::string name = process_name_with_path_impl();
     return name;
 }
@@ -86,7 +86,7 @@ void print_stack_trace(std::ostream& os, SZ skip_frames) {
 	print_old_stack_trace(os,call_stack,skip_frames,size);
     } else {
 	os << "Stack trace:\n";
-	std::string const & resolved = decoded_stack->output;
+	std::string const& resolved = decoded_stack->output;
 	std::vector<std::string> result;
 	result.emplace_back();
 	for (char const c : resolved) {

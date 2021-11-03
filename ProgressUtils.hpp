@@ -22,7 +22,7 @@ class My_Remove {
     bool const fFlush;
   public:
     My_Remove(std::size_t length, bool flush = true);
-    My_Remove(std::string const & s, bool flush = true);
+    My_Remove(std::string const& s, bool flush = true);
     friend struct Class<My_Remove>;
 };
 
@@ -51,13 +51,13 @@ class Percent_Tracker {
     bool const fCleanUp;
     bool const fFlushFinish;
 
-    std::string validate_name(std::string const & name);
+    std::string validate_name(std::string const& name);
     
   public:
     // name can be at most 20 characters
     Percent_Tracker(
 	double total,
-	std::string const & name = "",
+	std::string const& name = "",
 	double thresholdPercent = 1e-2,
 	double timeEstThreshold = 10,
 	std::ostream& o = std::cout,

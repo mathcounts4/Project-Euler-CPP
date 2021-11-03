@@ -8,7 +8,7 @@ template<> extern std::ios_base::fmtflags const adjust_flag<Adjust_Format::Left>
 template<> extern std::ios_base::fmtflags const adjust_flag<Adjust_Format::Right> = std::ios_base::right;
 template<> extern std::ios_base::fmtflags const adjust_flag<Adjust_Format::Internal> = std::ios_base::internal;
 
-template<> std::ostream& Class<Float_Format>::print(std::ostream& os, Float_Format const & fmt) {
+template<> std::ostream& Class<Float_Format>::print(std::ostream& os, Float_Format const& fmt) {
     switch (fmt) {
       case Float_Format::Unset:
 	return os << "Unset";
@@ -23,7 +23,7 @@ template<> std::string Class<Float_Format>::name() {
     return "Float_Format";
 }
 
-template<> std::ostream& Class<Adjust_Format>::print(std::ostream& os, Adjust_Format const & fmt) {
+template<> std::ostream& Class<Adjust_Format>::print(std::ostream& os, Adjust_Format const& fmt) {
     switch (fmt) {
       case Adjust_Format::Left:
 	return os << "Left";

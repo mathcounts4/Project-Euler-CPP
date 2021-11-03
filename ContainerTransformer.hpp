@@ -23,7 +23,7 @@ template<class Container, class Functor> struct ContainerTransformer
     {
 	Functor&& functor;
 	Base_Iterator it;
-	bool operator!=(iterator const & other) const {
+	bool operator!=(iterator const& other) const {
 	    return it != other.it;
 	}
 

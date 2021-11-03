@@ -25,7 +25,7 @@ class CircleIteratorX {
 	struct End {};
 	CirclePoint operator*() const;
 	Iterator& operator++();
-	bool operator!=(End const & o) const;
+	bool operator!=(End const& o) const;
     };
   public:
     CircleIteratorX(UI r);
@@ -57,7 +57,7 @@ class CircleIterator {
 	// {inner,outer}
 	std::pair<CirclePoint,CirclePoint> operator*() const;
 	Iterator& operator++();
-	bool operator!=(End const &) const;
+	bool operator!=(End const&) const;
     };
   public:
     CircleIterator(UI r);

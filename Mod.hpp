@@ -3,7 +3,7 @@
 #include "Class.hpp"
 
 class Mod;
-template<> std::ostream& Class<Mod>::print(std::ostream& oss, Mod const & mod);
+template<> std::ostream& Class<Mod>::print(std::ostream& oss, Mod const& mod);
 template<> std::string Class<Mod>::name();
 
 // Mod an UI
@@ -13,7 +13,7 @@ class Mod {
     SL value;
     static UI globalMod;
     friend class GlobalModSentinel;
-    void mod_mismatch_check(const Mod & o) const;
+    void mod_mismatch_check(Mod const& o) const;
   public:
     Mod();
     Mod(UL value);
@@ -24,18 +24,18 @@ class Mod {
     Mod(UI mod, SL value);
     Mod(UI mod, UI value);
     Mod(UI mod, SI value);
-    Mod(Mod const & m);
+    Mod(Mod const& m);
     
-#define MOD_CAN_CREATE_TYPE(T) decltype(Mod(0U,declval<T const &>()))
+#define MOD_CAN_CREATE_TYPE(T) decltype(Mod(0U,declval<T const&>()))
     
     template<class T, class = MOD_CAN_CREATE_TYPE(T)>
-    Mod create(T const & val) const {
+    Mod create(T const& val) const {
 	return Mod(mod,val);
     }
 
-    Mod& operator=(Mod const & m);
+    Mod& operator=(Mod const& m);
     template<class T, class = MOD_CAN_CREATE_TYPE(T)>
-    Mod& operator=(T const & val) {
+    Mod& operator=(T const& val) {
 	return *this = create(val);
     }
     
@@ -47,93 +47,93 @@ class Mod {
     explicit operator SL() const;
     explicit operator D() const;
     UI get_mod() const;
-    friend std::ostream& Class<Mod>::print(std::ostream& oss, Mod const & mod);
+    friend std::ostream& Class<Mod>::print(std::ostream& oss, Mod const& mod);
 
     // comparison operators
     // ==
-    B operator ==(Mod const & m) const;
+    B operator ==(Mod const& m) const;
     template<class T, class = MOD_CAN_CREATE_TYPE(T)>
-    friend B operator==(Mod const & m, T const & t) {
+    friend B operator==(Mod const& m, T const& t) {
 	return m == m.create(t);
     }
     template<class T, class = MOD_CAN_CREATE_TYPE(T)>
-    friend B operator==(T const & t, Mod const & m) {
+    friend B operator==(T const& t, Mod const& m) {
 	return m.create(t) == m;
     }
     // !=
-    B operator !=(Mod const & m) const;
+    B operator !=(Mod const& m) const;
     template<class T, class = MOD_CAN_CREATE_TYPE(T)>
-    friend B operator!=(Mod const & m, T const & t) {
+    friend B operator!=(Mod const& m, T const& t) {
 	return m != m.create(t);
     }
     template<class T, class = MOD_CAN_CREATE_TYPE(T)>
-    friend B operator!=(T const & t, Mod const & m) {
+    friend B operator!=(T const& t, Mod const& m) {
 	return m.create(t) != m;
     }
     
     // binary operators
     // +
-    Mod operator+(Mod const & m) const;
+    Mod operator+(Mod const& m) const;
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator+(Mod const & m, T const & t) {
+    Mod operator+(Mod const& m, T const& t) {
 	return m + m.create(t);
     }
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator+(T const & t, Mod const & m) {
+    Mod operator+(T const& t, Mod const& m) {
 	return m.create(t) + m;
     }
     // +=
-    Mod& operator+=(Mod const & m);
+    Mod& operator+=(Mod const& m);
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod& operator+=(Mod & m, T const & t) {
+    Mod& operator+=(Mod& m, T const& t) {
 	return m += m.create(t);
     }
     // -
-    Mod operator-(Mod const & m) const;
+    Mod operator-(Mod const& m) const;
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator-(Mod const & m, T const & t) {
+    Mod operator-(Mod const& m, T const& t) {
 	return m - m.create(t);
     }
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator-(T const & t, Mod const & m) {
+    Mod operator-(T const& t, Mod const& m) {
 	return m.create(t) - m;
     }
     // -=
-    Mod& operator-=(Mod const & m);
+    Mod& operator-=(Mod const& m);
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod& operator-=(Mod & m, T const & t) {
+    Mod& operator-=(Mod& m, T const& t) {
 	return m -= m.create(t);
     }
     // *
-    Mod operator*(Mod const & m) const;
+    Mod operator*(Mod const& m) const;
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator*(Mod const & m, T const & t) {
+    Mod operator*(Mod const& m, T const& t) {
 	return m * m.create(t);
     }
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator*(T const & t, Mod const & m) {
+    Mod operator*(T const& t, Mod const& m) {
 	return m.create(t) * m;
     }
     // *=
-    Mod& operator*=(Mod const & m);
+    Mod& operator*=(Mod const& m);
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod& operator*=(Mod & m, T const & t) {
+    Mod& operator*=(Mod& m, T const& t) {
 	return m *= m.create(t);
     }
     // /
-    Mod operator/(Mod const & m) const;
+    Mod operator/(Mod const& m) const;
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator/(Mod const & m, T const & t) {
+    Mod operator/(Mod const& m, T const& t) {
 	return m / m.create(t);
     }
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod operator/(T const & t, Mod const & m) {
+    Mod operator/(T const& t, Mod const& m) {
 	return m.create(t) / m;
     }
     // /=
-    Mod& operator/=(Mod const & m);
+    Mod& operator/=(Mod const& m);
     template<class T, class = MOD_CAN_CREATE_TYPE(T)> friend
-    Mod& operator/=(Mod & m, T const & t) {
+    Mod& operator/=(Mod& m, T const& t) {
 	return m /= m.create(t);
     }
     // ^

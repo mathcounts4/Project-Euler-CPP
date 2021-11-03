@@ -46,8 +46,10 @@ FND_PRE := $(call TO_PAT,$(PAT_PRE),$(FND_SRC))
 .PHONY: $(SRC)
 
 $(SRC): .FORCE
-	@grep $(SRC) $(ALL_SRC) > /dev/null 2>&1 \
+	@grep "$@" "$(ALL_SRC)" > /dev/null 2>&1 \
 	|| ($(IF_VERBOSE) echo "$(STARS) Including source file $@ $(STARS)" \
-	&& echo "SRC += $(SRC)" >> "$(ALL_SRC)" \
+	&& echo "SRC += $@" >> "$(ALL_SRC)" \
 	&& $(ADD_LINK_CMD) \
 	&& $(MAKE) -f $(abspath $(MY_PATH)/prebuild.mk) $(FND_PRE))
+
+

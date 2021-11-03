@@ -69,18 +69,13 @@ class BigInt {
     
     // constructors
     BigInt();
-    BigInt(std::string const & s);
-    template<class T, class = std::enable_if_t<std::is_integral_v<T> > >
-    BigInt(T const & t);
-    BigInt(BigInt const &);
-    BigInt(BigInt&&);
-    BigInt& operator=(BigInt const &);
-    BigInt& operator=(BigInt &&);
-    ~BigInt();
+    BigInt(std::string const& s);
+    template<class T, class = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, BigInt>>>
+    BigInt(T const& t);
 
     // infinite constants
-    static BigInt const & Inf();
-    static BigInt const & NegInf();
+    static BigInt const& Inf();
+    static BigInt const& NegInf();
 
     bool inf() const;
     bool neg() const;
@@ -106,12 +101,12 @@ class BigInt {
     template<class T> Optional<T> convert() const;
 
     // comparison operators
-    bool operator <(BigInt const &) const;
-    bool operator >(BigInt const &) const;
-    bool operator <=(BigInt const &) const;
-    bool operator >=(BigInt const &) const;
-    bool operator ==(BigInt const &) const;
-    bool operator !=(BigInt const &) const;
+    friend bool operator<(BigInt const& x, BigInt const& y);
+    friend bool operator>(BigInt const& x, BigInt const& y);
+    friend bool operator<=(BigInt const& x, BigInt const& y);
+    friend bool operator>=(BigInt const& x, BigInt const& y);
+    friend bool operator==(BigInt const& x, BigInt const& y);
+    friend bool operator!=(BigInt const& x, BigInt const& y);
 
     // arithmetic operators
     BigInt const abs() const;
@@ -125,28 +120,28 @@ class BigInt {
     
     BigInt operator<<(long) const;
     BigInt operator>>(long) const;
+
+    friend BigInt operator+(BigInt const& x, BigInt const& y);
+    BigInt& operator+=(BigInt const& o);
+
+    friend BigInt operator-(BigInt const& x, BigInt const& y);
+    BigInt& operator-=(BigInt const& o);
     
-    BigInt operator+(BigInt const & o) const;
-    BigInt& operator+=(BigInt const & o);
-    
-    BigInt operator-(BigInt const & o) const;
-    BigInt& operator-=(BigInt const & o);
-    
-    BigInt operator*(BigInt const & o) const;
-    BigInt& operator*=(BigInt const & o);
-    
-    BigInt operator/(BigInt const & o) const;
-    BigInt& operator/=(BigInt const & o);
-    
-    BigInt operator%(BigInt const & o) const;
-    BigInt& operator%=(BigInt const & o);
+    friend BigInt operator*(BigInt const& x, BigInt const& y);
+    BigInt& operator*=(BigInt const& o);
+
+    friend BigInt operator/(BigInt const& x, BigInt const& y);
+    BigInt& operator/=(BigInt const& o);
+
+    friend BigInt operator%(BigInt const& x, BigInt const& y);
+    BigInt& operator%=(BigInt const& o);
     
     BigInt operator^(std::size_t exp) const;
     BigInt& operator^=(std::size_t expt);
 };
 MAKE_HASHABLE(BigInt,x,x.infinite,x.negative,x.data);
 
-template<> std::ostream& Class<BigInt>::print(std::ostream& oss, BigInt const & bi);
+template<> std::ostream& Class<BigInt>::print(std::ostream& oss, BigInt const& bi);
 template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is);
 template<> Str Class<BigInt>::name();
 template<> Str Class<BigInt>::format();
@@ -196,7 +191,7 @@ class std::numeric_limits<BigInt> {
 // template impls
 
 template<class T, class>
-BigInt::BigInt(T const & t)
+BigInt::BigInt(T const& t)
     : infinite{std::numeric_limits<T>::has_infinity &&
 	(t == std::numeric_limits<T>::infinity() ||
 	 (std::is_signed<T>::value &&
@@ -249,60 +244,5 @@ template<class T> Optional<T> BigInt::convert() const {
     if (!safe_result.ok())
 	return failure();
     return *safe_result;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-bool operator<(Coercible const & x, BigInt const & y) {
-    return BigInt(x) < y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-bool operator>(Coercible const & x, BigInt const & y) {
-    return BigInt(x) > y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-bool operator<=(Coercible const & x, BigInt const & y) {
-    return BigInt(x) <= y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-bool operator>=(Coercible const & x, BigInt const & y) {
-    return BigInt(x) >= y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-bool operator==(Coercible const & x, BigInt const & y) {
-    return BigInt(x) == y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-bool operator!=(Coercible const & x, BigInt const & y) {
-    return BigInt(x) != y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-BigInt operator+(Coercible const & x, BigInt const & y) {
-    return BigInt(x) + y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-BigInt operator-(Coercible const & x, BigInt const & y) {
-    return BigInt(x) - y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-BigInt operator*(Coercible const & x, BigInt const & y) {
-    return BigInt(x) * y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-BigInt operator/(Coercible const & x, BigInt const & y) {
-    return BigInt(x) / y;
-}
-
-template<class Coercible, class = decltype(BigInt(declval<Coercible const &>()))>
-BigInt operator%(Coercible const & x, BigInt const & y) {
-    return BigInt(x) % y;
 }
 

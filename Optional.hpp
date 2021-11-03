@@ -46,6 +46,11 @@ struct Optional<void> {
     void deref_without_stack() const;
 };
 
+template<class T>
+static constexpr B is_Optional = false;
+template<class T>
+static constexpr B is_Optional<Optional<T>> = true;
+
 
 
 /* Impl */

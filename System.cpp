@@ -6,7 +6,7 @@
 #include "Optional.hpp"
 #include "System.hpp"
 
-Optional<Command_Result> system_call(std::string const & command) {
+Optional<Command_Result> system_call(std::string const& command) {
     std::FILE * const pipe = popen(&command[0],"r");
     if (!pipe)
 	return Failure("Could not open pipe for command:\n" + command);

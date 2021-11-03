@@ -7,15 +7,15 @@ template<class Data>
 struct Point2D {
     Data x;
     Data y;
-    bool operator==(Point2D const & o) const {
-	return x == o.x && y == o.y;
+    friend bool operator==(Point2D const& a, Point2D const& b) {
+	return a.x == b.x && a.y == b.y;
     }
 };
 MAKE_HASHABLE_TEMPLATE(<class Data>,Point2D<Data>,obj,obj.x,obj.y);
 template<class Data>
 struct Class<Point2D<Data> > {
     using T = Point2D<Data>;
-    static std::ostream& print(std::ostream& os, T const & t) {
+    static std::ostream& print(std::ostream& os, T const& t) {
 	return os << "{" << t.x << "," << t.y << "}";
     }
     static Optional<T> parse(std::istream& is) {
@@ -48,8 +48,8 @@ struct Point3D {
     Data x;
     Data y;
     Data z;
-    bool operator==(Point3D const & o) const {
-	return x == o.x && y == o.y && z == o.z;
+    friend bool operator==(Point3D const& a, Point3D const& b) {
+	return a.x == b.x && a.y == b.y && a.z == b.z;
     }
 };
 MAKE_HASHABLE_TEMPLATE(<class Data>,Point3D<Data>,obj,obj.x,obj.y,obj.z);

@@ -18,6 +18,10 @@ include $(abspath $(MY_PATH)/validate_src.mk)
 
 DEP := $(call TO_PAT,$(PAT_DEP),$(SRC))
 DEP_TO_SRC = $(call FROM_PAT,$(PAT_DEP),$@)
+DEP_TO_OBJ = $(call TO_PAT,$(PAT_OBJ),$(DEP_TO_SRC))
+ALWAYS_FORCE_REBUILD_PAT := ALWAYS_FORCE_REBUILD
+
+ALWAYS_FORCE_REBUILD := 
 .PHONY: $(PRE)
 
 # Some of these may have been created in the past, carrying additional dependencies.
@@ -32,12 +36,11 @@ all: .FORCE
 # Each dep file depends on the corresponding source file
 # 1. precompile dependencies for the .o
 # 2. precompile dependencies for this dependencies file
-# 3. remake adding more sources based on new dependencies file
-# 4. add this source to the SRCS_FL list
 $(DEP): %: $$(call FROM_PAT,$$(PAT_DEP),%)
 	$(call SECTION_START,"creating dependency $@")
-	$(RUN_VERBOSE_PRINT) $(CC) -MM -MQ $(call TO_PAT,$(PAT_OBJ),$(DEP_TO_SRC)) $(FLAGS) $(DEP_TO_SRC) > $@
+	$(RUN_VERBOSE_PRINT) $(CC) -MM -MQ "$(DEP_TO_OBJ)" $(FLAGS) $(DEP_TO_SRC) > $@
 	@$(CC) -MM -MQ $@ $(FLAGS) $(DEP_TO_SRC) 2>/dev/null >> $@
+	@if grep "$(ALWAYS_FORCE_REBUILD_PAT)" "$(DEP_TO_SRC)"; then echo "$(DEP_TO_OBJ): .FORCE # due to use of $(ALWAYS_FORCE_REBUILD_PAT)" >> $@; fi
 	$(call SECTION_END,"creating dependency $@")
 
 # Each PRE target depends on the dependency being created,

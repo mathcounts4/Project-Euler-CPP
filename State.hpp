@@ -2,7 +2,7 @@
 
 #include <istream>
 
-// State<T>::State(T const &) should store any necessary state in members
+// State<T>::State(T const&) should store any necessary state in members
 // State<T>.apply(T&) should apply the stored state to the input and return if it succeeded
 template<class T> class State;
 

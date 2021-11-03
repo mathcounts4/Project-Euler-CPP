@@ -1,7 +1,7 @@
 #include "ExitUtils.hpp"
 #include "IOUtils.hpp"
 
-int get_ios(termios & ios, bool throw_on_failure) {
+int get_ios(termios& ios, bool throw_on_failure) {
     char const * const failure = "Failed to get iosettings";
     if (tcgetattr(0,&ios)) {
 	if (throw_on_failure)
@@ -12,7 +12,7 @@ int get_ios(termios & ios, bool throw_on_failure) {
     return 0;
 }
 
-int set_ios(termios const & ios, bool throw_on_failure) {
+int set_ios(termios const& ios, bool throw_on_failure) {
     char const * const failure = "Failed to set iosettings";
     if (tcsetattr(0,TCSANOW,&ios)) {
 	if (throw_on_failure)

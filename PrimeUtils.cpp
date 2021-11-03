@@ -36,21 +36,33 @@ Vec<UI> primesUpTo(UI const n) {
 }
 
 Vec<UI> phiUpTo(UI const n) {
-    Vec<UI> phi(n+1,0);
-    UI maxI = static_cast<UI>(std::sqrt(n));
-    if (n >= 1)
-	phi[1] = 1;
-    // at first, only store prime factors
-    for (UI i = 2; i <= maxI; ++i)
-	if (!phi[i])
-	    for (UI j = i; j <= n-i; )
-		phi[j+=i] = i;
-    // then calculate phi
-    for (UI i = 2; i <= n; ++i) {
-	UI p = phi[i];
-	phi[i] = p ? phi[i/p] * (i/p%p ? p-1 : p) : i-1;
+    auto result = somePrimeFactorUpTo(n);
+    if (n >= 1) {
+	result[1] = 1;
     }
-    return phi;
+    for (UI i = 2; i <= n; ++i) {
+	UI p = result[i];
+	result[i] = result[i/p] * (i/p%p ? p-1 : p);
+    }
+    return result;
+}
+
+Vec<UI> somePrimeFactorUpTo(UI const n) {
+    Vec<UI> result(n+1,0);
+    UI maxI = static_cast<UI>(std::sqrt(n));
+    for (UI i = 2; i <= maxI; ++i) {
+	if (!result[i]) {
+	    for (UI j = i; j <= n; j += i) {
+		result[j] = i;
+	    }
+	}
+    }
+    for (UI i = maxI+1; i <= n; ++i) {
+	if (!result[i]) {
+	    result[i] = i;
+	}
+    }
+    return result;
 }
 
 // Miller-Rabin primality test
@@ -193,7 +205,7 @@ Prime_Factorization::Prime_Factorization()
 
 Prime_Factorization::operator UL() const {
     UL result = 1;
-    for (Prime_Power const & pp : fPowers)
+    for (Prime_Power const& pp : fPowers)
 	for (UL f = pp.fPrime, pow = pp.fExponent; pow > 0; f*=f, pow >>= 1)
 	    if (pow & 1)
 		result *= f;
@@ -202,7 +214,7 @@ Prime_Factorization::operator UL() const {
 
 Prime_Factorization::operator BigInt() const {
     BigInt result = 1;
-    for (Prime_Power const & pp : fPowers) {
+    for (Prime_Power const& pp : fPowers) {
 	BigInt f = pp.fPrime;
 	for (UL pow = pp.fExponent; pow > 0; f*=f, pow >>= 1)
 	    if (pow & 1)
@@ -212,7 +224,7 @@ Prime_Factorization::operator BigInt() const {
 }
 
 void Prime_Factorization::list_factors(
-    Vec<UL> & result,
+    Vec<UL>& result,
     SZ const index,
     UL value) const {
     if (index == fPowers.size()) {
@@ -239,8 +251,8 @@ Vec<UL> Prime_Factorization::factors() const {
 }
 
 void Prime_Factorization::list_factors_prime_factorizations(
-    Vec<Prime_Factorization> & result,
-    Prime_Factorization & new_pf,
+    Vec<Prime_Factorization>& result,
+    Prime_Factorization& new_pf,
     SZ const index) const {
     if (index == fPowers.size()) {
 	result.push_back(new_pf);
@@ -262,7 +274,7 @@ void Prime_Factorization::list_factors_prime_factorizations(
     new_pf.fPowers.pop_back();
 }
 
-Vec<Prime_Power> const & Prime_Factorization::primes_and_exponents() const {
+Vec<Prime_Power> const& Prime_Factorization::primes_and_exponents() const {
     return fPowers;
 }
 
@@ -289,7 +301,7 @@ Vec<UL> sorted_factors(UL const n) {
     return list;
 }
 
-template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const & pp) {
+template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const& pp) {
     return os << pp.fPrime << "^" << pp.fExponent;
 }
 template<> Optional<Prime_Power> Class<Prime_Power>::parse(std::istream& is) {
@@ -307,12 +319,12 @@ template<> Str Class<Prime_Power>::format() {
     return Class<std::pair<UL,UL> >::format();
 }
 
-template<> std::ostream& Class<Prime_Factorization>::print(std::ostream& os, Prime_Factorization const & pf) {
+template<> std::ostream& Class<Prime_Factorization>::print(std::ostream& os, Prime_Factorization const& pf) {
     os << static_cast<BigInt>(pf);
     if (pf.fPowers.size()) {
 	os << " (";
 	bool started = false;
-	for (auto const & pp : pf.fPowers) {
+	for (auto const& pp : pf.fPowers) {
 	    if (started)
 		os << " * ";
 	    os << pp;

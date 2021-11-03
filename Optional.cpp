@@ -18,7 +18,7 @@ Optional<void>::operator bool() const {
     return !value;
 }
 
-std::string const & Optional<void>::cause() const {
+std::string const& Optional<void>::cause() const {
     if (*this) {
 	throw_exception<BadOptionalAccess>("cause() called on a valid Optional");
     }

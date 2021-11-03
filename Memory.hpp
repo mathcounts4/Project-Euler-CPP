@@ -8,55 +8,56 @@
 
 namespace MemoryImpl {
 
-template<std::size_t Bytes> struct StackMemory {
+template<std::size_t Bytes, std::size_t AlignBytes> struct StackMemory {
   protected:
-    char fData[Bytes];
+    alignas(AlignBytes) char fData[Bytes];
     StackMemory() {} // forcefully never initialize fData
     
 };
 
-template<std::size_t Bytes> struct HeapMemory {
+template<std::size_t Bytes, std::size_t AlignBytes> struct HeapMemory {
   protected:
     char* const fData;
     HeapMemory()
 	: fData(new char[Bytes]) {}
-    HeapMemory(HeapMemory const &)
+    HeapMemory(HeapMemory const&)
 	: HeapMemory() {}
     ~HeapMemory() {
 	delete[] fData;
     }
 };
-
+    
 static constexpr std::size_t MaxStackArrayBytes = 2048;
-
-template<std::size_t Bytes, bool leqMaxStackArrayBytes> struct SmartMemoryImpl;
-template<std::size_t Bytes> struct SmartMemoryImpl<Bytes,true> {
-    using Type = StackMemory<Bytes>;
-};
-template<std::size_t Bytes> struct SmartMemoryImpl<Bytes,false> {
-    using Type = HeapMemory<Bytes>;
+    
+template<std::size_t Bytes, std::size_t AlignBytes, bool leqMaxStackArrayBytes> struct SmartMemoryImpl;
+    template<std::size_t Bytes, std::size_t AlignBytes> struct SmartMemoryImpl<Bytes,AlignBytes,true> {
+	using Type = StackMemory<Bytes, AlignBytes>;
+    };
+    template<std::size_t Bytes, std::size_t AlignBytes> struct SmartMemoryImpl<Bytes,AlignBytes,false> {
+    using Type = HeapMemory<Bytes, AlignBytes>;
 };
 
 } /* namespace MemoryImpl */
 
-template<std::size_t Bytes> using SmartMemory = typename MemoryImpl::SmartMemoryImpl<Bytes,(Bytes <= MemoryImpl::MaxStackArrayBytes)>::Type;
+template<std::size_t Bytes, std::size_t AlignBytes> using SmartMemory = typename MemoryImpl::SmartMemoryImpl<Bytes, AlignBytes, (Bytes <= MemoryImpl::MaxStackArrayBytes)>::Type;
 
 
 
 /* Lazy<T> */
-template<class T> class Lazy : SmartMemory<sizeof(T)> {
+template<class T> class Lazy : SmartMemory<sizeof(T), alignof(T)> {
   private:
-    T * data() {
-	return reinterpret_cast<T*>(SmartMemory<sizeof(T)>::fData);
+    using Base = SmartMemory<sizeof(T), alignof(T)>;
+    T* data() {
+	return reinterpret_cast<T*>(Base::fData);
     }
-    T const * data() const {
-	return reinterpret_cast<T const *>(SmartMemory<sizeof(T)>::fData);
+    T const* data() const {
+	return reinterpret_cast<T const*>(Base::fData);
     }
   public:
     operator T&() {
 	return *data();
     }
-    operator T const &() const {
+    operator T const&() const {
 	return *data();
     }
     template<class... Args>

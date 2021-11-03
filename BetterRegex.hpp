@@ -87,19 +87,19 @@ namespace regex {
 	    printRaw(os);
 	    os << ')';
 	}
-	auto asGroup(std::string group) const &;
+	auto asGroup(std::string group) const&;
 	auto asGroup(std::string group) &&;
       private:
 	void printRaw(std::ostream& os) const {
 	    base().print(os);
 	}
-	RegexType const & base() const & {
+	RegexType const& base() const& {
 	    static_assert(std::is_base_of_v<Regex,RegexType>,"Regex<T> should be a base of T");
-	    return static_cast<RegexType const &>(*this);
+	    return static_cast<RegexType const&>(*this);
 	}
-	RegexType && base() && {
+	RegexType&& base() && {
 	    static_assert(std::is_base_of_v<Regex,RegexType>,"Regex<T> should be a base of T");
-	    return static_cast<RegexType &&>(std::move(*this));
+	    return static_cast<RegexType&&>(std::move(*this));
 	}
     };
 
@@ -120,7 +120,7 @@ namespace regex {
 	static constexpr B value = true;
     };
 
-    template<class RegexType> auto Regex<RegexType>::asGroup(std::string group) const & {
+    template<class RegexType> auto Regex<RegexType>::asGroup(std::string group) const& {
 	return GroupRegex<RegexType>{base(),std::move(group)};
     }
 
@@ -191,7 +191,7 @@ namespace regex {
 	static constexpr B value = true;
     };
     template<class Q, class R> constexpr B is_cvref_Q_R =
-	is_quantity<No_cvref<Q> > && is_cvref_regex<R>;
+	is_quantity<No_cvref<Q>>&& is_cvref_regex<R>;
     template<class Q, class R, class = verify<is_cvref_Q_R<Q,R> > >
     MultipleRegex<No_cvref<Q>,No_cvref<R> > operator*(Q&& quantity, R&& regex) {
 	return {fwd<Q>(quantity),fwd<R>(regex)};

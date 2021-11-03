@@ -11,8 +11,8 @@ namespace FFT {
 	SZ const size;
 	Data* const data;
 	FFTW_Vector(SZ size);
-	FFTW_Vector(FFTW_Vector const &) = delete;
-	FFTW_Vector& operator=(FFTW_Vector const &) = delete;
+	FFTW_Vector(FFTW_Vector const&) = delete;
+	FFTW_Vector& operator=(FFTW_Vector const&) = delete;
 	~FFTW_Vector();
     };
     
@@ -25,11 +25,11 @@ namespace FFT {
 	static constexpr B out_bigger = sizeof(Out) > sizeof(In);
 
 	template<class Fcn_In, class Fcn_Out> FFT_1D_Container(SZ n, Function<fftw_plan,int,Fcn_In*,Fcn_Out*,UI> make_plan, B try_hard = false);
-	FFT_1D_Container(FFT_1D_Container const &) = delete;
-	FFT_1D_Container& operator=(FFT_1D_Container const &) = delete;
+	FFT_1D_Container(FFT_1D_Container const&) = delete;
+	FFT_1D_Container& operator=(FFT_1D_Container const&) = delete;
 	~FFT_1D_Container();
 	
-	V<Out> operator()(V<In> const & data);
+	V<Out> operator()(V<In> const& data);
     };
 }
 

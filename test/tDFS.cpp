@@ -18,7 +18,7 @@ using namespace DFS;
 struct A_Adj {
     Blabber b;
     template<class T>
-    vector<T> operator()(T const &) const {
+    vector<T> operator()(T const&) const {
 	b.check();
 	return {};
     }
@@ -97,7 +97,7 @@ TEST(DFS,All) {
 	{
 	    string data;
 	    vector<Node*> next;
-	    Node(string_view const & str) : data(str) {}
+	    Node(string_view const& str) : data(str) {}
 	};
 	
 	Node a("a"),b("b"),c("c"),d("d"),e("e"),f("f");
@@ -120,16 +120,16 @@ TEST(DFS,All) {
 	
 	SZ sp = 0;
 	
-	auto bn = owned_hook<Before_Node>([&sp](Node const & n){ cout << string(sp++,' ') << n.data << endl; });
-	auto an = owned_hook<After_Node>([&sp](Node const & n){ cout << string(--sp,' ') << n.data << endl; });
-	auto adj = owned_hook<Adj>([](Node const & n){ return ContainerTransformer{n.next,[](Node* np){return *np;}}; });
+	auto bn = owned_hook<Before_Node>([&sp](Node const& n){ cout << string(sp++,' ') << n.data << endl; });
+	auto an = owned_hook<After_Node>([&sp](Node const& n){ cout << string(--sp,' ') << n.data << endl; });
+	auto adj = owned_hook<Adj>([](Node const& n){ return ContainerTransformer{n.next,[](Node* np){return *np;}}; });
 
         struct Get_Set
 	{
 	    unordered_set<string_view> visited;
-	    bool operator()(Get,Node const & node) const
+	    bool operator()(Get,Node const& node) const
 		{ return visited.count(node.data); }
-	    void operator()(Set,Node const & node)
+	    void operator()(Set,Node const& node)
 		{ visited.insert(node.data); }
 	};
 	

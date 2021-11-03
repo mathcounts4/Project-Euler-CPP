@@ -51,10 +51,10 @@ template<SZ i, class T> struct TupleLeaf {
     DEFAULT_COPY(TupleLeaf);
     DEFAULT_ASSIGN(TupleLeaf);
 
-    T       &  get()       &  { return t; }
-    T const &  get() const &  { return t; }
-    T       && get()       && { return fwd<T>(t); }
-    T const && get() const && { return fwd<T const>(t); }
+    T      &  get()      &  { return t; }
+    T const&  get() const&  { return t; }
+    T      && get()      && { return fwd<T>(t); }
+    T const&& get() const&& { return fwd<T const>(t); }
 };
 /* SmartTupleLeaf */
 template<SZ i, class T> struct SmartTupleLeaf : protected TupleLeaf<i,T> {
@@ -103,22 +103,22 @@ protected:
 
 public:
     /* get<j>() */
-    template<SZ j> Element<j>       &  get()       &  { return               Leaf<j>::get(); }
-    template<SZ j> Element<j> const &  get() const &  { return               Leaf<j>::get(); }
-    template<SZ j> Element<j>       && get()       && { return ::move(*this).Leaf<j>::get(); }
-    template<SZ j> Element<j> const && get() const && { return ::move(*this).Leaf<j>::get(); }
+    template<SZ j> Element<j>      &  get()      &  { return               Leaf<j>::get(); }
+    template<SZ j> Element<j> const&  get() const&  { return               Leaf<j>::get(); }
+    template<SZ j> Element<j>      && get()      && { return ::move(*this).Leaf<j>::get(); }
+    template<SZ j> Element<j> const&& get() const&& { return ::move(*this).Leaf<j>::get(); }
 
     /* ref() */
-    auto ref()       & ;
-    auto ref() const & ;
-    auto ref()       &&;
-    auto ref() const &&;
+    auto ref()      & ;
+    auto ref() const& ;
+    auto ref()      &&;
+    auto ref() const&&;
 
     /* ref_select<true,false,...> retuns a tuple with references to the true elements */
-    template<B... b> auto ref_select()       & ;
-    template<B... b> auto ref_select() const & ;
-    template<B... b> auto ref_select()       &&;
-    template<B... b> auto ref_select() const &&;
+    template<B... b> auto ref_select()      & ;
+    template<B... b> auto ref_select() const& ;
+    template<B... b> auto ref_select()      &&;
+    template<B... b> auto ref_select() const&&;
 };
 } /* namespace tuple */
 
@@ -126,7 +126,7 @@ template<template<SZ,class> class LeafImpl, SZ... i, class... T>
 struct Class<tuple::TupleImpl<LeafImpl,Indices<i...>,T...> > {
     using Type = tuple::TupleImpl<LeafImpl,Indices<i...>,T...>;
     // all formatting for TupleImpl is done without enclosing {}
-    static std::ostream& print(std::ostream& oss, Type const & t) {
+    static std::ostream& print(std::ostream& oss, Type const& t) {
 	return oss << string_concat(",",{(::to_string(t.template get<i>()) + ::cvref_string<T>())...}).c_str();
     }
     static std::string name() {
@@ -143,7 +143,7 @@ template<class... T> struct BasicTuple
     : public tuple::TupleImpl<tuple::TupleLeaf,Make_Indices<sizeof...(T)>,T...> {
     using Base               = tuple::TupleImpl<tuple::TupleLeaf,Make_Indices<sizeof...(T)>,T...>;
     static constexpr SZ size = Base::size;
-    BasicTuple(T const &... t) : Base{t...} {}
+    BasicTuple(T const&... t) : Base{t...} {}
     template<class... A> BasicTuple(A&&... a) : Base{fwd<A>(a)...} {}
 
     DEFAULT_COPY(BasicTuple);
@@ -155,7 +155,7 @@ DEDUCE_COPY(BasicTuple);
 template<class... T> struct Class<BasicTuple<T...> > {
     using Type = BasicTuple<T...>;
     using Base = typename Type::Base;
-    static std::ostream& print(std::ostream& oss, Type const & t) {
+    static std::ostream& print(std::ostream& oss, Type const& t) {
 	oss << '{';
         Class<Base>::print(oss,t);
 	oss << '}';
@@ -175,7 +175,7 @@ template<class... T> struct Class<BasicTuple<T...> > {
 	    consume_opt(is,'}').deref_without_stack();
 	    resetter.ignore();
 	    return std::move(value);
-	} catch (std::exception const & failure) {
+	} catch (std::exception const& failure) {
 	    return Failure(name() + " parse error:\n" + failure.what());
 	} catch (...) {
 	    return Failure(name() + " parse error: unknown exception");
@@ -212,16 +212,16 @@ auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref() & {
     return RefTuple<Element<i>&...>{get<i>()...};
 }
 template<template<SZ,class> class LeafImpl, SZ... i, class... T>
-auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref() const & {
-    return RefTuple<Element<i> const & ...>{get<i>()...};
+auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref() const& {
+    return RefTuple<Element<i> const& ...>{get<i>()...};
 }
 template<template<SZ,class> class LeafImpl, SZ... i, class... T>
 auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref() && {
     return RefTuple<Element<i>&&...>{::move(*this).template get<i>()...};
 }
 template<template<SZ,class> class LeafImpl, SZ... i, class... T>
-auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref() const && {
-    return RefTuple<Element<i> const &&...>{::move(*this).template get<i>()...};
+auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref() const&& {
+    return RefTuple<Element<i> const&&...>{::move(*this).template get<i>()...};
 }
 } /* namespace tuple */
 
@@ -340,19 +340,19 @@ auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref_select() & {
     
 template<template<SZ,class> class LeafImpl, SZ... i, class... T>
 template<B... b>
-auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref_select() const & {
+auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref_select() const& {
     return tuple_cat_refs(ref_tuple_or_empty<b>(get<i>())...);
 }
     
 template<template<SZ,class> class LeafImpl, SZ... i, class... T>
 template<B... b>
-auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref_select()       && {
+auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref_select()      && {
     return tuple_cat_refs(ref_tuple_or_empty<b>(::move(*this).template get<i>())...);
 }
     
 template<template<SZ,class> class LeafImpl, SZ... i, class... T>
 template<B... b>
-auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref_select() const && {
+auto TupleImpl<LeafImpl,Indices<i...>,T...>::ref_select() const&& {
     return tuple_cat_refs(ref_tuple_or_empty<b>(::move(*this).template get<i>())...);
 }
 } /* namespace tuple */

@@ -41,7 +41,7 @@ namespace FFT {
 	} catch (...) {}
     }
 
-    template<class In, class Out> V<Out> FFT_1D_Container<In,Out>::operator()(V<In> const & data) {
+    template<class In, class Out> V<Out> FFT_1D_Container<In,Out>::operator()(V<In> const& data) {
 	if (data.size() != input.size)
 	    throw_exception<std::invalid_argument>("Wrong data size passed to FFT_1D_Container: expected size " + std::to_string(input.size) + " but passed " + std::to_string(data.size()));
 

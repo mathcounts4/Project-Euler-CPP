@@ -11,12 +11,12 @@ void LocationInfo::reset() {
     max_line_info = 4;
 }
 
-static std::string remove_paren_contents(std::string_view const & in) {
+static std::string remove_paren_contents(std::string_view const& in) {
     // Swallow everything within (), excluding the ()
     // If there were contents, replace with ...
     std::string out;
     std::size_t num_open_paren = 0;
-    for (char const & c : in) {
+    for (char const& c : in) {
 	if (c == '(') {
 	    out += c;
 	    ++num_open_paren;
@@ -32,7 +32,7 @@ static std::string remove_paren_contents(std::string_view const & in) {
     return out;
 }
 
-static std::string remove_extra_space(std::string_view const & in) {
+static std::string remove_extra_space(std::string_view const& in) {
     std::string out;
     bool prev_space = true;
     for (char const c : in) {
@@ -46,13 +46,13 @@ static std::string remove_extra_space(std::string_view const & in) {
     return out;
 }
 
-std::string LocationInfo::function_name(std::string_view const & atos) {
+std::string LocationInfo::function_name(std::string_view const& atos) {
     std::string no_paren_contents = remove_paren_contents(atos);
     std::string no_extra_space = remove_extra_space(no_paren_contents);
     return no_extra_space;
 }
 
-LocationInfo::LocationInfo(std::size_t frame_num, std::string const & atos_output)
+LocationInfo::LocationInfo(std::size_t frame_num, std::string const& atos_output)
     : frame(frame_num) {
     std::size_t const sz = atos_output.size();
     std::size_t const open = atos_output.find_last_of('(');
@@ -91,7 +91,7 @@ std::ostream& LocationInfo::print_header(std::ostream& os) {
     return os;
 }
 
-std::ostream& operator<<(std::ostream& os, LocationInfo const & info) {
+std::ostream& operator<<(std::ostream& os, LocationInfo const& info) {
     auto const width = os.width();
     os << std::setw(LocationInfo::max_frm_info) << info.frame    << " ";
     os << std::setw(LocationInfo::max_file_info) << info.file_info;

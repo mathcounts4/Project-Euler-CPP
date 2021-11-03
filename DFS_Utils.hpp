@@ -23,10 +23,10 @@ namespace algorithm
 	    
 	    std::unordered_set<Node> visited;
 	    
-	    inline bool operator()(Node const & n, Get) const
+	    inline bool operator()(Node const& n, Get) const
 		{ return visited.count(n); }
 	    
-	    inline void operator()(Node const & n, Set)
+	    inline void operator()(Node const& n, Set)
 		{ visited.insert(n); }
 	    
 	};
@@ -65,9 +65,9 @@ namespace algorithm
 	struct DFS : DFS_Hooks<Node,Hooks...>
 	{
 	    using typename DFS_Hooks<Node,Hooks...>::Deduced_Hooks;
-	    DFS(Hooks const & ... hooks) : DFS_Hooks<Node,Hooks...>(hooks...) {}
+	    DFS(Hooks const& ... hooks) : DFS_Hooks<Node,Hooks...>(hooks...) {}
 	    
-	    void operator()(Node const & node)
+	    void operator()(Node const& node)
 		{
 		    if (Match<Get_Set_Visited,Deduced_Hooks>::operator()(node,Get{}))
 			return;
@@ -76,7 +76,7 @@ namespace algorithm
 		    if (Match<Has_Adj,Deduced_Hooks>::operator()(node))
 			for (auto&& next_adj : Match<Adj,Deduced_Hooks>::operator()(node))
 			{
-			    Node const & next = Match<Adj_To_Node,Deduced_Hooks>::operator()(next_adj);
+			    Node const& next = Match<Adj_To_Node,Deduced_Hooks>::operator()(next_adj);
 			    Match<Before_Edge,Deduced_Hooks>::operator()(node,next);
 			    DFS::operator()(next);
 			    Match<After_Edge,Deduced_Hooks>::operator()(node,next);
@@ -88,12 +88,12 @@ namespace algorithm
     
 
     template<class Node, class... Hooks>
-    void dfs(Node const & start, Hooks const & ... hooks) {
+    void dfs(Node const& start, Hooks const& ... hooks) {
 	detail::DFS<Node,Hooks...>(hooks...)(start);
     }
 
     template<class Node_Container, class... Hooks>
-    void dfs_all(Node_Container const & all_nodes, Hooks const & ... hooks) {
+    void dfs_all(Node_Container const& all_nodes, Hooks const& ... hooks) {
 	
 	using namespace DFS;
 	using Node = typename Node_Container::value_type;
@@ -111,7 +111,7 @@ namespace algorithm
 	using Visited = Match<Get_Set_Visited,typename decltype(dfs)::Deduced_Hooks>;
 
 	CC_Hooks cc_hooks(hooks...);
-	for (Node const & node : all_nodes)
+	for (Node const& node : all_nodes)
 	{
 	    if (!static_cast<Visited&>(dfs)(node,Get{}))
 	    {

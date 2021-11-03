@@ -8,11 +8,11 @@
 
 // Attempts to get the ios to the input one.
 // On failure, throw an exception or prints the failure and returns 1.
-int get_ios(termios & ios, bool throw_on_failure = false);
+int get_ios(termios& ios, bool throw_on_failure = false);
 
 // Attempts to set the ios to the input one.
 // On failure, throws or returns 1.
-int set_ios(termios const & ios, bool throw_on_failure = false);
+int set_ios(termios const& ios, bool throw_on_failure = false);
 
 // attempts to disable io echo
 int disable_echo(bool throw_on_failure = false);

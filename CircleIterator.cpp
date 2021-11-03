@@ -72,7 +72,7 @@ CircleIteratorX::Iterator& CircleIteratorX::Iterator::operator++() {
     return *this;
 }
 
-bool CircleIteratorX::Iterator::operator!=(CircleIteratorX::Iterator::End const &) const {
+bool CircleIteratorX::Iterator::operator!=(CircleIteratorX::Iterator::End const&) const {
     return phase < 4;
 }
 
@@ -166,7 +166,7 @@ CircleIterator::Iterator& CircleIterator::Iterator::operator++() {
     return *this;	    
 }
 
-bool CircleIterator::Iterator::operator!=(End const &) const {
+bool CircleIterator::Iterator::operator!=(End const&) const {
     return phase < 4;
 }
 

@@ -20,43 +20,43 @@ Blabber::Blabber()
     : x{12345} {
     BLABBER_PRINT;
 }
-Blabber::Blabber(Blabber & o)
+Blabber::Blabber(Blabber& o)
     : x(o.x) {
     BLABBER_PRINT;
 }
-Blabber::Blabber(Blabber const & o)
+Blabber::Blabber(Blabber const& o)
     : x(o.x) {
     BLABBER_PRINT;
 }
-Blabber::Blabber(Blabber && o)
+Blabber::Blabber(Blabber&& o)
     : x(o.x) {
     o.discard();
     BLABBER_PRINT;
 }
-Blabber::Blabber(Blabber const && o)
+Blabber::Blabber(Blabber const&& o)
     : x(o.x) {
     BLABBER_PRINT;
 }
 Blabber::~Blabber() {
     discard();
 }
-Blabber& Blabber::operator=(Blabber & o) {
+Blabber& Blabber::operator=(Blabber& o) {
     BLABBER_PRINT;
     x=o.x;
     return *this;
 }
-Blabber& Blabber::operator=(Blabber const & o) {
+Blabber& Blabber::operator=(Blabber const& o) {
     BLABBER_PRINT;
     x=o.x;
     return *this;
 }
-Blabber& Blabber::operator=(Blabber && o) {
+Blabber& Blabber::operator=(Blabber&& o) {
     BLABBER_PRINT;
     x=o.x;
     o.discard();
     return *this;
 }
-Blabber& Blabber::operator=(Blabber const && o) {
+Blabber& Blabber::operator=(Blabber const&& o) {
     BLABBER_PRINT;
     x=o.x;
     return *this;
@@ -68,7 +68,7 @@ Blabber& Blabber::operator=(Blabber const && o) {
 
 
 
-template<> std::ostream& Class<Blabber>::print(std::ostream& os, Blabber const & b) {
+template<> std::ostream& Class<Blabber>::print(std::ostream& os, Blabber const& b) {
     return os << (b.ok() ? "Blabber_OK" : "Blabber_CORRUPTED");
 }
 

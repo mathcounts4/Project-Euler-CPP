@@ -19,31 +19,31 @@ template<class Coefficient> class Polynomial {
     Polynomial();
     Polynomial(Coefficient in);
     Polynomial(std::vector<Coefficient> in);
-    void swap(Polynomial & o);
+    void swap(Polynomial& o);
     std::size_t degree_plus_one() const;
-    Coefficient const & operator[](std::size_t i) const;
+    Coefficient const& operator[](std::size_t i) const;
     explicit operator bool() const;
 
-    template<class X> auto eval(X const & x) const;
+    template<class X> auto eval(X const& x) const;
 
     static Polynomial term(std::size_t i);
 
-    Polynomial& operator+=(Polynomial const & o);
-    Polynomial operator+(Polynomial const & o) const &;
-    Polynomial operator+(Polynomial const & o) &&;
+    Polynomial& operator+=(Polynomial const& o);
+    Polynomial operator+(Polynomial const& o) const&;
+    Polynomial operator+(Polynomial const& o) &&;
     
-    Polynomial& operator-=(Polynomial const & o);
-    Polynomial operator-(Polynomial const & o) const &;
-    Polynomial operator-(Polynomial const & o) &&;
+    Polynomial& operator-=(Polynomial const& o);
+    Polynomial operator-(Polynomial const& o) const&;
+    Polynomial operator-(Polynomial const& o) &&;
     
-    Polynomial& operator*=(Polynomial const & o);
-    Polynomial operator*(Polynomial const & o) const;
+    Polynomial& operator*=(Polynomial const& o);
+    Polynomial operator*(Polynomial const& o) const;
 
-    Polynomial& operator/=(Coefficient const & d);
-    Polynomial operator/(Coefficient const & d) const;
+    Polynomial& operator/=(Coefficient const& d);
+    Polynomial operator/(Coefficient const& d) const;
 
     Polynomial& operator^=(std::size_t exp);
-    Polynomial operator^(std::size_t exp) const &;
+    Polynomial operator^(std::size_t exp) const&;
     Polynomial operator^(std::size_t exp) &&;
 };
 MAKE_HASHABLE_TEMPLATE(<class Coefficient>, Polynomial<Coefficient>, p, p.coefficients);
@@ -51,7 +51,7 @@ MAKE_HASHABLE_TEMPLATE(<class Coefficient>, Polynomial<Coefficient>, p, p.coeffi
 template<class Coefficient> struct Class<Polynomial<Coefficient> > {
     using T = Polynomial<Coefficient>;
     
-    static std::ostream& print(std::ostream& os, T const & t);
+    static std::ostream& print(std::ostream& os, T const& t);
     static Optional<T> parse(std::istream& is);
     static std::string name();
     static std::string format();
@@ -94,7 +94,7 @@ std::size_t Polynomial<Coefficient>::degree_plus_one() const {
 }
 
 template<class Coefficient>
-Coefficient const & Polynomial<Coefficient>::operator[](std::size_t i) const {
+Coefficient const& Polynomial<Coefficient>::operator[](std::size_t i) const {
     if (i >= degree_plus_one())
 	throw_exception<std::out_of_range>(to_string(i) + " too large for " + to_string(*this) + " - check degree_plus_one()");
     return coefficients[i];
@@ -107,7 +107,7 @@ Polynomial<Coefficient>::operator bool() const {
 
 template<class Coefficient>
 template<class X>
-auto Polynomial<Coefficient>::eval(X const & x) const {
+auto Polynomial<Coefficient>::eval(X const& x) const {
     using Result = decltype(declval<Coefficient>() * declval<X>());
 
     Result result{};
@@ -116,7 +116,7 @@ auto Polynomial<Coefficient>::eval(X const & x) const {
 	    result = (*this)[0];
     } else {
 	X mult(1);
-	for (auto const & c : coefficients) {
+	for (auto const& c : coefficients) {
 	    result += c * mult;
 	    mult *= x;
 	}
@@ -133,7 +133,7 @@ Polynomial<Coefficient> Polynomial<Coefficient>::term(std::size_t i) {
 }
 
 template<class Coefficient>
-Polynomial<Coefficient>& Polynomial<Coefficient>::operator+=(Polynomial const & o) {
+Polynomial<Coefficient>& Polynomial<Coefficient>::operator+=(Polynomial const& o) {
     std::size_t const n = o.coefficients.size();
     if (coefficients.size() < n)
 	coefficients.resize(n);
@@ -144,25 +144,25 @@ Polynomial<Coefficient>& Polynomial<Coefficient>::operator+=(Polynomial const & 
 }
 
 template<class Coefficient>
-Polynomial<Coefficient> Polynomial<Coefficient>::operator+(Polynomial const & o) const & {
+Polynomial<Coefficient> Polynomial<Coefficient>::operator+(Polynomial const& o) const& {
     Polynomial copy(*this);
     copy += o;
     return copy;
 }
 
 template<class Coefficient>
-Polynomial<Coefficient> Polynomial<Coefficient>::operator+(Polynomial const & o) && {
+Polynomial<Coefficient> Polynomial<Coefficient>::operator+(Polynomial const& o) && {
     (*this) += o;
     return std::move(*this);
 }
 
 template<class Coefficient, class Coercible, class = decltype(Coefficient(declval<Coercible>()))>
-Polynomial<Coefficient> operator+(Coercible x, Polynomial<Coefficient> const & y) {
+Polynomial<Coefficient> operator+(Coercible x, Polynomial<Coefficient> const& y) {
     return Polynomial<Coefficient>(Coefficient(std::move(x))) + y;
 }
 
 template<class Coefficient>
-Polynomial<Coefficient>& Polynomial<Coefficient>::operator-=(Polynomial const & o) {
+Polynomial<Coefficient>& Polynomial<Coefficient>::operator-=(Polynomial const& o) {
     std::size_t const n = o.coefficients.size();
     if (coefficients.size() < n)
 	coefficients.resize(n);
@@ -173,30 +173,30 @@ Polynomial<Coefficient>& Polynomial<Coefficient>::operator-=(Polynomial const & 
 }
 
 template<class Coefficient>
-Polynomial<Coefficient> Polynomial<Coefficient>::operator-(Polynomial const & o) const & {
+Polynomial<Coefficient> Polynomial<Coefficient>::operator-(Polynomial const& o) const& {
     Polynomial copy(*this);
     copy -= o;
     return copy;
 }
 
 template<class Coefficient>
-Polynomial<Coefficient> Polynomial<Coefficient>::operator-(Polynomial const & o) && {
+Polynomial<Coefficient> Polynomial<Coefficient>::operator-(Polynomial const& o) && {
     (*this) -= o;
     return std::move(*this);
 }
 
 template<class Coefficient, class Coercible, class = decltype(Coefficient(declval<Coercible>()))>
-Polynomial<Coefficient> operator-(Coercible x, Polynomial<Coefficient> const & y) {
+Polynomial<Coefficient> operator-(Coercible x, Polynomial<Coefficient> const& y) {
     return Polynomial<Coefficient>(Coefficient(std::move(x))) - y;
 }
 
 template<class Coefficient>
-Polynomial<Coefficient>& Polynomial<Coefficient>::operator*=(Polynomial const & o) {
+Polynomial<Coefficient>& Polynomial<Coefficient>::operator*=(Polynomial const& o) {
     return *this = *this * o;
 }
 
 template<class Coefficient>
-Polynomial<Coefficient> Polynomial<Coefficient>::operator*(Polynomial const & o) const {
+Polynomial<Coefficient> Polynomial<Coefficient>::operator*(Polynomial const& o) const {
     Polynomial result;
     if (!*this || !o)
 	return result;
@@ -211,12 +211,12 @@ Polynomial<Coefficient> Polynomial<Coefficient>::operator*(Polynomial const & o)
 }
 
 template<class Coefficient, class Coercible, class = decltype(Coefficient(declval<Coercible>()))>
-Polynomial<Coefficient> operator*(Coercible x, Polynomial<Coefficient> const & y) {
+Polynomial<Coefficient> operator*(Coercible x, Polynomial<Coefficient> const& y) {
     return Polynomial<Coefficient>(Coefficient(std::move(x))) * y;
 }
 
 template<class Coefficient>
-Polynomial<Coefficient>& Polynomial<Coefficient>::operator/=(Coefficient const & d) {
+Polynomial<Coefficient>& Polynomial<Coefficient>::operator/=(Coefficient const& d) {
     if (!d)
 	throw_exception<std::domain_error>("Division by zero " + class_name<Polynomial<Coefficient> >());
     for (auto& c : coefficients)
@@ -225,7 +225,7 @@ Polynomial<Coefficient>& Polynomial<Coefficient>::operator/=(Coefficient const &
 }
 
 template<class Coefficient>
-Polynomial<Coefficient> Polynomial<Coefficient>::operator/(Coefficient const & d) const {
+Polynomial<Coefficient> Polynomial<Coefficient>::operator/(Coefficient const& d) const {
     Polynomial copy(*this);
     copy /= d;
     return copy;
@@ -237,7 +237,7 @@ Polynomial<Coefficient>& Polynomial<Coefficient>::operator^=(std::size_t exp) {
 }
 
 template<class Coefficient>
-Polynomial<Coefficient> Polynomial<Coefficient>::operator^(std::size_t exp) const & {
+Polynomial<Coefficient> Polynomial<Coefficient>::operator^(std::size_t exp) const& {
     Polynomial result(Coefficient(1));
     for (Polynomial mult(*this); exp; ) {
 	if (exp & 1)
@@ -263,7 +263,7 @@ Polynomial<Coefficient> Polynomial<Coefficient>::operator^(std::size_t exp) && {
 }
 
 template<class Coefficient, class Coercible, class = decltype(Coefficient(declval<Coercible>()))>
-Polynomial<Coefficient> operator^(Coercible x, Polynomial<Coefficient> const & y) {
+Polynomial<Coefficient> operator^(Coercible x, Polynomial<Coefficient> const& y) {
     return Polynomial<Coefficient>(Coefficient(std::move(x))) ^ y;
 }
 
@@ -272,7 +272,7 @@ Polynomial<Coefficient> operator^(Coercible x, Polynomial<Coefficient> const & y
 /* template Class<Polynomial> impl */
 
 template<class Coefficient>
-std::ostream& Class<Polynomial<Coefficient> >::print(std::ostream& os, Polynomial<Coefficient> const & p) {
+std::ostream& Class<Polynomial<Coefficient> >::print(std::ostream& os, Polynomial<Coefficient> const& p) {
     os << '(';
     Cleanup closeParen{[&os](){os<<')';}};
     os << "[x] -> ";
@@ -303,7 +303,7 @@ std::ostream& Class<Polynomial<Coefficient> >::print(std::ostream& os, Polynomia
 template<class Coefficient>
 Optional<Polynomial<Coefficient> > Class<Polynomial<Coefficient> >::parse(std::istream& is) {
     Resetter resetter{is};
-    auto failure = [](std::string const & cause) {
+    auto failure = [](std::string const& cause) {
 	return Failure("Parsing " + name() + " failed: " + cause);
     };
     bool const inParens = consume(is,'(');

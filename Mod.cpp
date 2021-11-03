@@ -8,7 +8,7 @@
 
 UI Mod::globalMod = 0;
 
-template<> std::ostream& Class<Mod>::print(std::ostream& oss, Mod const & mod) {
+template<> std::ostream& Class<Mod>::print(std::ostream& oss, Mod const& mod) {
     oss << mod.value;
     if (mod.mod > 0)
 	oss << " (mod " << mod.mod << ")";
@@ -18,7 +18,7 @@ template<> std::string Class<Mod>::name() {
     return "Mod";
 }
 
-void Mod::mod_mismatch_check(Mod const & o) const {
+void Mod::mod_mismatch_check(Mod const& o) const {
     if(mod != o.mod)
 	throw_exception<std::invalid_argument>(
 	    "Mod values " +
@@ -66,12 +66,12 @@ Mod::Mod(UI m, UI v)
 Mod::Mod(UI m, SI v)
     : Mod(m,static_cast<SL>(v)) {
 }
-Mod::Mod(Mod const & m)
+Mod::Mod(Mod const& m)
     : mod(m.mod)
     , value(m.value) {
 }
 
-Mod& Mod::operator=(Mod const & m) = default;
+Mod& Mod::operator=(Mod const& m) = default;
 
 void swap(Mod& x, Mod& y) {
     std::swap(x.mod,y.mod);
@@ -112,20 +112,20 @@ UI Mod::get_mod() const {
     return mod;
 }
 
-bool Mod::operator==(Mod const & m) const {
+bool Mod::operator==(Mod const& m) const {
     mod_mismatch_check(m);
     return value == m.value;
 }
 
-bool Mod::operator!=(Mod const & m) const {
+bool Mod::operator!=(Mod const& m) const {
     return !(*this == m);
 }
 
-Mod Mod::operator+(Mod const & y) const {
+Mod Mod::operator+(Mod const& y) const {
     return Mod(*this) += y;
 }
 
-Mod& Mod::operator+=(Mod const & o){
+Mod& Mod::operator+=(Mod const& o){
     mod_mismatch_check(o);
     value += o.value;
     if (value >= mod)
@@ -133,11 +133,11 @@ Mod& Mod::operator+=(Mod const & o){
     return *this;
 }
 
-Mod Mod::operator-(Mod const & y) const {
+Mod Mod::operator-(Mod const& y) const {
     return Mod(*this) -= y;
 }
 
-Mod& Mod::operator-=(Mod const & o) {
+Mod& Mod::operator-=(Mod const& o) {
     mod_mismatch_check(o);
     if (value < o.value)
 	value += mod;
@@ -145,11 +145,11 @@ Mod& Mod::operator-=(Mod const & o) {
     return *this;
 }
 
-Mod Mod::operator*(Mod const & y) const {
+Mod Mod::operator*(Mod const& y) const {
     return Mod(*this) *= y;
 }
 
-Mod& Mod::operator*=(Mod const & o) {
+Mod& Mod::operator*=(Mod const& o) {
     mod_mismatch_check(o);
     value *= o.value;
     if (mod)
@@ -157,11 +157,11 @@ Mod& Mod::operator*=(Mod const & o) {
     return *this;
 }
 
-Mod Mod::operator/(Mod const & y) const {
+Mod Mod::operator/(Mod const& y) const {
     return Mod(*this) /= y;
 }
 
-Mod& Mod::operator/=(Mod const & o) {
+Mod& Mod::operator/=(Mod const& o) {
     mod_mismatch_check(o);
     if(o.value == 0)
 	throw_exception<std::overflow_error>("Division by zero in Mod");

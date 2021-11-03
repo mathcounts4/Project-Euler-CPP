@@ -58,9 +58,9 @@ namespace Construct {
 
 // Defines copy constructors
 #define DEFINE_COPY(Class,defined)		\
-    Class(Class       & ) = defined;		\
-    Class(Class const & ) = defined;		\
-    Class(Class       &&) = defined
+    Class(Class      & ) = defined;		\
+    Class(Class const& ) = defined;		\
+    Class(Class      &&) = defined
 
 // Defines default copy constructors
 #define DEFAULT_COPY(Class) DEFINE_COPY(Class,default)
@@ -70,9 +70,9 @@ namespace Construct {
 
 // Defines default assignment operators for all c/ref combinarions
 #define DEFINE_ASSIGN(Class,defined)		\
-    Class& operator=(Class       & ) = defined;	\
-    Class& operator=(Class const & ) = defined;	\
-    Class& operator=(Class       &&) = defined
+    Class& operator=(Class      & ) = defined;	\
+    Class& operator=(Class const& ) = defined;	\
+    Class& operator=(Class      &&) = defined
 
 // Defines default assignment operators for all c/ref combinarions
 #define DEFAULT_ASSIGN(Class) DEFINE_ASSIGN(Class,default)
@@ -82,8 +82,8 @@ namespace Construct {
 
 // Defines copy deduction guides for a template taking Class<T...> for classes T...
 #define DEDUCE_COPY(Class)						\
-    template<class... T> Class(Class<T...>       & ) -> Class<T...>;	\
-    template<class... T> Class(Class<T...> const & ) -> Class<T...>;	\
-    template<class... T> Class(Class<T...>       &&) -> Class<T...>;	\
-    template<class... T> Class(Class<T...> const &&) -> Class<T...>
+    template<class... T> Class(Class<T...>      & ) -> Class<T...>;	\
+    template<class... T> Class(Class<T...> const& ) -> Class<T...>;	\
+    template<class... T> Class(Class<T...>      &&) -> Class<T...>;	\
+    template<class... T> Class(Class<T...> const&&) -> Class<T...>
     

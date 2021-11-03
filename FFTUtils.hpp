@@ -15,12 +15,12 @@ namespace FFT {
     void fft_1d_r2c_discard(SI n);
     void fft_1d_c2r_discard(SI n);
     
-    V<CD> fft(V<D> const & in, B save = false);
-    V<D> ifft(SZ const n, V<CD> const & in, B save = false);
+    V<CD> fft(V<D> const& in, B save = false);
+    V<D> ifft(SZ const n, V<CD> const& in, B save = false);
 
     V<D> convolution(V<D> x, V<D> y, SZ goal = -1, B save = false);
-    V<Mod> convolution(V<Mod> const & x, V<Mod> const & y, SZ goal = -1, B save = false);
+    V<Mod> convolution(V<Mod> const& x, V<Mod> const& y, SZ goal = -1, B save = false);
     
-    V<Mod> double_to_Mod(V<D> const & v, UI mod);
-    V<D> Mod_to_double(V<Mod> const & v);
+    V<Mod> double_to_Mod(V<D> const& v, UI mod);
+    V<D> Mod_to_double(V<Mod> const& v);
 }

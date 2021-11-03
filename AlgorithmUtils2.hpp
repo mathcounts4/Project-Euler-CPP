@@ -103,13 +103,13 @@ template<class... Hook>
 Hooks(Hook&&...) -> Hooks<Hook&&...>;
 /* Rules for tuple types */
 template<template<class...> class Tuple, class... Hook>
-Hooks(Construct::Tuplewise, Tuple<Hook...>       & ) -> Hooks<Hook       & ...>;
+Hooks(Construct::Tuplewise, Tuple<Hook...>      & ) -> Hooks<Hook      & ...>;
 template<template<class...> class Tuple, class... Hook>
-Hooks(Construct::Tuplewise, Tuple<Hook...> const & ) -> Hooks<Hook const & ...>;
+Hooks(Construct::Tuplewise, Tuple<Hook...> const& ) -> Hooks<Hook const& ...>;
 template<template<class...> class Tuple, class... Hook>
-Hooks(Construct::Tuplewise, Tuple<Hook...>       &&) -> Hooks<Hook       &&...>;
+Hooks(Construct::Tuplewise, Tuple<Hook...>      &&) -> Hooks<Hook      &&...>;
 template<template<class...> class Tuple, class... Hook>
-Hooks(Construct::Tuplewise, Tuple<Hook...> const &&) -> Hooks<Hook const &&...>;
+Hooks(Construct::Tuplewise, Tuple<Hook...> const&&) -> Hooks<Hook const&&...>;
 /* Copy construction also deduced */
 DEDUCE_COPY(Hooks);
 
@@ -166,8 +166,8 @@ template<class... Hook_Types> struct Hooks : public SmartTuple<Hook_Types...> {
     /* .add_missing_defaults<X,...>() returns a Hooks with defaults for X,... added to the end if no existing Hooks matched each */
     template<class... Desired> auto add_missing_defaults() const {
 	static_assert(all<is_pure<Desired>...>,"Desired arguments should not be cv-ref qualified");
-	using Result = Hooks<Hook_Types &...,Default_Hook<Cond<has_none<Desired>,Desired,Ignore> >...>;
-	return Result{Construct::tuplewise,tuple_cat_refs(RefTuple{Construct::piecewise},SmartTuple<RefTuple<Hook_Types &>...>{Construct::tuplewise,const_cast<Hooks&>(*this)},BasicTuple<Cond<false,Desired,RefTuple<> > >{}...)};
+	using Result = Hooks<Hook_Types&...,Default_Hook<Cond<has_none<Desired>,Desired,Ignore> >...>;
+	return Result{Construct::tuplewise,tuple_cat_refs(RefTuple{Construct::piecewise},SmartTuple<RefTuple<Hook_Types&>...>{Construct::tuplewise,const_cast<Hooks&>(*this)},BasicTuple<Cond<false,Desired,RefTuple<> > >{}...)};
     }
 
     /* assert_only<X,Y> checks that all hooks match X, Y, or Ignore */
@@ -178,8 +178,8 @@ template<class... Hook_Types> struct Hooks : public SmartTuple<Hook_Types...> {
     }
 
     /* + appends two Hooks together, using references to the original hooks */
-    template<class... Other_Hook_Types> Hooks<Hook_Types const &...,Other_Hook_Types const &...>
-    operator+(Hooks<Other_Hook_Types...> const & o) const {
+    template<class... Other_Hook_Types> Hooks<Hook_Types const&...,Other_Hook_Types const&...>
+    operator+(Hooks<Other_Hook_Types...> const& o) const {
 	return {Construct::tuplewise,tuple_cat_refs(
 		const_cast<Hooks&>(*this),
 		const_cast<Hooks<Other_Hook_Types...>&>(o))};
@@ -203,7 +203,7 @@ template<class... Hook_Types> struct Hooks : public SmartTuple<Hook_Types...> {
 #define EACH_CVREF(MACRO) MACRO(&) MACRO(const&) MACRO(&&) MACRO(const&&)
 #define PLUS_SECOND(CVREF)						\
     template<class... Args, class Type, class Functor>			\
-    auto operator+(Hooks<Args...> const & hs, Hook<Type,Functor> CVREF h) { \
+    auto operator+(Hooks<Args...> const& hs, Hook<Type,Functor> CVREF h) { \
 	return hs + Hooks{fwd<decltype(h)>(h)};				\
     }
 
@@ -212,7 +212,7 @@ EACH_CVREF(PLUS_SECOND);
     
 #define PLUS_FIRST(CVREF)						\
     template<class... Args, class Type, class Functor>			\
-    auto operator+(Hook<Type,Functor> CVREF h, Hooks<Args...> const & hs) { \
+    auto operator+(Hook<Type,Functor> CVREF h, Hooks<Args...> const& hs) { \
 	return Hooks{fwd<decltype(h)>(h)} + hs;				\
     }
 

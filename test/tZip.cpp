@@ -15,7 +15,7 @@ TEST(zip,BindTemp) {
 	    , the_int(x) {
 	    ++the_int;
 	}
-	IncrementerSentinel(IncrementerSentinel const &) = delete;
+	IncrementerSentinel(IncrementerSentinel const&) = delete;
 	~IncrementerSentinel() {
 	    --the_int;
 	}
@@ -47,7 +47,7 @@ TEST(zip,Const) {
     struct Bomb {
 	bool exploded;
 	Bomb() : exploded(false) {}
-	Bomb(Bomb const &) = delete;
+	Bomb(Bomb const&) = delete;
 	void ignite() {
 	    exploded = true;
 	}
@@ -55,13 +55,13 @@ TEST(zip,Const) {
     };
     Vec<Bomb> xList(2);
     Vec<Bomb> yList(2);
-    for (auto const & [x,y] : zip(xList,yList)) {
+    for (auto const& [x,y] : zip(xList,yList)) {
 	x.ignite();
 	y.ignite();
     }
-    for (Bomb const & b : xList)
+    for (Bomb const& b : xList)
 	CHECK(b.exploded, isFalse());
-    for (Bomb const & b : yList)
+    for (Bomb const& b : yList)
 	CHECK(b.exploded, isFalse());
 
     {

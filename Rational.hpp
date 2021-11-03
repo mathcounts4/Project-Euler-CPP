@@ -5,11 +5,9 @@
 
 using Rational = Fraction<BigInt>;
 
-template<> extern void Fraction<BigInt>::reduce();
-template<> extern bool Fraction<BigInt>::operator<(Fraction const & o) const;
-template<> extern Fraction<BigInt> Fraction<BigInt>::operator-() const;
-template<> extern Fraction<BigInt>& Fraction<BigInt>::operator+=(Fraction const & o);
-template<> extern Fraction<BigInt>& Fraction<BigInt>::operator-=(Fraction const & o);
-template<> extern Fraction<BigInt>& Fraction<BigInt>::operator*=(Fraction const & o);
-template<> extern Fraction<BigInt>& Fraction<BigInt>::operator/=(Fraction const & o);
+template<> extern void Rational::reduce();
+template<> extern Rational& Rational::operator+=(Rational const& o);
+template<> extern Rational& Rational::operator-=(Rational const& o);
+template<> extern Rational& Rational::operator*=(Rational const& o);
+template<> extern Rational& Rational::operator/=(Rational const& o);
 

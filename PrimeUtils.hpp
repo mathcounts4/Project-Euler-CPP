@@ -10,6 +10,7 @@
 Vec<B> isPrimeUpTo(UI const n);
 Vec<UI> primesUpTo(UI const n);
 Vec<UI> phiUpTo(UI const n);
+Vec<UI> somePrimeFactorUpTo(UI const n);
 
 B is_prime(UL const n);
 B is_composite(UL const n);
@@ -36,11 +37,11 @@ class Prime_Factorization {
     Vec<Prime_Power> fPowers;
     friend struct Class<Prime_Factorization>;
 
-    void list_factors(Vec<UL> & result, SZ const index = 0, UL value = 1) const;
+    void list_factors(Vec<UL>& result, SZ const index = 0, UL value = 1) const;
 
     void list_factors_prime_factorizations(
-	Vec<Prime_Factorization> & result,
-	Prime_Factorization & new_pf,
+	Vec<Prime_Factorization>& result,
+	Prime_Factorization& new_pf,
 	SZ const index = 0) const;
   public:
     // Do not construct with 0
@@ -61,7 +62,7 @@ class Prime_Factorization {
     Vec<Prime_Factorization> factors_prime_factorizations() const;
 
     // returns the prime powers of this factorization
-    Vec<Prime_Power> const & primes_and_exponents() const;
+    Vec<Prime_Power> const& primes_and_exponents() const;
     
     // returns the biggest prime and its power, if one exists
     Optional<Prime_Power> max_prime_and_power() const;
@@ -74,13 +75,13 @@ Vec<UL> factors(UL const n);
 Vec<UL> sorted_factors(UL const n);
 
 /* Class<Prime_Power> */
-template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const & pp);
+template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const& pp);
 template<> Optional<Prime_Power> Class<Prime_Power>::parse(std::istream& is);
 template<> Str Class<Prime_Power>::name();
 template<> Str Class<Prime_Power>::format();
 
 /* Class<Prime_Factorization> */
-template<> std::ostream& Class<Prime_Factorization>::print(std::ostream& os, Prime_Factorization const & pf);
+template<> std::ostream& Class<Prime_Factorization>::print(std::ostream& os, Prime_Factorization const& pf);
 template<> Optional<Prime_Factorization> Class<Prime_Factorization>::parse(std::istream& is);
 template<> Str Class<Prime_Factorization>::name();
 template<> Str Class<Prime_Factorization>::format();

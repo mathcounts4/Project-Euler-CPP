@@ -19,7 +19,7 @@ public:
     operator T& () noexcept {
 	return t;
     }
-    operator T const & () const noexcept {
+    operator T const& () const noexcept {
 	return t;
     }
 };

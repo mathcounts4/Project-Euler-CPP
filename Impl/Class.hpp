@@ -44,16 +44,16 @@ std::enable_if_t<predefined_basic_ostream_shift_out<T>,
 } /* namespace std */
 
 /* global io and class info functions */
-template<class T> std::string to_string(T const & t) {
+template<class T> std::string to_string(T const& t) {
     std::ostringstream oss;
     Class<T>::print(oss,t);
     return oss.str();
 }
 
-template<class T> Optional<T> from_string(std::string const & s) {
+template<class T> Optional<T> from_string(std::string const& s) {
     std::istringstream iss(s);
     Optional<T> result = Class<T>::parse(iss);
-    auto failure = [&s](std::string const & reason) -> Failure {
+    auto failure = [&s](std::string const& reason) -> Failure {
 	return {"Failed to parse " + class_name<T>() +
 		" from " + "\"" + s + "\"" +
 		" due to:\n" +
@@ -108,7 +108,7 @@ template<class T> std::string cvref_string() {
 	return is;							\
     }									\
     template<class... Args> std::basic_ostream<Args...>& operator<<	\
-    (std::basic_ostream<Args...>& os, CHAR_T const & c) {		\
+    (std::basic_ostream<Args...>& os, CHAR_T const& c) {		\
 	CHAR_T const _c = c;						\
 	return os << _c;						\
     }
@@ -124,7 +124,7 @@ std::istream& operator>>(std::istream& is, __uint128_t& x);
 
 template<class X> struct Class<Optional<X> > {
     using T = Optional<X>;
-    static std::ostream& print(std::ostream& os, T const & t) {
+    static std::ostream& print(std::ostream& os, T const& t) {
 	if (t) {
 	    os << *t;
 	} else {
@@ -145,7 +145,7 @@ template<class X> struct Class<Optional<X> > {
 
 template<class X, class Y> struct Class<std::pair<X,Y> > {
     using T = std::pair<X,Y>;
-    static std::ostream& print(std::ostream& os, T const & t) {
+    static std::ostream& print(std::ostream& os, T const& t) {
 	return os << "{" << t.first << "," << t.second << "}";
     }
     static Optional<T> parse(std::istream& is) {
@@ -180,10 +180,10 @@ template<class X, class Y> struct Class<std::pair<X,Y> > {
 
 template<class X, SZ len> struct Class<std::array<X,len> > {
     using T = std::array<X,len>;
-    static std::ostream& print(std::ostream& os, T const & t) {
+    static std::ostream& print(std::ostream& os, T const& t) {
 	os << "{";
 	int printed = 0;
-	for (X const & x : t) {
+	for (X const& x : t) {
 	    if (printed != 0)
 		os << ",";
 	    if (printed == PRINT_LIMIT) {
@@ -228,10 +228,10 @@ template<class X, SZ len> struct Class<std::array<X,len> > {
 #define CONTAINER_ONE_ARG_CLASS(TYPE)					\
     template<class X> struct Class<TYPE<X> > {				\
 	using T = TYPE<X>;						\
-	static std::ostream& print(std::ostream& os, T const & t) {	\
+	static std::ostream& print(std::ostream& os, T const& t) {	\
 	    os << "{";							\
 	    int printed = 0;						\
-	    for (X const & x : t) {					\
+	    for (X const& x : t) {					\
 		if (printed != 0)					\
 		    os << ",";						\
 		if (printed == PRINT_LIMIT) {				\
@@ -246,7 +246,7 @@ template<class X, SZ len> struct Class<std::array<X,len> > {
 	}								\
 	static Optional<T> parse(std::istream& is) {			\
 	    Resetter resetter{is};					\
-	    auto failure = [](std::string const & cause) -> Failure {	\
+	    auto failure = [](std::string const& cause) -> Failure {	\
 		return name() + " parse error:\n" + cause;		\
 	    };								\
 	    auto opt = consume_opt(is,'{');				\
@@ -286,10 +286,10 @@ FOR_EACH_STD_CONTAINER_ONE_ARG(CONTAINER_ONE_ARG_CLASS,;);
 #define CONTAINER_TWO_ARG_CLASS(TYPE)					\
     template<class X, class Y> struct Class<TYPE<X,Y> > {		\
 	using T = TYPE<X,Y>;						\
-	static std::ostream& print(std::ostream& os, T const & t) {	\
+	static std::ostream& print(std::ostream& os, T const& t) {	\
 	    os << "{";							\
 	    int printed = 0;						\
-	    for (auto const & pair : t) {				\
+	    for (auto const& pair : t) {				\
 		if (printed != 0)					\
 		    os << ",";						\
 		if (printed == PRINT_LIMIT) {				\
@@ -336,7 +336,7 @@ FOR_EACH_STD_CONTAINER_TWO_ARGS(CONTAINER_TWO_ARG_CLASS,;);
 
 #define PRIMITIVE_CLASS_DECL(T)						\
     template<>								\
-    std::ostream& Class<T>::print(std::ostream& oss, T const & t);	\
+    std::ostream& Class<T>::print(std::ostream& oss, T const& t);	\
     template<> std::string Class<T>::name();				\
     template<> Optional<T> Class<T>::parse(std::istream& is); 		\
     template<> std::string Class<T>::format()

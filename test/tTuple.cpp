@@ -130,7 +130,7 @@ TEST(Tuple,All) {
 	
 	cout << "Now we assert that the resulting type is as expected" << endl;
 	using R = decltype(r);
-	using Expected = RefTuple<int const &&,char&,int const &,int &,Blabber const &,int const &>;
+	using Expected = RefTuple<int const&&,char&,int const&,int &,Blabber const&,int const&>;
         assert_same_type<R,Expected>();
 
 	cout << "And here's the final tuple: ";

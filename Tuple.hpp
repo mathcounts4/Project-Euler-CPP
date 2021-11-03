@@ -50,7 +50,7 @@ template<class... Tuples> auto tuple_cat_move(Tuples&&... tuples);
 
 /* Concatenates the input tuples into a RefTuple of the results */
 /* The cvref qualifiers on the tuples themselves are used:
- * BasicTuple<int,char &&> const & -> RefTuple<int const &,char &> */
+ * BasicTuple<int,char&&> const& -> RefTuple<int const&,char&> */
 template<class... Tuples> auto tuple_cat_refs(Tuples&&... tuples);
 
 /* Applies the functor (forwarded) to each element of the tuple (forwarded), in order. */

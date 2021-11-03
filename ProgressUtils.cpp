@@ -12,16 +12,17 @@ My_Remove::My_Remove(std::size_t length, bool flush)
     , fFlush(flush) {
 }
 
-My_Remove::My_Remove(std::string const & s, bool flush)
+My_Remove::My_Remove(std::string const& s, bool flush)
     : My_Remove(s.size(),flush) {
 }
 
-template<> std::ostream& Class<My_Remove>::print(std::ostream& o, My_Remove const & r) {
+template<> std::ostream& Class<My_Remove>::print(std::ostream& o, My_Remove const& r) {
     for (std::size_t i = r.fLength; i > 0; --i)
 	// move back, write space, move back
 	o << "\b \b";
-    if (r.fFlush)
+    if (r.fFlush) {
 	o << std::flush;
+    }
     return o;
 }
 
@@ -30,7 +31,7 @@ template<> std::ostream& Class<My_Remove>::print(std::ostream& o, My_Remove cons
 
 Percent_Tracker::Percent_Tracker(
     double total,
-    std::string const & name,
+    std::string const& name,
     double thresholdPercent,
     double timeEstThreshold,
     std::ostream& o,
@@ -51,17 +52,24 @@ Percent_Tracker::Percent_Tracker(
 }
 
 Percent_Tracker::~Percent_Tracker() {
-    if (fCleanUp)
-	fStream << My_Remove(fLastPrinted,fFlushFinish);
+    try {
+	if (fCleanUp) {
+	    fStream << My_Remove(fLastPrinted,fFlushFinish);
+	}
+    } catch (...) {
+	// never throw from destructor
+    }
 }
 
 bool Percent_Tracker::update(double value) {
     fCurrent = value;
-    if (fTotal <= 0)
+    if (fTotal <= 0) {
 	return false;
-    double newPercent = fCurrent/fTotal*100;
-    if (newPercent > 100)
+    }
+    double newPercent = fCurrent / fTotal*100;
+    if (newPercent > 100) {
 	newPercent = 100;
+    }
     auto time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = time-fStart;
     if (diff.count() > 0.1) { // for very fast results, don't bother displaying
@@ -92,6 +100,6 @@ Percent_Tracker& Percent_Tracker::operator++() {
 }
 
 Percent_Tracker& Percent_Tracker::operator+=(double value) {
-    update(fCurrent+value);
+    update(fCurrent + value);
     return *this;
 }

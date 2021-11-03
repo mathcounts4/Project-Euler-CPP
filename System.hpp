@@ -9,4 +9,4 @@ struct Command_Result {
     std::string output;
 };
 
-Optional<Command_Result> system_call(std::string const & command);
+Optional<Command_Result> system_call(std::string const& command);

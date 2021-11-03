@@ -7,7 +7,7 @@
 
 TEST(ContainerTransformer,Basic) {
     std::vector<Unique> const v(2);
-    for (Unique const * u : ContainerTransformer{v,[](Unique const & u){return &u;}})
+    for (Unique const * u : ContainerTransformer{v,[](Unique const& u){return &u;}})
 	CHECK(u != nullptr, isTrue());
     
     auto const address_of = [](auto&& x) { return &x; };

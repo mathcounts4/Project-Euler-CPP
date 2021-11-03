@@ -5,6 +5,7 @@
 #include "tDFS.hpp"
 #include "tFraction.hpp"
 #include "tIndexing.hpp"
+#include "tProjectEuler.hpp"
 #include "tSafeMath.hpp"
 #include "tSafeMathNegative.hpp"
 #include "tTuple.hpp"
