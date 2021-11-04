@@ -40,7 +40,7 @@ $(DEP): %: $$(call FROM_PAT,$$(PAT_DEP),%)
 	$(call SECTION_START,"creating dependency $@")
 	$(RUN_VERBOSE_PRINT) $(CC) -MM -MQ "$(DEP_TO_OBJ)" $(FLAGS) $(DEP_TO_SRC) > $@
 	@$(CC) -MM -MQ $@ $(FLAGS) $(DEP_TO_SRC) 2>/dev/null >> $@
-	@if grep "$(ALWAYS_FORCE_REBUILD_PAT)" "$(DEP_TO_SRC)"; then echo "$(DEP_TO_OBJ): .FORCE # due to use of $(ALWAYS_FORCE_REBUILD_PAT)" >> $@; fi
+	@if grep "$(ALWAYS_FORCE_REBUILD_PAT)" "$(DEP_TO_SRC)"  2>&1 > /dev/null; then echo "$(DEP_TO_OBJ): .FORCE # due to use of $(ALWAYS_FORCE_REBUILD_PAT)" >> $@; fi
 	$(call SECTION_END,"creating dependency $@")
 
 # Each PRE target depends on the dependency being created,
