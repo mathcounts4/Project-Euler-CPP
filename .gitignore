@@ -1,0 +1,15 @@
+Project*.cpp
+ProjectEuler*
+!ProjectEuler.*
+Matrix/NDimExprTemplate
+boost*
+fftw*
+bin*
+.*
+!.gitignore
+run.me*
+**~
+Pitch**
+**.pdf
+**.png
+**.gif
