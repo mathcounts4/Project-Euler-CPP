@@ -1,0 +1,27 @@
+makefiles are meant to be magical:
+just "make myMain.cpp" and it should figure out the rest
+This also runs the generated executable.
+To only build and link, run "make myMain.cpp l" or "make myMain.cpp link".
+In addition, "make" will use the last main file target.
+
+See test/tProjectEuler.cpp for examples on how to use this library to solve Project Euler problems with a tiny amount of boilerplate.
+
+Calling the Project Euler wrapper PE::run_problem:
+ProjectEuler.hpp
+
+Helper math classes include:
+BigInt
+Fraction
+Mod
+Point
+Polynomial
+PrimeUtils.hpp
+Rational (Fraction<BigInt>)
+SafeMath
+
+Displaying a percent tracker for slow programs:
+ProgressUtils.hpp
+
+Displaying floating-point with particular precision utility:
+FormatUtils.hpp
+
