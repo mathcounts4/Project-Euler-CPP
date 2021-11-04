@@ -1,320 +1,166 @@
 #pragma once
 
+#include "Class.hpp"
+#include "ExitUtils.hpp"
+#include "MyHashUtil.hpp"
+#include "MyHashVector.hpp"
+#include "Optional.hpp"
+#include "SafeMath.hpp"
+#include "ScopedSetValue.hpp"
+#include "Str.hpp"
+#include "StringUtils.hpp"
+#include "TypeUtils.hpp"
+
 #include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <typeinfo>
+#include <type_traits>
 #include <vector>
 #include <utility>
 
-#include "MyHashUtil.hpp"
-#include "MyHashVector.hpp"
-#include "StringUtils.hpp"
+class BigInt;
+namespace std {
+    template<> struct make_unsigned<BigInt> { using type = BigInt; };
+    template<> struct is_signed<BigInt> { static constexpr bool value = true; };
+    template<> struct is_integral<BigInt> { static constexpr bool value = true; };
+}
 
-const unsigned int Default_BigInt_Mod = 1 << 30;
-
-template<unsigned int mod = Default_BigInt_Mod>
 class BigInt {
-private:
-    enum { Finite, Infinite } finite;
-    enum { Positive, Negative } sign;
-    std::vector<unsigned long> data;
-    friend std::size_t std::hash<BigInt>::operator()(const BigInt & x) const;
-    void reduce() {
-	while (data.size() && data.back() == 0)
-	    data.pop_back();
-	if (data.size() == 0)
-	    sign = Positive;
-    }
-public:
-    BigInt() : finite(Finite), sign(Positive) {}
-    BigInt(long val) : finite(Finite), sign(val>=0?Positive:Negative) {
-	for (val=abs(val);val;val/=mod)
-	    data.push_back(val % mod);
-    }
-    static BigInt Inf() {
-	BigInt ans;
-	ans.finite = Infinite;
-	return ans;
-    }
-    static BigInt NegInf() {
-	BigInt ans = Inf();
-	ans.sign = Negative;
-	return ans;
-    }
-    void swap(BigInt & other) {
-	std::swap(finite,other.finite);
-	std::swap(sign,other.sign);
-	std::swap(data,other.data);
-    }
-    explicit operator bool() const {
-	return data.size() || finite == Infinite;
-    }
-    explicit operator char() const {
-	if (finite == Infinite)
-	    throw std::domain_error("Cannot convert infinite value to char");
-	int ans = 0;
-	for (int i = data.size(); i--; ) {
-	    if (std::numeric_limits<char>::max()/mod-1 <= ans)
-		throw std::overflow_error("Too large for char");
-	    ans = ans * mod + data[i];
-	}
-	return sign == Positive ? ans : -ans;
-    }
-    explicit operator int() const {
-	if (finite == Infinite)
-	    throw std::domain_error("Cannot convert infinite value to int");
-	int ans = 0;
-	for (int i = data.size(); i--; ) {
-	    if (std::numeric_limits<int>::max()/mod-1 <= ans)
-		throw std::overflow_error("Too large for int");
-	    ans = ans * mod + data[i];
-	}
-	return sign == Positive ? ans : -ans;
-    }
-    explicit operator long() const {
-	if (finite == Infinite)
-	    throw std::domain_error("Cannot convert infinite value to long");
-	long ans = 0;
-	for (int i = data.size(); i--; ) {
-	    if (std::numeric_limits<long>::max()/mod-1 <= ans)
-		throw std::overflow_error("Too large for long");
-	    ans = ans * mod + data[i];
-	}
-	return sign == Positive ? ans : -ans;
-    }
-    explicit operator double() const {
-	if (finite == Infinite)
-	    return sign == Positive ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity();
-	double ans = 0;
-	for (int i = data.size(); i--; ) {
-	    if (std::numeric_limits<double>::max()/mod-1 <= ans)
-		throw std::overflow_error("Too large for double");
-	    ans = ans * mod + data[i];
-	}
-	return sign == Positive ? ans : -ans;
-    }
-    explicit operator std::string() const {
-	if (finite == Infinite)
-	    return sign == Positive ? "INF" : "-INF";
-	if (*this == 0)
-	    return "0";
-	std::string ans;
-	BigInt copy(*this);
-	copy.sign = Positive;
-	while (bool(copy)) {
-	    ans += '0' + char(copy % 10);
-	    copy /= 10;
-	}
-	if (sign == Negative)
-	    ans += "-";
-	std::reverse(ans.begin(),ans.end());
-	return ans;
-    }
-    bool operator>(BigInt const & other) const {
-	if (finite == Infinite && other.finite == Infinite)
-	    return sign == Positive && other.sign == Negative;
-	if (finite == Infinite)
-	    return sign == Positive;
-	if (other.finite == Infinite)
-	    return other.sign == Negative;
-	if (data.size() == 0 && other.data.size() == 0)
-	    return false;
-	if (sign != other.sign)
-	    return sign == Positive;
-	if (data.size() != other.data.size())
-	    return data.size() > other.data.size() ^ sign == Negative;
-	for (int i = data.size(); --i >= 0; )
-	    if (data[i] != other.data[i])
-		return data[i] > other.data[i] ^ sign == Negative;
-	return false;
-    }
-    bool operator<(BigInt const & other) const {
-	return other > *this;
-    }
-    bool operator>=(BigInt const & other) const {
-	return !(other > *this);
-    }
-    bool operator<=(BigInt const & other) const {
-	return !(*this > other);
-    }
-    bool operator!=(BigInt const & other) const {
-	return *this > other || other > *this;
-    }
-    bool operator==(BigInt const & other) const {
-	
-	return !(*this != other);
-    }
-    BigInt operator-() const {
-	BigInt negative(*this);
-	negative.sign = sign == Positive ? Negative : Positive;
-	return negative;
-    }
-    BigInt & operator+=(BigInt const & other) {
-	return *this -= -other;
-    }
-    BigInt operator+(BigInt const & other) const {
-	BigInt ans(*this);
-	ans += other;
-	return ans;
-    }
-    template<class T>
-    friend BigInt operator+(T const & lhs, BigInt const & rhs) {
-	return BigInt(lhs) + rhs;
-    }
-    BigInt & operator-=(BigInt const & other) {
-	if (finite == Infinite && other.finite == Infinite)
-	    return sign == other.sign ? *this = 0 : *this;
-	if (finite == Infinite)
-	    return *this;
-	if (other.finite == Infinite)
-	    return *this = -other;
-	auto outSign = *this >= other ? Positive : Negative;
-	int carry = 0;
-	for (int i = 0; i < other.data.size() || i < data.size() || carry; ++i) {
-	    long cur = carry;
-	    carry = 0;
-	    if (i < other.data.size())
-		cur += other.sign == outSign ? -other.data[i] : other.data[i];
-	    if (i < data.size())
-		cur += sign == outSign ? data[i] : -data[i];
-	    if (cur < 0) {
-		cur += mod;
-		carry = -1;
-	    } else if (cur >= mod) {
-		cur -= mod;
-		carry = 1;
-	    }
-	    if (i == data.size()) {
-		data.push_back(cur);
-	    } else {
-		data[i] = cur;
-	    }
-	}
-	reduce();
-	sign = outSign;
-	return *this;
-    }
-    BigInt operator-(BigInt const & other) const {
-	BigInt ans(*this);
-	ans -= other;
-	return ans;
-    }
-    template<class T>
-    friend BigInt operator-(T const & lhs, BigInt const & rhs) {
-	return BigInt(lhs) - rhs;
-    }
-    BigInt & operator*=(BigInt const & other) {
-	if (*this == 0 || other == 0)
-	    return *this = 0;
-	if (finite == Infinite || other.finite == Infinite) {
-	    sign = sign == other.sign ? Positive : Negative;
-	    return *this;
-	}
-	BigInt ans;
-	ans.sign = sign == other.sign ? Positive : Negative;
-	for (int i = 0; i < data.size(); ++i) {
-	    for (int j = 0; j < other.data.size(); ++j) {
-		if (i+j == ans.data.size())
-		    ans.data.push_back(0);
-		ans.data[i+j] += data[i]*other.data[j];
-		for (int k = i+j; ans.data[k] >= mod; ++k) {
-		    if (k+1 == ans.data.size())
-			ans.data.push_back(0);
-		    ans.data[k+1] += ans.data[k]/mod;
-		    ans.data[k] %= mod;
-		}
-	    }
-	}
-	swap(ans);
-	reduce();
-	return *this;
-    }
-    BigInt operator*(BigInt const & other) const {
-	BigInt ans(*this);
-	ans *= other;
-	return ans;
-    }
-    template<class T>
-    friend BigInt operator*(T const & lhs, BigInt const & rhs) {
-	return BigInt(lhs) * rhs;
-    }
-    BigInt & operator/=(BigInt const & other) {
-	if (other == 0)
-	    throw std::domain_error("Division by zero");
-	if (finite == Infinite && other.finite == Infinite)
-	    return *this = sign == other.sign ? 1 : -1;
-	if (finite == Infinite) {
-	    sign = sign == other.sign ? Positive : Negative;
-	    return *this;
-	}
-	if (other.finite == Infinite)
-	    return *this = 0;
-	std::vector<BigInt> mult{1}, times{other};
-	times[0].sign = Positive;
-	BigInt ans;
-	auto ans_sign = sign == other.sign ? Positive : Negative;
-	sign = Positive;
-	while (times.back() <= *this) {
-	    mult.push_back(mult.back() * 2);
-	    times.push_back(times.back() * 2);
-	}
-	while (bool(*this) && times.size()) {
-	    if (*this >= times.back()) {
-		*this -= times.back();
-		ans += mult.back();
-	    }
-	    times.pop_back();
-	    mult.pop_back();
-	}
-	ans.sign = ans_sign;
-	swap(ans);
-	return *this;
-    }
-    BigInt operator/(BigInt const & other) const {
-	BigInt ans(*this);
-	ans /= other;
-	return ans;
-    }
-    template<class T>
-    friend BigInt operator/(T const & lhs, BigInt const & rhs) {
-	return BigInt(lhs) / rhs;
-    }
-    BigInt & operator%=(BigInt const & other) {
-	return *this -= *this / other * other;
-    }
-    BigInt operator%(BigInt const & other) const {
-	BigInt ans(*this);
-	ans %= other;
-	return ans;
-    }
-    template<class T>
-    friend BigInt operator%(T const & lhs, BigInt const & rhs) {
-	return BigInt(lhs) % rhs;
-    }
-    friend std::ostream& operator<<(std::ostream& s, BigInt const & x) {
-	return s << std::string(x);
-    }
+  private:
+    using big_t = UL;
+    using small_t = UI;
+    // the operations we do on data necessitate that the following expressions
+    // do not overflow, for data x, y, and z:
+    // x+y+1, x+y*z
+    static_assert(sizeof(big_t) >= 2*sizeof(small_t),
+		  "Numeric types have invalid sizes for BigInt");
+    static constexpr small_t max_small_t = std::numeric_limits<small_t>::max();
+    static constexpr big_t low_digits = max_small_t;
+    static constexpr big_t mod = low_digits + 1;
+    static constexpr small_t shift_sz = 8 * sizeof(small_t);
+
+    // type-safe booleans
+    enum class Infinite : bool { False = false, True = true};
+    enum class Negative : bool { False = false, True = true};
+    BigInt(Infinite inf, Negative neg);
+    
+    // member variables;
+    // [least significant digit, ..., most significant digit]
+    std::vector<small_t> data;
+    Infinite infinite;
+    Negative negative;
+    
+    // std::hash for BigInt
+    friend struct std::hash<BigInt>;
+    friend struct Class<BigInt>;
+    
+    // deletes extra 0's from the data
+    void reduce();
+    
+  public:
+
+    static std::string const INF_STR;
+    static std::string const NEG_INF_STR;
+    
+    // constructors
+    BigInt();
+    BigInt(std::string const& s);
+    template<class T, class = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, BigInt>>>
+    BigInt(T const& t);
+
+    // infinite constants
+    static BigInt const& Inf();
+    static BigInt const& NegInf();
+
+    bool inf() const;
+    bool neg() const;
+    int cmp() const;
+
+    BigInt& absMe();
+    BigInt& negateMe();
+
+    void swap(BigInt &);
+
+    // returns if this is +- a power of 2
+    bool isPowerOf2() const;
+
+    // returns floor(log2(abs(this)))
+    std::size_t log2() const;
+
+    // returns floor(sqrt(this))
+    BigInt sqrt() const;
+
+    // type conversion operators
+    explicit operator bool() const;
+    explicit operator std::string() const;
+    template<class T> Optional<T> convert() const;
+
+    // comparison operators
+    friend bool operator<(BigInt const& x, BigInt const& y);
+    friend bool operator>(BigInt const& x, BigInt const& y);
+    friend bool operator<=(BigInt const& x, BigInt const& y);
+    friend bool operator>=(BigInt const& x, BigInt const& y);
+    friend bool operator==(BigInt const& x, BigInt const& y);
+    friend bool operator!=(BigInt const& x, BigInt const& y);
+
+    // arithmetic operators
+    BigInt const abs() const;
+    BigInt const operator-() const;
+
+    BigInt& operator++();
+    BigInt& operator--();
+    
+    BigInt& operator<<=(long);
+    BigInt& operator>>=(long);
+    
+    BigInt operator<<(long) const;
+    BigInt operator>>(long) const;
+
+    friend BigInt operator+(BigInt const& x, BigInt const& y);
+    BigInt& operator+=(BigInt const& o);
+
+    friend BigInt operator-(BigInt const& x, BigInt const& y);
+    BigInt& operator-=(BigInt const& o);
+    
+    friend BigInt operator*(BigInt const& x, BigInt const& y);
+    BigInt& operator*=(BigInt const& o);
+
+    friend BigInt operator/(BigInt const& x, BigInt const& y);
+    BigInt& operator/=(BigInt const& o);
+
+    friend BigInt operator%(BigInt const& x, BigInt const& y);
+    BigInt& operator%=(BigInt const& o);
+    
+    BigInt operator^(std::size_t exp) const;
+    BigInt& operator^=(std::size_t expt);
 };
+MAKE_HASHABLE(BigInt,x,x.infinite,x.negative,x.data);
 
-MAKE_HASHABLE_TEMPLATE(<unsigned int mod>,BigInt<mod>,x,x.finite,x.sign,x.data)
+template<> std::ostream& Class<BigInt>::print(std::ostream& oss, BigInt const& bi);
+template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is);
+template<> Str Class<BigInt>::name();
+template<> Str Class<BigInt>::format();
 
-template<unsigned int mod>
-class std::numeric_limits<BigInt<mod> > {
-public:
-    static constexpr bool is_specialized = false;
-    static constexpr BigInt<mod> min() noexcept { return BigInt<mod>::Inf(); }
-    static constexpr BigInt<mod> max() noexcept { return BigInt<mod>::Inf(); }
-    static constexpr BigInt<mod> lowest() noexcept { return -BigInt<mod>::Inf(); }
-    static constexpr int  digits = 0;
-    static constexpr int  digits10 = 0;
-    static constexpr bool is_signed = false;
-    static constexpr bool is_integer = false;
-    static constexpr bool is_exact = false;
-    static constexpr int radix = 0;
-    static constexpr BigInt<mod> epsilon() noexcept { return 1; }
-    static constexpr BigInt<mod> round_error() noexcept { return 1; }
+template<>
+class std::numeric_limits<BigInt> {
+  public:
+    static constexpr bool is_specialized = true;
+    static BigInt const min() noexcept { return -infinity(); }
+    static BigInt const max() noexcept { return infinity(); }
+    static BigInt const lowest() noexcept { return min(); }
+    static constexpr int  digits = std::numeric_limits<int>::max();
+    static constexpr int  digits10 = std::numeric_limits<int>::max();
+    static constexpr bool is_signed = true;
+    static constexpr bool is_integer = true;
+    static constexpr bool is_exact = true;
+    static constexpr int radix = 2;
+    static BigInt const epsilon() noexcept { return 1; }
+    static BigInt const round_error() noexcept { return 1; }
     
     static constexpr int  min_exponent = 0;
     static constexpr int  min_exponent10 = 0;
@@ -326,10 +172,10 @@ public:
     static constexpr bool has_signaling_NaN = false;
     static constexpr float_denorm_style has_denorm = denorm_absent;
     static constexpr bool has_denorm_loss = false;
-    static constexpr BigInt<mod> infinity() noexcept { return BigInt<mod>::Inf(); }
-    static constexpr BigInt<mod> quiet_NaN() noexcept { return BigInt<mod>(); }
-    static constexpr BigInt<mod> signaling_NaN() noexcept { return BigInt<mod>(); }
-    static constexpr BigInt<mod> denorm_min() noexcept { return BigInt<mod>(); }
+    static BigInt const infinity() noexcept { return BigInt::Inf(); }
+    static BigInt const quiet_NaN() noexcept { return 0; }
+    static BigInt const signaling_NaN() noexcept { return 0; }
+    static BigInt const denorm_min() noexcept { return 0; }
 
     static constexpr bool is_iec559 = false;
     static constexpr bool is_bounded = false;
@@ -340,11 +186,63 @@ public:
     static constexpr float_round_style round_style = round_toward_zero;
 };
 
-template<unsigned int mod>
-struct to_string_helper<BigInt<mod> >
-{
-    static inline std::string to_string(BigInt<mod> const & b)
-	{
-	    return std::string(b);
-	}
-};
+
+
+// template impls
+
+template<class T, class>
+BigInt::BigInt(T const& t)
+    : infinite{std::numeric_limits<T>::has_infinity &&
+	(t == std::numeric_limits<T>::infinity() ||
+	 (std::is_signed<T>::value &&
+	  t == -std::numeric_limits<T>::infinity())) ?
+	Infinite::True : Infinite::False}
+    , negative{(std::numeric_limits<T>::is_signed && t < static_cast<T>(0)) ?
+	      Negative::True : Negative::False} {
+    using u_T = std::make_unsigned_t<T>;
+    u_T const u_0 = 0;
+    
+    constexpr bool too_small = sizeof(u_T) <= sizeof(small_t);
+    
+    u_T value = my_abs(t);
+    if (too_small) {
+	if (value > u_0)
+	    data = {static_cast<small_t>(value)};
+    } else {
+	for ( ; value > u_0; value >>= (too_small ? 0 : shift_sz))
+	    data.push_back(value & low_digits);
+    }
+}
+
+template<class T> Optional<T> BigInt::convert() const {
+    static_assert(is_pure<T>,"conversion can only be to non-qualified types");
+    auto failure = [this]() -> Failure {
+	return {Class<T>::name() +
+		" cannot hold BigInt value " +
+		std::string(*this)};
+    };
+    
+    if (neg() && std::is_unsigned_v<T> && static_cast<bool>(*this))
+	return failure();
+    
+    if (inf()) {
+	if (!std::numeric_limits<T>::has_infinity)
+	    return failure();
+	T infinity = std::numeric_limits<T>::infinity();
+	return neg() ? -infinity : infinity;
+    }
+
+    ScopedSetValue allow_fail(SafeMath_failFast,false);
+    SafeMath<T> safe_result(T(0));
+    for (SZ i = data.size(); i-- > 0; ) {
+	safe_result *= mod;
+	if (neg())
+	    safe_result -= data[i];
+	else
+	    safe_result += data[i];
+    }
+    if (!safe_result.ok())
+	return failure();
+    return *safe_result;
+}
+

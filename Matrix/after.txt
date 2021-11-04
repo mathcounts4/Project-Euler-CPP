@@ -1,0 +1,174 @@
+Declaring a<int>(3 by 4, init to 1)
+constructor
+init(args) constructor
+
+Printing a
+3 by 4 of i:
+1 1 1 1 
+1 1 1 1 
+1 1 1 1 
+
+Setting a[2][1] = 5, printing a
+3 by 4 of i:
+1 1 1 1 
+1 1 1 1 
+1 5 1 1 
+
+Declaring b<int> = a
+constructor
+copy constructor
+
+Printing b
+3 by 4 of i:
+1 1 1 1 
+1 1 1 1 
+1 5 1 1 
+
+Setting b[1][1] = 9, printing b
+3 by 4 of i:
+1 1 1 1 
+1 9 1 1 
+1 5 1 1 
+
+Setting b = a
+op=(&)
+
+Printing b
+3 by 4 of i:
+1 1 1 1 
+1 1 1 1 
+1 5 1 1 
+
+Setting b = rvalue Matrix<int> (1 by 4, init to 13)
+constructor
+init(args) constructor
+op=(&&)
+
+Printing b
+1 by 4 of i:
+13 13 13 13 
+
+Declaring c<double> = rvalue Matrix<int> (4 by 6, init to 1)
+constructor
+init(args) constructor
+constructor
+template copy constructor
+
+Printing c
+4 by 6 of d:
+1 1 1 1 1 1 
+1 1 1 1 1 1 
+1 1 1 1 1 1 
+1 1 1 1 1 1 
+
+Declaring d<double>(rvalue Matrix<int> (3 by 3, init to 17))
+constructor
+init(args) constructor
+constructor
+template copy constructor
+
+Printing d
+3 by 3 of d:
+17 17 17 
+17 17 17 
+17 17 17 
+
+Setting d = a*c
+template * op
+constructor
+init(args) constructor
+template op=(&)
+Size mismatch using template Matrix '=' operator, reallocating memory...
+
+Printing d
+3 by 6 of d:
+4 4 4 4 4 4 
+4 4 4 4 4 4 
+8 8 8 8 8 8 
+
+Declaring e<double> = a
+constructor
+template copy constructor
+
+Printing e
+3 by 4 of d:
+1 1 1 1 
+1 1 1 1 
+1 5 1 1 
+
+Setting e = a
+template op=(&)
+
+Printing e
+3 by 4 of d:
+1 1 1 1 
+1 1 1 1 
+1 5 1 1 
+
+Declaring f<int>(2 by 2, init to 1)
+constructor
+init(args) constructor
+
+Printing f
+2 by 2 of i:
+1 1 
+1 1 
+
+Declaring g<int> = f^4
+^ op
+'^' operator identity
+constructor
+init(args) constructor
+'^' operator pow init
+constructor
+copy constructor
+'^' operator pow mult
+* op
+constructor
+init(args) constructor
+op=(&&)
+'^' operator pow mult
+* op
+constructor
+init(args) constructor
+op=(&&)
+'^' operator result mult
+* op
+constructor
+init(args) constructor
+op=(&&)
+'^' operator pow mult
+* op
+constructor
+init(args) constructor
+op=(&&)
+
+Printing g
+2 by 2 of i:
+8 8 
+8 8 
+
+g = f + g
++ op
+constructor
+op=(&&)
+
+Printing g
+2 by 2 of i:
+9 9 
+9 9 
+
+g = f + (f + g)
++ op
+constructor
++ && op
++= op
+constructor
+copy constructor
+op=(&&)
+
+Printing g
+2 by 2 of i:
+11 11 
+11 11 
+
