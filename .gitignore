@@ -1,3 +1,4 @@
+Problem*.cpp
 Project*.cpp
 ProjectEuler*
 !ProjectEuler.*
