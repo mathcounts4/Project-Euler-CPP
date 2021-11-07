@@ -1,10 +1,13 @@
 #include <algorithm>
+#include <csignal>
 #include <cxxabi.h>   // for __cxa_demangle
-#include <dlfcn.h>    // for dladdr
+#include <dlfcn.h>    // for dladdr // REQUIRES_LINK_FLAG -ldl
 #include <execinfo.h> // for backtrace
 #include <iomanip>
 #include <iostream>
-#include <mach-o/dyld.h> // for _dyld_get_image_header
+#ifdef __APPLE__
+#include "OSX_dyld.hpp" // for _dyld_get_image_header
+#endif
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -17,6 +20,7 @@
 
 bool print_full_path_in_stack_trace = false;
 
+#ifdef __APPLE__
 static std::string process_name_with_path_impl() {
     std::string buf;
     std::uint32_t size = 128;
@@ -31,6 +35,7 @@ std::string const& process_name_with_path() {
     static std::string name = process_name_with_path_impl();
     return name;
 }
+#endif
 
 static void print_old_stack_trace(std::ostream& os, void** call_stack, SZ skip_frames, SZ size) {
     C** symbol_list = backtrace_symbols(call_stack,static_cast<int>(size));
@@ -59,13 +64,6 @@ static void print_old_stack_trace(std::ostream& os, void** call_stack, SZ skip_f
 void print_stack_trace(std::ostream& os, SZ skip_frames) {
     auto const width = os.width();
     
-    std::ostringstream command;
-    command << "atos"; // Mac utility for finding demangled name, file, and line information
-    if (print_full_path_in_stack_trace)
-	command << " -fullPath"; // give full paths to files rather than just names
-    command << " -o " << process_name_with_path(); // executable 
-    command << " -l " << _dyld_get_image_header(0); // load address
-    
     // skip this frame too
     ++skip_frames;
     constexpr SZ max_print = 256;
@@ -74,12 +72,24 @@ void print_stack_trace(std::ostream& os, SZ skip_frames) {
     if (skip_frames > max_skip_frames)
 	skip_frames = max_skip_frames;
     SZ size = max_print + skip_frames + dummy_end;
-    void * call_stack[max_skip_frames + max_print + dummy_end];
+    void* call_stack[max_skip_frames + max_print + dummy_end];
     size = static_cast<SZ>(backtrace(call_stack,static_cast<int>(size)));
     size = size>=dummy_end ? size-dummy_end : 0;
+
+#ifdef __APPLE__
+    std::ostringstream command;
+    command << "atos"; // Mac utility for finding demangled name, file, and line information
+    if (print_full_path_in_stack_trace)
+	command << " -fullPath"; // give full paths to files rather than just names
+    command << " -o " << process_name_with_path(); // executable 
+    command << " -l " << _dyld_get_image_header(0); // load address
+    
     for (SZ i = skip_frames; i < size; ++i)
 	command << " " << call_stack[i];
     auto const decoded_stack = system_call(command.str());
+#else
+    Optional<Command_Result> decoded_stack = Failure("Unsupported platform");
+#endif
     
     if (!decoded_stack) {
 	os << "Stack trace using old version because atos failed due to:\n" << decoded_stack.cause() << "\n";

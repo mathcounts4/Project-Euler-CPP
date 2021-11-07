@@ -31,7 +31,6 @@ ifneq (,$(USR))
 $(shell rm $(EXE) >/dev/null 2>&1)
 $(shell echo "ROOT_SRC := $(ROOT_SRC)" > "$(SRCS_FL)")
 $(shell echo "LNK := $(LNK)" >> "$(SRCS_FL)")
-$(shell rm $(EXTRA_LNK) >/dev/null 2>&1)
 
 else
 
@@ -49,7 +48,7 @@ endif
 # Default target:
 all: .FORCE
 	@rm -f $(ALL_SRC) 2>&1
-	@touch $(EXTRA_LNK)
+	@rm -f $(EXTRA_LNK) 2>&1
 	@$(MAKE) -R -f $(abspath $(MY_PATH)/prebuild.mk) $(call TO_PAT,$(PAT_PRE),$(ROOT_SRC))
 	@$(MAKE) -R -f $(abspath $(MY_PATH)/build.mk) $(REST)
 

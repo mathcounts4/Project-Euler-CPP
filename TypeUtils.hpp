@@ -43,9 +43,9 @@ constexpr B none = (true && ... && !values);
 
 /* sum<1,3,4> */
 template<auto... values>
-static constexpr auto sum = (values + ...);
+inline constexpr auto sum = (values + ...);
 template<>
-static constexpr SZ sum<> = 0;
+inline constexpr SZ sum<> = 0;
 
 // declval
 template<class T>

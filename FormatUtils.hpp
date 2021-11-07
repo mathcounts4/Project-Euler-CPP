@@ -20,13 +20,13 @@ template<Adjust_Format> extern std::ios_base::fmtflags const adjust_flag;
 template<> extern std::ostream& Class<Adjust_Format>::print(std::ostream& os, Adjust_Format const& fmt);
 template<> extern std::string Class<Adjust_Format>::name();
 
-template<> extern std::ios_base::fmtflags const float_flag<Float_Format::Unset>;
-template<> extern std::ios_base::fmtflags const float_flag<Float_Format::Fixed>;
-template<> extern std::ios_base::fmtflags const float_flag<Float_Format::Scientific>;
+template<> inline constexpr std::ios_base::fmtflags float_flag<Float_Format::Unset> = {};
+template<> inline constexpr std::ios_base::fmtflags float_flag<Float_Format::Fixed> = std::ios_base::fixed;
+template<> inline constexpr std::ios_base::fmtflags float_flag<Float_Format::Scientific> = std::ios_base::scientific;
 
-template<> extern std::ios_base::fmtflags const adjust_flag<Adjust_Format::Left>;
-template<> extern std::ios_base::fmtflags const adjust_flag<Adjust_Format::Right>;
-template<> extern std::ios_base::fmtflags const adjust_flag<Adjust_Format::Internal>;
+template<> inline constexpr std::ios_base::fmtflags adjust_flag<Adjust_Format::Left> = std::ios_base::left;
+template<> inline constexpr std::ios_base::fmtflags adjust_flag<Adjust_Format::Right> = std::ios_base::right;
+template<> inline constexpr std::ios_base::fmtflags adjust_flag<Adjust_Format::Internal> = std::ios_base::internal;
 
 // width = min
 // precision = max (only used for floating point)

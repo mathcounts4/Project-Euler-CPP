@@ -47,7 +47,7 @@ class Mod {
     explicit operator SL() const;
     explicit operator D() const;
     UI get_mod() const;
-    friend std::ostream& Class<Mod>::print(std::ostream& oss, Mod const& mod);
+    friend Class<Mod>;
 
     // comparison operators
     // ==

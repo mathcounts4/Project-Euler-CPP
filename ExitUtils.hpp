@@ -8,8 +8,10 @@
 // default false
 extern bool print_full_path_in_stack_trace;
 
+#ifdef __APPLE__
 // gets the current process name
 std::string const& process_name_with_path();
+#endif
 
 // prints the stack trace
 void print_stack_trace(std::ostream& os = std::cerr, SZ skip_frames = 0);

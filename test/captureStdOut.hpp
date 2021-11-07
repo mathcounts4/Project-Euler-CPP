@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <tuple>
 
 template<class Func>
 auto captureStdOutAndRun(Func&& func) {

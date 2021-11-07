@@ -15,7 +15,7 @@ namespace algorithm2
 	template<class Node> struct Get_Set_Visited
 	{
 	    Get_Set_Visited() {
-		static_assert(is_default_hashable<Node,std::hash<Node> >,"Node type does not meet std::unordered_set requirements to use Get_Set_Visited default hook");
+		static_assert(is_default_hashable<Node>,"Node type does not meet std::unordered_set requirements to use Get_Set_Visited default hook");
 	    }
 	    std::unordered_set<Node> visited;
 	    inline bool operator()(Get,Node const& n) const { return visited.count(n); }

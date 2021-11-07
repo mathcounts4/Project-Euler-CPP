@@ -5,9 +5,9 @@ BadOptionalAccess::BadOptionalAccess(std::string cause_str)
     , cause(std::move(cause_str)) {
 }
 
-BadOptionalAccess::~BadOptionalAccess() _NOEXCEPT {
+BadOptionalAccess::~BadOptionalAccess() noexcept {
 }
 
-char const * BadOptionalAccess::what() const _NOEXCEPT {
+char const * BadOptionalAccess::what() const noexcept {
     return cause.c_str();
 }

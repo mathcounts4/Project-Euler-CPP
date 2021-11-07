@@ -38,7 +38,16 @@ else
 ADD_LINK_CMD := echo "\# Added from $(SRC):\nLNK += $(NEEDED_LINK)" >> "$(EXTRA_LNK)"
 endif
 
-CONTENT := $(shell cat $(DEP) <<< '')
+LINK_FLAG_PAT := REQUIRES_LINK_FLAG
+NEEDED_LINK_FLAG := $(shell cat $(SRC) | egrep -o '$(LINK_FLAG_PAT) .*' | sed -E 's/$(LINK_FLAG_PAT) //')
+
+ifeq (,$(NEEDED_LINK_FLAG))
+ADD_LINK_FLAG_CMD := :
+else
+ADD_LINK_FLAG_CMD := echo "\# Added from $(SRC):\nLNK_FLG += $(NEEDED_LINK_FLAG)" >> "$(EXTRA_LNK)"
+endif
+
+CONTENT := $(shell cat $(DEP))
 DEP_HDR := $(call SELECT,$(PAT_HDR),$(CONTENT))
 POS_SRC := $(sort $(abspath $(call HDR_TO_SRC,$(DEP_HDR))))
 FND_SRC := $(filter-out $(abspath $(SRC)),$(wildcard $(POS_SRC)))
@@ -50,6 +59,7 @@ $(SRC): .FORCE
 	|| ($(IF_VERBOSE) echo "$(STARS) Including source file $@ $(STARS)" \
 	&& echo "SRC += $@" >> "$(ALL_SRC)" \
 	&& $(ADD_LINK_CMD) \
+	&& $(ADD_LINK_FLAG_CMD) \
 	&& $(MAKE) -f $(abspath $(MY_PATH)/prebuild.mk) $(FND_PRE))
 
 

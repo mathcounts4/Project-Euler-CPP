@@ -55,8 +55,18 @@ function_name(...)
 template<template<bool,class> class unique_name, bool b, class T>
 using enable_if = typename unique_name<b,T>::type;
 
-template<class T, class Hash = std::hash<T> >
+#ifdef __clang__
+template<class T, class Hash = std::hash<T>>
 constexpr bool is_default_hashable = std::__check_hash_requirements<T,Hash>::value;
+#else
+template<class T, class Hash, class = void>
+struct Is_Default_Hashable : std::false_type {};
+template<class T, class Hash>
+struct Is_Default_Hashable<T, Hash, verify<is_same<std::size_t, decltype(declval<Hash>().operator()(declval<T>()))>>> : std::true_type {};
+
+template<class T, class Hash = std::hash<T>>
+constexpr bool is_default_hashable = Is_Default_Hashable<T, Hash>::value;
+#endif
 
 
 /* Error<Args...> - instantiating causes a compiler error */

@@ -1,5 +1,6 @@
 #include "LocationInfo.hpp"
 
+#include <cstring>
 #include <iomanip>
 #include <vector>
 
