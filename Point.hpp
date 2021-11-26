@@ -10,6 +10,15 @@ struct Point2D {
     friend bool operator==(Point2D const& a, Point2D const& b) {
 	return a.x == b.x && a.y == b.y;
     }
+    friend bool operator<(Point2D const& a, Point2D const& b) {
+	if (a.x != b.x) {
+	    return a.x < b.x;
+	}
+	if (a.y != b.y) {
+	    return a.y < b.y;
+	}
+	return false;
+    }
 };
 MAKE_HASHABLE_TEMPLATE(<class Data>,Point2D<Data>,obj,obj.x,obj.y);
 template<class Data>
@@ -50,6 +59,18 @@ struct Point3D {
     Data z;
     friend bool operator==(Point3D const& a, Point3D const& b) {
 	return a.x == b.x && a.y == b.y && a.z == b.z;
+    }
+    friend bool operator<(Point3D const& a, Point3D const& b) {
+	if (a.x != b.x) {
+	    return a.x < b.x;
+	}
+	if (a.y != b.y) {
+	    return a.y < b.y;
+	}
+	if (a.z != b.z) {
+	    return a.z < b.z;
+	}
+	return false;
     }
 };
 MAKE_HASHABLE_TEMPLATE(<class Data>,Point3D<Data>,obj,obj.x,obj.y,obj.z);
