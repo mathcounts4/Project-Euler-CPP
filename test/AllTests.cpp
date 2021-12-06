@@ -4,6 +4,7 @@
 #include "tContainerTransformer.hpp"
 #include "tDFS.hpp"
 #include "tFraction.hpp"
+#include "tGraphReducer.hpp"
 #include "tIndexing.hpp"
 #include "tProjectEuler.hpp"
 #include "tSafeMath.hpp"

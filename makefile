@@ -48,7 +48,7 @@ endif
 # Default target:
 all: .FORCE
 	@rm -f $(ALL_SRC) 2>&1
-	@rm -f $(EXTRA_LNK) 2>&1
+	@echo "" > $(EXTRA_LNK) 2>&1 # overwrite
 	@$(MAKE) -R -f $(abspath $(MY_PATH)/prebuild.mk) $(call TO_PAT,$(PAT_PRE),$(ROOT_SRC))
 	@$(MAKE) -R -f $(abspath $(MY_PATH)/build.mk) $(REST)
 

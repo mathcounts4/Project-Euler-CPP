@@ -15,6 +15,18 @@ class Zero<Matrix<T,M,N> > {
     }
 };
 
+template<class T, std::size_t M, std::size_t N>
+class One<Matrix<T,M,N> > {
+  public:
+    static Matrix<T,M,N> get() {
+	Matrix<T,M,N> result = Zero<Matrix<T,M,N> >::get();
+	for (auto&& row : result)
+	    for (auto&& element : row)
+		element = One<T>::get();
+	return result;
+    }
+};
+
 template<class T, std::size_t N>
 class One<Matrix<T,N,N> > {
   public:

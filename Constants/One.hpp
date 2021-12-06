@@ -1,11 +1,9 @@
 #pragma once
 
 template<typename T>
-class One
-{
+class One {
   public:
-    static inline T get()
-	{
-	    return T(1);
-	}
+    static inline T get() {
+	return T(1);
+    }
 };

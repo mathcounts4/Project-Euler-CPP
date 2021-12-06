@@ -47,7 +47,7 @@ class RowView {
     T_cv* fFirstElement; // view of first element in row
 
     // construct from another row-like object
-    template<class SomeRow, class = decltype(declval<SomeRow>()[0])> void constructors(SomeRow&& x);
+    template<class SomeRow, class = decltype(zipNoTmpRvalues(declval<RowView&>(),declval<SomeRow&&>())/*.begin() - commented for initializer list Matrix initialization due to clang bug https://bugs.llvm.org/show_bug.cgi?id=47175 */)> void constructors(SomeRow&& x);
     // construct using the same arguments for every element
     template<class... Args> void constructors(Construct::Piecewise, Args&&... args);
     void destructors();
@@ -130,6 +130,8 @@ class Matrix : private SmartMemory<sizeof(T)*M*N, alignof(T)> {
 
     template<SZ M_ST, SZ M_END, SZ N_ST, SZ N_END>
     Matrix<T, M_END - M_ST, N_END - N_ST> slice() const;
+
+    T const& uniqueElement() const;
 
     // copy from another matrix-like object
     template<class OtherMatrix, class = decltype(declval<OtherMatrix>()[0][0])>
@@ -391,6 +393,12 @@ Matrix<T, M_END - M_ST, N_END - N_ST> Matrix<T,M,N>::slice() const {
 	}
     }
     return result;
+}
+
+template<class T, SZ M, SZ N>
+T const& Matrix<T,M,N>::uniqueElement() const {
+    static_assert(M == 1 && N == 1, "uniqueElement can only be called on 1x1 matrices");
+    return (*this)[0][0];
 }
 
 template<class T, SZ M, SZ N>
