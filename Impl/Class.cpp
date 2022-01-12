@@ -45,7 +45,7 @@ template<> std::string Class<std::string>::format() {
     return "\"characters...\"";
 }
 
-template<>std::string Class<std::string>::name() {
+template<> std::string Class<std::string>::name() {
     return "std::string";
 }
 

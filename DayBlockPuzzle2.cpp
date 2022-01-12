@@ -396,6 +396,10 @@ static UI place(Board& board, Vec<B>& piecesUsed) {
 }
 
 static void doit(UI month, UI day, UI weekday, UI& minSlns) {
+    if (month != 1 || day != 1 || weekday != 7) {
+	// someone on Facebook wants the solution for Sat Jan 1
+	return;
+    }
     constexpr char const* months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
     constexpr char const* weekdays[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
     Board board(month, day, weekday);

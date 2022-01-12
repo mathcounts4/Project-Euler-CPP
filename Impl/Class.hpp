@@ -117,6 +117,11 @@ SPECIAL_CHAR_DECL(char32_t)
 SPECIAL_CHAR_DECL(wchar_t)
 #undef SPECIAL_CHAR_DECL
 
+template<> extern std::ostream& Class<std::string>::print(std::ostream& oss, std::string const & s);
+template<> extern std::string Class<std::string>::format();
+template<> extern std::string Class<std::string>::name();
+template<> extern Optional<std::string> Class<std::string>::parse(std::istream& is);
+
 std::ostream& operator<<(std::ostream& os, __int128_t x);
 std::ostream& operator<<(std::ostream& os, __uint128_t x);
 std::istream& operator>>(std::istream& is, __int128_t& x);
