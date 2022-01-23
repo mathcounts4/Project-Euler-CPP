@@ -1,0 +1,8 @@
+The most common (and most fun!) way to prove that these 3 ways of expressing languages are equivalent is to prove that each is as powerful as the next:
+
+1. Any language expressible by an NFA can be expressed by a DFA
+2. Any language expressible by a DFA can be expressed by a regex
+3. Any language expressible by a regex can be expressed by an NFA
+
+These are written as thier own proofs in other files.
+

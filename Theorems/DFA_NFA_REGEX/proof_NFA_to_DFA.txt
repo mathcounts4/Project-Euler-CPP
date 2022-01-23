@@ -1,0 +1,64 @@
+The cool proof that shows that DFAs are as powerful as NFAs operates via subset construction.
+
+In particular, the power of an NFA over a DFA seems to be that it can branch out into multiple paths - following ε transitions, and following diverging transitions that use the same letter.
+
+Since DFAs are deterministic, we need a way to keep track of all the possible states in the NFA where we could possibly be.
+
+Thus we construct a DFA with the following states:
+Letting the set of NFA states be S, the DFA states are 2^S, the subsets of S.
+For example, if the NFA has 3 states, which we label A, B, and C, the corresponding NFA has 2^3=8 states: empty, A, B, C, AB, AC, BC, and ABC.
+
+Each state in the DFA represents all the possible current states in the NFA.
+
+Correspondingly, each transition in the DFA can be constructed as follows:
+For starting DFA state X (X⊆S) and letter 'a', 'a' is included on the transition from X to Y, where Y is:
+  U_{AεX} {ZεS | Z is reachable from A via 'a'}
+"Z is reachable from A via 'a'" <-> ∃ a sequence of NFA state transitions, starting from A, ending at Z, following:
+1. Any number of ε transitions
+2. A transition that contains 'a'
+3. Any number of ε transitions
+
+Given the NFA start state A, the DFA start state is:
+  {A} U {ZεS | Z is reachable from A via 'ε'}
+
+A DFA state is accepting iff any of its members are accepting in the NFA.
+
+This DFA construction satisfies the DFA definition, and accurately tracks where the NFA could possibly be, along all branches.
+
+Thus this DFA has the same language as the NFA, so DFAs are as powerful as NFAs.
+
+
+Example:
+
+NFA: Note: states A and C are non-accepting, while B is accepting.
+
+       a
+  ->Ⓐ--->Ⓑ
+     ↖  b| ↖
+      \ ε|  |c
+      c\ | /
+        \↓/
+         Ⓒ
+
+We see that this NFA represents strings that:
+1. Start with "a"
+2. Followed by any number of:
+   ("b" or "") + "c" + ("a" or "")
+
+In addition, when processing a "c", the NFA "knows" which of the 2 transitions to take.
+
+Convert to DFA:
+
+      a    b
+  ->A-->BC-->C
+       ↗ |c / ↖
+      a| | /c  |b
+	\↓↙   /
+	ABC--/
+	↗  \
+	|  |
+	 \_/
+	  c
+	  
+Note that BC abd ABC are accpeting, while the other states are not.
+

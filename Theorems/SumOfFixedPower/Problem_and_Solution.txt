@@ -1,0 +1,68 @@
+We wish to find, for any particular nonnegative integer p, a closed form for
+f_p(n) = ∑_{i=1}^{n} i^p
+
+For low values of p, the formulas are trivial or well-known:
+f_0(n) = ∑_{i=1}^{n} 1
+  = n
+f_1(n) = ∑_{i=1}^{n} i
+  = n*(n+1)/2
+f_2(n) = ∑_{i=1}^{n} i^2
+  = n*(n+1)*(2n+1)/6
+f_3(n) = ∑_{i=1}^{n} i^3
+  = n*n*(n+1)*(n+1)/4
+
+But how can we derive larger ones?
+
+
+Solution:
+
+Observe that:
+(n+1)^(p+1) + ∑_{i=1}^{n} i^(p+1) = 1 + ∑_{i=1}^{n} (i+1)^(p+1)
+
+By binomial expansion of the rightmost term:
+(n+1)^(p+1) + ∑_{i=1}^{n} i^(p+1) = 1 + ∑_{i=1}^{n} ∑_{q=0}^{p+1} choose(p+1,q)*i^q
+
+Reordering the rightmost sums:
+(n+1)^(p+1) + ∑_{i=1}^{n} i^(p+1) = 1 + ∑_{q=0}^{p+1} choose(p+1,q) * ∑_{i=1}^{n} i^q
+
+Pulling off the q=p+1 term:
+(n+1)^(p+1) + ∑_{i=1}^{n} i^(p+1) = 1 + ∑_{i=1}^{n} i^(p+1) + ∑_{q=0}^{p} choose(p+1,q) * ∑_{i=1}^{n} i^q
+
+Simplifying to use "f" notation:
+(n+1)^(p+1) + f_{p+1}(n) = 1 + f_{p+1}(n) + ∑_{q=0}^{p} choose(p+1,q) * f_{q}(n)
+
+Cancelling the f_{p+1}(n):
+(n+1)^(p+1) = 1 + ∑_{q=0}^{p} choose(p+1,q) * f_{q}(n)
+
+Pulling off the q=p term:
+(n+1)^(p+1) = 1 + (p+1)*f_{p}(n) + ∑_{q=0}^{p-1} choose(p+1,q) * f_{q}(n)
+
+Rearranging:
+(p+1)*f_{p}(n) = (n+1)^(p+1) - 1 - ∑_{q=0}^{p-1} choose(p+1,q) * f_{q}(n)
+
+Dividing:
+f_{p}(n) = [(n+1)^(p+1) - 1 - ∑_{q=0}^{p-1} choose(p+1,q) * f_{q}(n)] / (p+1)
+
+This is a formula for f_{p}(n) in terms of n, p, and f_{q}(n) where q<p, so this is exactly what we want!
+
+
+We verify that this works for the well-known formulas for p=0, p=1, p=2, and p=3 above:
+f_0(n) = [(n+1)^1 - 1] / 1
+  = n
+f_1(n) = [(n+1)^2 - 1 - choose(2,0) * f_0(n)] / 2
+  = [n^2+2n+1 - 1 - n]/2
+  = n*(n+1)/2
+f_2(n) = [(n+1)^3 - 1 - choose(3,0)*f_0(n) - choose(3,1)*f_1(n)] / 3
+  = [n^3+3n^2+3n+1 - 1 - n - 3*n*(n+1)/2] / 3
+  = [n^3+(3/2)n^2+(1/2)n] / 3
+  = [2n^3+3n^2+n] / 6
+  = n*(n+1)*(2n+1)/6
+f_3(n) = [(n+1)^4 - 1 - choose(4,0)*f_0(n) - choose(4,1)*f_1(n) - choose(4,2)*f_2(n)] / 4
+  = [n^4+4n^3+6n^2+4n+1 - 1 - n - 4*n*(n+1)/2 - 6*n*(n+1)*(2n+1)/6] / 4
+  = [(n+1)(n^3+3n^2+3n+1) - (n+1) - 4*n*(n+1)/2 - 6*n*(n+1)*(2n+1)/6] / 4
+  = (n+1) [n^3+3n^2+3n+1 - 1 - 2*n - n*(2n+1)] / 4
+  = (n+1) [n^3+3n^2+3n - 2*n - n*(2n+1)] / 4
+  = n*(n+1) [n^2+3n+3 - 2 - (2n+1)] / 4
+  = n*(n+1) [n^2+n] / 4
+  = n^2*(n+1)^2/4
+

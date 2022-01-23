@@ -1,0 +1,33 @@
+We describe the process to construct an infinite graph of friends that satisfies the property that every pair of people has exactly one friend in common. However, no person is a friend to all the others.
+
+1. Create a worklist of unordered pairs of points that require an intermediary common friend (don’t yet have one)
+2. Add nodes N_1, N_2, and N_3 to the graph, unconnected, and add {N_1,N_2}, {N_1,N_3}, and {N_2,N_3} to the worklist
+
+Processing the worklist (repeat countably infinite number of times):
+  Take the first unprocessed pair from the worklist {x,y} and remove it from the worklist
+  Create a new node z, and add edges x-z and y-z.
+  For each existing node a before z was added, if a-x and a-y are not edges, add {a,z} to the end of the worklist.
+
+Such a process produces infinite lists of vertices and edges.
+We observe the invariants, before each time we process the worklist:
+  1. For each pair of nodes {x,y}, either:
+    A. There is no z such that x-z and y-z are edges AND {x,y} is on the worklist
+    B. There is exactly one z such that x-z and y-z are edges AND {x,y} is not on the worklist
+  2. In addition, if there is no edge between existing nodes x and y, there will never be an edge between x and y.
+
+(2) is clear, as processing only adds edges to new nodes, not between existing ones.
+
+For (1):
+This is clearly true for the starting graph and worklist - all pairs satisfy (A).
+We see that the processing step maintains this invariant: each processing step adds a new node z and 2 new edges x-z and y-z, where x-y was in state A. Processing also removes {x,y} from the worklist, pushing {x,y} into state B. For any other pair of nodes, adding x-z and y-z does not affect the number of common friends between them, since z is new, and only connected to x and y.
+
+We now observe that, for any distinct nodes {N_i,N_j} (let i<j), they (eventually) obtain one common friend:
+If j≤3, one of the first 3 processing steps for the worklist adds a common friend.
+Otherwise, j>3, so j was created via worklist processing. During that processing step, {N_i,x} and {N_i,y} were inspected - if either edge existed, that processing step made x or y the common friend. If not, {N_i,N_j} got added to the worklist, and when that item is processed, they get a new common friend.
+
+Thus we satisfy the property that every pair of people has exactly one friend in common, with an infinite group.
+
+What about the property that there is a person who is a friend to all the others?
+
+Since each N_j for j>3 is only friends with 2 previous N_i (the 2 new edges), they are each missing at least one of {N_1,N_2,N_3}, so the only people who could possibly be friends with everyone else are N_1, N_2, and N_3.
+However, none of these are friends with each other, so none of them are friends with everyone else.

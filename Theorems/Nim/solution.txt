@@ -1,0 +1,30 @@
+The simpler defintions are, given a list of pile sizes {x_1, ..., x_n}:
+
+1. Winner: taking x_i in binary, we compute w = xor(x_1,...,x_n).
+   If w is 0, the second player wins.
+   Otherwise, the first player wins.
+
+2. Optimal strategy: only applies when w≠0:
+   First, find an x_i whose binary representation has a 1 at the same digit of w's leftmost 1 = 2^k for some k.
+   Now we show that v=xor(w,x_i) satisfies v<x_i:
+     For all the digits to the left of k, v and x_i are identical, since x_i is 0 in those digits.
+     For digit k, x_i has a 1, while v has a 0, so regardless of all the smaller digits, x_i>v.
+   The strategy is to remove (x_i-v) sticks from the x_i pile, leaving v.
+
+Proof that these are correct:
+
+We must show:
+1. The optimal strategy, in a winning configuration, can make a move so that the configuration is a losing position for the next player
+2. Given a losing configuration, all possible moves lead to a winning configuration for the next player
+
+If these hold, the recursive defintion of which configurations win/lose is identical to before, so this correctly maps each configuration to the winner.
+
+(1) In the optimal strategy, we have shown that a move as described exists.
+    Now we must show that the remaining configuration is losing: xor(x_1,...,x_{i-1},v,x_{i+1},...,x_n) = xor(xor(x_1,...,x_n),xor(x_i,v)) = xor(w,xor(x_i,v)).
+    v=xor(w,x_i), so xor(w,xor(x_i,v)) = xor(w,xor(x_i,xor(w,x_i))) = xor(w,w) = 0.
+    Thus the remaining configuration is losing.
+
+(2) Given a configuration where w=0, we look at any valid move x_i->q (0≤q<x_i).
+    w_new = xor(x_1,...,x_{i-1},q,x_{i+1},...,x_n) = xor(w,x_i,q)
+    q≠x_i so r=xor(x_i,q)≠0, so w_new = xor(w,x_i,q) = xor(w,r) ≠ w = 0, so the new configuration is winning.
+

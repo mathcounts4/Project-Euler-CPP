@@ -1,0 +1,168 @@
+This proof shows that a regex is a powerful as a DFA.
+
+Since one of the regex operations is "or", we need only show that a DFA with one accepting state can be converted to a regex. Then an arbitrary DFA can be copied into multiple versions with the same start state, state list, and transitions, but each copy only has one accepting state (one of the original accepting states). Then, converting each of these copies to a regex, we construct a regex for the original DFA by "or"-ing all of the regexes.
+
+We describe a process to remove any state that is neither the start state nor the accepting state:
+
+First, we must create the idea of a modified regex-NFA that allows for regexes on its transitions.
+Our original DFA satisfies the definition of this regex-NFA since each transition is an alphabet letter, which is a regex.
+
+Now, how do we remove a non-start, non-accepting state, B?
+
+We look at all transitions to B and transitions from B:
+For each A with transition AB with regex P (excluding A=B)
+  For each C with transition BC with regex R (excluding C=B, but note that C=A is allowed)
+    If there is a transition from B to itself with regex Q:
+      Create transition AC or modify existing transition AC ("or" it) with regex (P)(Q)*(R)
+    Else:
+      Create transition AC or modify existing transition AC ("or" it) with regex (P)(R)
+
+Now we remove B and all transitions to/from B from the graph.
+
+Note that any valid string that passed through B had to include a state before (since B is not the start state) and a state after (since B is not the accepting state).
+
+For any node that could have come before B and any node that could have come after (with 1 or more B's in between), there is now a direct edge between the two, with a regex that supports the characters previously consumed.
+In addition, if one of these transitions is followed, it would previously have been possible to follow the transitions when B was still in the graph.
+
+Thus this transformation removes B from the graph, does not add any new states, and preserves the same language.
+
+
+We repeating this "state removal" process on all non-start, non-accepting nodes.
+This leaves only a few scenarios:
+
+1. The start state is accepting, and is the only state, possibly with a self-loop:
+  -->X<--
+      \_/R
+
+   If there is a self-loop, this regex-NFA is clearly equivalent to the regex (R)*
+   If there is no self-loop, this is equivalent to the exmpty string regex.
+
+2. The start state is not accepting, and there are 4 possible transitions:
+        P
+  -->x---->Y<--
+    /^^   / \_/
+   / | \_/   Q
+  S\/   R
+   
+   If a transition does not exist in the graph, we can add it, with the empty set regex.
+   We now add a new start node that is non-accepting, before x:
+   
+       ε    P
+  -->w-->x---->Y<--
+        /^^   / \_/
+       / | \_/   Q
+      S\/   R
+
+   Now we can remove x via the same process as earlier, leaving only transitions from w to Y and Y to Y:
+   
+       M
+  -->w-->Y<--
+          \_/
+	   N
+	   
+   This regex-NFA is equivalent to the regex (M)(N)*
+
+Thus we've constructed a regex for any DFA with one accepting state, so we can construct a regex for any DFA.
+
+
+Example (capital states are accepting)
+
+      a
+-->x----->Y<--
+   ^     / \_/c
+  b\    /a
+    \  /
+     Z<
+
+First split into 2 DFAs, each with only 1 accepting state:
+
+      a
+-->x----->y<--
+   ^     / \_/c
+  b\    /a
+    \  /
+     Z<
+     
+      a
+-->x----->Y<--
+   ^     / \_/c
+  b\    /a
+    \  /
+     z<
+
+
+For the first:
+
+      a
+-->x----->y<--
+   ^     / \_/c
+  b\    /a
+    \  /
+     Z<
+
+Eliminate y, which produces x->Z with regex ac*a:
+
+     ac*a
+-->x----->Z
+   ^     /
+    \___/
+      b
+
+Add in state w on entry:
+
+
+         ac*a
+-->w-->x----->Z
+       ^     /
+        \___/
+          b
+
+Eliminate state x, producing bac*a for Z->Z and ac*a for w->Z
+
+     ac*a
+-->w------>Z<-
+           |  \
+	    \_/bac*a
+
+Producing final regex:
+
+ac*a(bac*a)*
+
+
+For the second:
+
+      a
+-->x----->Y<--
+   ^     / \_/c
+  b\    /a
+    \  /
+     z<
+
+Eliminate state z, producing ab for Y->x:
+
+      a
+-->x----->Y<--
+   ^     / \_/c
+   \    /
+    \__/
+     ab
+
+Add in state w on entry:
+
+          a
+-->w-->x----->Y<--
+       ^     / \_/c
+       \    /
+        \__/
+         ab
+
+Eliminate state x, producing aba for Y->Y and a for w->Y:
+
+      a
+-->w---->Y<--
+         |  | c|aba
+	  \_/
+
+Producing final regex:
+
+a(c|aba)*

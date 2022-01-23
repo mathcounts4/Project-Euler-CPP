@@ -1,0 +1,27 @@
+https://en.wikipedia.org/wiki/Nim
+
+Nim is a game between two players, alternating turns, where a turn consists of removing some/all sticks from one or more piles of sticks.
+
+The basic form of the game is as follows:
+Initially, we are given any finite number of piles of sticks, each with a finite number of sticks.
+The players alternate turns, where a turn consists of the following:
+1. Pick a pile with sticks left in it
+2. Remove any positive number of sticks from that pile
+
+The first player who cannot make a valid move loses.
+
+
+
+It can easily be shown, by strong induction on the total number of sticks, that each initial position, given perfect play from both players, leads to a clear winner.
+
+In particular, given some initial configuration X:
+1. If X contains no sticks, the second player wins, as the first player cannot make a valid move.
+2. Consider all possible moves for the first player from X. If any lead to a configuration Y where, starting at Y, the second player wins (note the use of strong induction here), the first player can perform that move, leaving the second player at Y. Now Y loses for second player, so the first player wins. Thus X wins for the first player. If all possible moves lead to configurations where the first player to move wins, then starting with X, the second player wins, regardless of move choise of the first player.
+
+
+
+We've described the "optimal strategy" and "which states win for each player" above, but they have very cumbersome defintions to calculate.
+
+What are more mathematically simple defintions of the optimal strategy and who wins given a starting state?
+Make sure to show why they work.
+

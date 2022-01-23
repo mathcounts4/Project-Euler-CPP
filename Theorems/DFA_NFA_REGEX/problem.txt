@@ -1,0 +1,104 @@
+A common theorem in introductory theoretical CS courses:
+The languages expressible by a Deterministic Finite Automaton (DFA) are the same languages expressible by a Nondeterministic Finite Automaton (NFA) are the same languages expressible by a regular expression (regex).
+
+To understand this, we need to know:
+1. What is a language?
+2a. What is a DFA?
+2b. How does a DFA express a language?
+3a. What is an NFA?
+3b. How does an NFA express a language?
+4a. What is a regex?
+4b. How does a regex express a language?
+
+
+1. A language is a (possibly infinite) set of strings over a particular alphabet. A string is a finite sequence of characters, where a character is an element of the alphabet.
+
+For example, an alphabet is {a,b,c}, and a language over that alphabet is {a,aa,aab}.
+Another language is all strings (in this alphabet) that start with "a".
+Another language is all strings that contain a prime number of "b"s.
+Another language is all strings with the same number of "a"s and "c"s.
+
+
+2a. A DFA is an alphabet and a finite directed graph of states (self-edges allowed), with additional properties:
+  1. One state is denoted as the "start state"
+     This is commonly shown as an edge with no "from" state, pointing to the "start state"
+  2. Each state (including the start state) is marked as either "accepting" or "non-accepting"
+     Non-accepting states are typically shown as normal circles, while accepting states are shown with thick circles or double-circles.
+  3. Each edge is marked with a subset of the alphabet
+  4. For any state and any letter in the alphabet, there is at most one outgoing edge containing that letter
+
+2b. A DFA describes a language as follows: For a particular string, it is in the language of a DFA iff:
+  Start from the "start state"
+  For each letter of the string (in order):
+    If there is no transition from the current state with the current letter, the string is not in the language (and stop)
+    If there is a transition from the current state with the current letter, follow that edge to the new state
+  If the "final state" is marked as "accepting", the string is in the language, otherwise it is not.
+
+  For example, the following DFA describes the language {"ac","bc"}. ○ denotes a non-accepting state, and ⬤ an accepting state.
+
+         ab    c
+    -->○---->○-->⬤
+
+  In addition, the following DFA describes the language of "any multiple of 3 'a's":
+
+          a
+    -->⬤-->○
+       ^   /
+      a| ↙a
+       ○
+
+
+3a. An NFA is identical to a DFA, except for the following changes:
+  1. The rule about each state having only one outgoing edge containing a particular letter is no longer in effect
+  2. A special symbol not in the alphabet (typically denoted ε) is allowed on each edge, in addition to letters in the alphabet
+
+3b. An NFA describes a language identical to a DFA, except for the following changes:
+  1. Since multiple transitions with the same letter from the same state are allowed, any of these possible transitions is a valid choice
+  2. If any sequence of choices ends at an accepting state, the string is in the language, even if other sequences of choices do not
+     This is the "non-deterministic" part of "NFA" - for strings in the language, the NFA "knows" which choice to make when processing the letters
+  3. At any point before or after processing a letter (or if the string contains no letters), we may (multiple times) follow a transition that contains an ε to a new state.
+
+  For example, the following NFA describes the language {"ab","abc","b","bc"}:
+
+         aε    b   cε
+    -->○---->○-->○---->⬤
+
+  In addition, the following NFA describes the language of "Any string of 'a's and 'b's without 2 or more 'b's in a row":
+
+          bε
+    -->⬤--->⬤
+         ↖__/
+	   a
+
+4a. A regex is an alphabet and a finite-depth tree of operations of basic building blocks:
+    Basic building blocks have no children and are:
+      1. The empty string ε
+      2. A string consisting of any one specific letter in the alphabet
+      3. The empty set
+    Operations each have an operator and 1 (X) or 2 (X and Y) ordered children. Each child is another regex under the same alphabet. Operators are:
+      1. Concatenation - (X)(Y)
+         A string s is in this language iff s = xy for some xεX and yεY
+      2. Union - (X)|(Y)
+         A string s is in this language iff [sεX or sεY]
+      3. Repetition - (X)*
+         A string s is in this language iff s is a concatneation of x_1, x_2, ..., x_n for some nonnegative integer n, where every x_iεX. The concatenation of 0 strings is the empty string.
+    Note: when reading a regex, * binds tightest, then concatenation, then |.
+    Parentheses may be used to bind tighter than *, but are for grouping only and do not impact the language.
+    See examples below.
+    https://en.wikipedia.org/wiki/Regular_expression#Formal_language_theory
+
+4b. A regex describes a language via: a string s is in the language iff it "matches" the tree.
+  The rules for matching each operation are seen above.
+  The rule for matching "the empty string" is that the string must be empty.
+  The rule for matching "a string consisting of any one specific letter" is that the string must have length 1, and its letter must be the same as the one specified in the basic block.
+  The rule for matching the empty set is that any string does not match.
+
+  For example, the following regex describes the language {"ab","c","cd","cdd","cddd",...}:
+    ab|cd*
+
+  Comparatively, the following regex describes the language {"ab","cd","abab","abcd","cdab","cdcd",...}:
+    (ab|cd)*
+
+  Comparatively, the following regex describes the language {"ab","ac","abd","acd","abdd","acdd",...}
+    a(b|c)d*
+

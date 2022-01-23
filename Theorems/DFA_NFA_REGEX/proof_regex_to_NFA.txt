@@ -1,0 +1,40 @@
+To show that any regex can be expressed by an NFA, we construct an NFA given an arbitrary regex.
+
+An arbitrary regex can be:
+
+1. The empty string ε
+2. A string consisting of any one specific letter "a" in the alphabet
+3. The empty set
+4. Concatenation of two other regexes Q and R
+5. Union of two other regexes Q and R
+6. Repetition of one other regex Q
+
+By the inductive hypothesis, Q is expressible as an NFA M, and R is expressible as an NFA N.
+
+Note that we can join multiple NFAs into one, where a transition pointing to an NFA replaces its start state with edges pointing to its start state, and a transition point out of an NFA replaces its accepting states with edges coming out of its accepting states.
+
+The corresponding NFAs (capital states <-> accepting) are:
+1. -->X
+2.      a
+   -->x--->Y
+3. -->x
+4.   ε
+   M--->N
+5.        ε
+     ->M----
+   ε/      v
+-->x       Y
+   ε\      ^
+     ->N----
+          ε
+	ε
+6. -->X--->M
+      ^   /
+       \_/
+        ε
+
+Note that:
+The NFA -> DFA construction could produce output exponential in the size of the input
+The DFA -> regex construction could produce output exponential in the size of the input
+The regex -> NFA construction produces output linear in the size of the input
+
