@@ -60,8 +60,8 @@ template<class... Args>
 struct std::hash<std::tuple<Args...> > {
     std::size_t operator()(std::tuple<Args...> const& t) const {
 	std::size_t ans = 0;
-	auto apply_this = [&ans](Args&&... args) -> void {
-	    return my_hash_combine(ans,static_cast<Args&&>(args)...);
+	auto apply_this = [&ans](Args const&... args) -> void {
+	    return my_hash_combine(ans, args...);
 	};
 	std::apply(apply_this,t);
 	return ans;
@@ -72,8 +72,8 @@ template<class A, class B>
 struct std::hash<std::pair<A,B> > {
     std::size_t operator()(std::pair<A,B> const& p) const {
 	std::size_t ans = 0;
-	my_hash_combine(ans,p.first);
-	my_hash_combine(ans,p.second);
+	my_hash_combine(ans, p.first);
+	my_hash_combine(ans, p.second);
 	return ans;
     }
 };
