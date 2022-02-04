@@ -350,3 +350,62 @@ FOR_EACH_PRIMITIVE_TYPE(PRIMITIVE_CLASS_DECL,;);
 PRIMITIVE_CLASS_DECL(__int128_t);
 PRIMITIVE_CLASS_DECL(__uint128_t);
 #undef PRIMITIVE_CLASS_DECL
+
+// std::variant
+template<class... Ts> struct Class<std::variant<Ts...>> {
+  public:
+    using Type = std::variant<Ts...>;
+    
+  private:
+    template<class X>
+    static Optional<Type> parseImpl(std::istream& is) {
+	Resetter resetter{is};
+	if (auto optClassName = consume_opt(is, Class<X>::name() + "{")) {
+	    if (auto result = Class<X>::parse(is)) {
+		if (auto optCloseBrace = consume_opt(is, '}')) {
+		    resetter.ignore();
+		    return *result;
+		} else {
+		    return Failure(optCloseBrace.cause());
+		}
+	    } else {
+		return Failure(result.cause());
+	    }
+	} else {
+	    return Failure(optClassName.cause());
+	}
+    }
+    template<class X1, class X2, class... Xs>
+    static Optional<Type> parseImpl(std::istream& is) {
+	if (auto first = parseImpl<X1>(is)) {
+	    return *first;
+	} else if (auto rest = parseImpl<X2, Xs...>(is)) {
+	    return *rest;
+	} else {
+	    return Failure(first.cause() + " | " + rest.cause());
+	}
+    }
+    
+  public:
+    static std::ostream& print(std::ostream& os, Type const& ts) {
+	return std::visit([&os](auto const& t) -> decltype(auto) {
+	    using T = No_cvref<decltype(t)>;
+	    auto&& newOs = os << Class<T>::name() << "{";
+	    return Class<T>::print(newOs, t) << "}";
+	}, ts);
+    }
+    static Optional<Type> parse(std::istream& is) {
+	return parseImpl<Ts...>(is);
+    }
+    static std::string name() {
+	std::string separator = ", ";
+	std::string withSep = ((separator + Class<Ts>::name()) + ...);
+	return "std::variant<" + withSep.substr(separator.size()) + ">";
+    }
+    static std::string format() {
+	std::string separator = " | ";
+	std::string withSep = ((separator + Class<Ts>::name() + "{" + Class<Ts>::format() + "}") + ...);
+	return withSep.substr(separator.size());
+    }
+};
+

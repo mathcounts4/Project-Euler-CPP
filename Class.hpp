@@ -33,7 +33,7 @@ template<class T> std::string cvref_string();
 extern template class Resetter<std::istream>;
 
 #define COMMA_IF_STARTED_AND_MEMBER(MEMBER)			\
-    << comma_if_started(started) << t.MEMBER
+    << comma_if_started(started) << (Class<decltype(t.MEMBER)>::print(oss, t.MEMBER), "")
 #define MEMBER_OPT_PARSE(MEMBER)					\
     if (started) {							\
 	if (auto opt = consume_opt(is, ','); !opt)			\

@@ -1,0 +1,5 @@
+https://www.facebook.com/artofproblemsolving/photos/a.342403445276/10165897565160277/
+
+Heads or Tails?
+
+Winnie keeps flipping a coin until she gets either two heads in a row or three tails in a row, at which point she stops. What is the probability her final flip is heads?

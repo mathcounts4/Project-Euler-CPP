@@ -4,8 +4,7 @@ Optional<void> consume_opt(std::istream& is, char const c) {
     Resetter resetter{is};
     std::ws(is);
 
-    auto failure = [c](std::string const& cause) -> Failure
-    {
+    auto failure = [c](std::string const& cause) -> Failure {
         return std::string("Expected to consume '") + c + "' but " + cause;
     };
     
@@ -38,10 +37,9 @@ Optional<void> consume_opt(std::istream& is, std::string const& str) {
     Resetter resetter{is};
     std::ws(is);
 
-    auto failure = [str](std::string const& cause) -> Failure
-	{
-	    return "Expected to consume \"" + str + "\" but " + cause;
-	};
+    auto failure = [str](std::string const& cause) -> Failure {
+	return "Expected to consume \"" + str + "\" but " + cause;
+    };
     
     for (char const c : str) {
 	if (is.eof())

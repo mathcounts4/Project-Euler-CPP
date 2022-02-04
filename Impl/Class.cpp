@@ -52,8 +52,8 @@ template<> std::string Class<std::string>::name() {
 template<> Optional<std::string> Class<std::string>::parse(std::istream& is) {
     Resetter resetter{is};
     std::ws(is);
-    if (!consume(is,'"'))
-	return Failure("Parsing " + name() + ": missing expected \"");
+    if (auto opt = consume_opt(is,'"'); !opt)
+	return Failure("Parsing " + name() + ": " + opt.cause());
 
     std::ostringstream oss;
     bool escape = false;
