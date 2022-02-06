@@ -2,6 +2,7 @@ Problem*.cpp
 Project*.cpp
 ProjectEuler*
 !ProjectEuler.*
+!ProjectEulerTemplate.cpp
 Matrix/NDimExprTemplate
 boost*
 fftw*
