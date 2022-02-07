@@ -65,6 +65,29 @@ Vec<UI> somePrimeFactorUpTo(UI const n) {
     return result;
 }
 
+Vec<Vec<UI>> allFactorsUpTo(UI const n) {
+    auto pFac = somePrimeFactorUpTo(n);
+    Vec<Vec<UI>> factors(n+1);
+    factors[1] = {1};
+    for (UI i = 2; i <= n; ++i) {
+	auto p = pFac[i];
+	UI e = 0;
+	UI j = i;
+	for ( ; j % p == 0; j /= p) {
+	    ++e;
+	}
+	UI mult = 1;
+	// faster with the loops in this order, for some reason
+	for (UI exp = 0; exp <= e; ++exp) {
+	    for (UI f : factors[j]) {
+		factors[i].push_back(f * mult);
+	    }
+	    mult *= p;
+	}
+    }
+    return factors;
+}
+
 // Miller-Rabin primality test
 B is_prime(UL const n) {
     static auto const low_results = isPrimeUpTo(1e6);
@@ -73,7 +96,7 @@ B is_prime(UL const n) {
     
     UI pow2 = 0;
     UL lowPow = n-1;
-    for (; (lowPow & 1) == 0; lowPow >>= 1)
+    for (; (lowPow & 1UL) == 0; lowPow >>= 1)
 	++pow2;
 
     // passes when n < 3,317,044,064,679,887,385,961,981
@@ -85,27 +108,30 @@ B is_prime(UL const n) {
 	    return false;
         UL start = 1;
 	UL mult = base;
-        U128 m = 1;
+        U128 m = 1; // used in oder to perform 128-bit calculations
 	for (UL pow = lowPow; pow; pow >>= 1) {
 	    if (pow & 1)
 		start = m*start*mult % n;
 	    mult = m*mult*mult % n;
 	}
 	if (start != 1) {
+	    B hit_n_1 = false; // n-1
 	    for (UL local_pow2 = pow2; local_pow2 > 0; --local_pow2) {
 		if (start == n-1) {
-		    start = 1;
+		    hit_n_1 = true;
 		    break;
 		}
 		// something != +-1 squared to 1 -> not prime
-		if (start == 1)
+		if (start == 1) {
 		    return false;
+		}
 		start = m*start*start % n;
 	    }
 	    // something^(n-1) > 1 -> not prime
 	    // a^(p-1) = 0 or 1 mod p
-	    if (start > 1)
+	    if (!hit_n_1) {
 		return false;
+	    }
 	}
     }
 
@@ -172,7 +198,7 @@ Vec<UL> prime_factor_list(UL const n) {
 	    processing[p_size++] = x/f;
 	}
     }
-    std::sort(result.begin(),result.end());
+    std::sort(result.begin(), result.end());
     return result;
 }
 
@@ -223,24 +249,21 @@ Prime_Factorization::operator BigInt() const {
     return result;
 }
 
-void Prime_Factorization::list_factors(
-    Vec<UL>& result,
-    SZ const index,
-    UL value) const {
+void Prime_Factorization::list_factors(Vec<UL>& result, SZ const index, UL value) const {
     if (index == fPowers.size()) {
 	result.push_back(value);
 	return;
     }
 
     // exponent = 0;
-    list_factors(result,index+1,value);
+    list_factors(result, index+1, value);
 
     // exponent = 1 ... max
     UL prime = fPowers[index].fPrime;
     UL exp = fPowers[index].fExponent;
     for (UL count = 1; count <= exp; ++count) {
 	value *= prime;
-	list_factors(result,index+1,value);
+	list_factors(result, index+1, value);
     }
 }
 
@@ -287,7 +310,7 @@ Optional<Prime_Power> Prime_Factorization::max_prime_and_power() const {
 Vec<Prime_Factorization> Prime_Factorization::factors_prime_factorizations() const {
     Vec<Prime_Factorization> result;
     Prime_Factorization empty;
-    list_factors_prime_factorizations(result,empty);
+    list_factors_prime_factorizations(result, empty);
     return result;
 }
 
@@ -297,7 +320,7 @@ Vec<UL> factors(UL const n) {
 
 Vec<UL> sorted_factors(UL const n) {
     auto list = factors(n);
-    std::sort(list.begin(),list.end());
+    std::sort(list.begin(), list.end());
     return list;
 }
 
@@ -306,7 +329,7 @@ template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power
 }
 template<> Optional<Prime_Power> Class<Prime_Power>::parse(std::istream& is) {
     Resetter resetter{is};
-    auto pair = Class<std::pair<UL,UL> >::parse(is);
+    auto pair = Class<std::pair<UL,UL>>::parse(is);
     if (!pair)
 	return Failure(pair.cause());
     resetter.ignore();

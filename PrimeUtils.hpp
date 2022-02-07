@@ -11,6 +11,7 @@ Vec<B> isPrimeUpTo(UI const n);
 Vec<UI> primesUpTo(UI const n);
 Vec<UI> phiUpTo(UI const n);
 Vec<UI> somePrimeFactorUpTo(UI const n);
+Vec<Vec<UI>> allFactorsUpTo(UI const n);
 
 B is_prime(UL const n);
 B is_composite(UL const n);

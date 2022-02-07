@@ -1,7 +1,7 @@
 /* Problem
 
-f(0) = 4
-f(1) = 7
+f(1) = 4
+f(2) = 7
 Find f(3000).
 
 */
@@ -23,6 +23,10 @@ Answer:
 #include "ProjectEuler.hpp"
 
 static Optional<UL> f(UI n) {
+    FAIL_IF(n < 1);
+    if (n == 1) {
+	return 4;
+    }
     return Failure("Unimplemented");
 }
 
@@ -33,8 +37,8 @@ SI main(Argc const argc, Argv const argv) {
 	f,
 	{"f", {"n"}},
 	{
-	    {{0U}, 4}
-	    {{1U}, 7}
+	    {{1U}, 4},
+	    {{2U}, 7}
 	},
 	{3'000U});
     return !ran_ok;
