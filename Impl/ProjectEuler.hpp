@@ -19,6 +19,8 @@
 
 #include "../ProjectEuler.hpp"
 
+class Mod;
+
 namespace PE {
     template<class In, SZ... i>
     std::string to_input_format(
@@ -138,7 +140,13 @@ namespace PE {
 		if (auto output = apply_tuple(fcn,input)) {
 		    auto end = std::chrono::high_resolution_clock::now();
 		    std::chrono::duration<double> diff = end-start;
-		    std::cout << " = [" << diff.count() << " seconds] " << *output << std::endl;
+		    auto eq = "=";
+		    if constexpr (is_same<Mod, No_cvref<decltype(*output)>>) {
+			if (output->get_mod() != 0) {
+			    eq = "≡";
+			}
+		    }
+		    std::cout << " " << eq << " [" << diff.count() << " seconds] " << *output << std::endl;
 		} else {
 		    ran_ok = false;
 		    auto end = std::chrono::high_resolution_clock::now();

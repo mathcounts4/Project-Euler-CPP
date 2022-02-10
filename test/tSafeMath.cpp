@@ -65,3 +65,16 @@ TEST(SafeMath,divide) {
     CHECK(SafeMath<int>(-27) / -7, equals(3));
 }
 
+TEST(SafeMath, weirdNeg1LessThanBug) {
+    // See SafeMath<X>::operator< with comment and code copied below
+    /*
+      auto ret = abs_y < abs_x;
+      // If we don't debug print here, -O3 messes up SafeMath<__int128>(-1) < std::numeric_limits<S128>::lowest(), where my_abs(std::numeric_limits<S128>::lowest()) is incorrectly treated as 0.
+      if (avoid_clang_bug::someExternDebug) {
+          std::cout << __FUNCTION__ << ": " << abs_x << " " << abs_y << std::endl;
+      }
+      return ret;
+    */
+    CHECK(SafeMath<S128>(-1) < std::numeric_limits<S128>::lowest(), isFalse());
+}
+

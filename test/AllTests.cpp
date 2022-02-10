@@ -10,6 +10,7 @@
 #include "tMemoized.hpp"
 #include "tOverload.hpp"
 #include "tProjectEuler.hpp"
+#include "tPythagoreanTripleGenerator.hpp"
 #include "tSafeMath.hpp"
 #include "tSafeMathNegative.hpp"
 #include "tTuple.hpp"

@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Class.hpp"
-#include "DebugPrint.hpp"
 #include "Math.hpp"
 #include "Memory.hpp"
 #include "TypeUtils.hpp"
 
+#include <iostream>
 #include <type_traits>
 
 struct Fail_Construct{};
@@ -196,6 +196,11 @@ SafeMath<X> SafeMath<X>::cast(SafeMath<Y> const& y) {
     return cast(*y);
 }
 
+namespace avoid_clang_bug {
+    extern bool someExternDebug;
+}
+    
+
 template<class X> template<class Y>
 SafeMath<B> SafeMath<X>::operator<(SafeMath<Y> const& y) const {
     if (!ok() || !y.ok()) {
@@ -210,8 +215,10 @@ SafeMath<B> SafeMath<X>::operator<(SafeMath<Y> const& y) const {
     auto const abs_y = my_abs(y.value());
     if (x_neg) {
 	auto ret = abs_y < abs_x;
-	// If we don't debug print here, -O3 messes up SafeMath<__int128>(-1) < SafeMath<__int128>(intmin<__int128>())
-	debug::cout << __FUNCTION__ << ": " << abs_x << " " << abs_y << std::endl;
+	// If we don't debug print here, -O3 messes up SafeMath<__int128>(-1) < std::numeric_limits<S128>::lowest(), where my_abs(std::numeric_limits<S128>::lowest()) is incorrectly treated as 0.
+	if (avoid_clang_bug::someExternDebug) {
+	    std::cout << __FUNCTION__ << ": " << abs_x << " " << abs_y << std::endl;
+	}
 	return ret;
     }
     return abs_x < abs_y;
