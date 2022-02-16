@@ -1,6 +1,7 @@
 #include "Class.hpp"
 #include "ExitUtils.hpp"
 #include "Math.hpp"
+#include "Mod.hpp"
 #include "PrimeUtils.hpp"
 #include "Str.hpp"
 #include "TypeUtils.hpp"
@@ -307,6 +308,14 @@ Optional<Prime_Power> Prime_Factorization::max_prime_and_power() const {
     return fPowers.back();
 }
 
+Prime_Factorization Prime_Factorization::square() const {
+    auto sqPE = primes_and_exponents();
+    for (auto&& [p, e] : sqPE) {
+	e *= 2;
+    }
+    return sqPE;
+}
+
 Vec<Prime_Factorization> Prime_Factorization::factors_prime_factorizations() const {
     Vec<Prime_Factorization> result;
     Prime_Factorization empty;
@@ -322,6 +331,55 @@ Vec<UL> sorted_factors(UL const n) {
     auto list = factors(n);
     std::sort(list.begin(), list.end());
     return list;
+}
+
+Optional<UI> sqrtModPrime(SL value, UI p) {
+    value %= p;
+    if (value < 0) {
+	value += p;
+    }
+
+    auto x = static_cast<UI>(value);
+    {
+	auto rtX = static_cast<UI>(std::sqrt(x));
+	if (rtX * rtX == x) {
+	    return rtX;
+	}
+    }
+
+    // faster than factorization to determine legendre via quadratic reciprocity
+    auto legendre = Mod(p, x) ^ ((p-1) / 2);
+
+    FAIL_IF(legendre != 1);
+    
+    if (p % 4 == 3) {
+	return static_cast<UI>(static_cast<SL>((Mod(p, x) ^ ((p+1) / 4))));
+    }
+
+    // https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm
+    auto Q = p - 1;
+    UI S = 0;
+    for ( ; Q % 2 == 0; Q /= 2) {
+	++S;
+    }
+    UI nonresidue = 2;
+    for ( ; (Mod(p, nonresidue) ^ ((p-1) / 2)) == 1; ++nonresidue) {}
+    auto n = x;
+    auto z = nonresidue;
+    auto M = S;
+    auto c = Mod(p, z) ^ Q;
+    auto t = Mod(p, n) ^ Q;
+    auto R = Mod(p, n) ^ ((Q+1)/2);
+    while (t != 1) {
+	UI i = 0;
+	for (auto T = t; T != 1; T *= T) {
+	    ++i;
+	}
+	auto b = c ^ (1U << (M-i-1));
+	t *= b^2;
+	R *= b;
+    }
+    return static_cast<UI>(static_cast<SL>(R));
 }
 
 template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const& pp) {

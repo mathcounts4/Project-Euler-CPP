@@ -67,6 +67,8 @@ class Prime_Factorization {
     
     // returns the biggest prime and its power, if one exists
     Optional<Prime_Power> max_prime_and_power() const;
+
+    Prime_Factorization square() const;
 };
 
 // sorted: if a|b|n, a preceeds b in the list
@@ -74,6 +76,10 @@ Vec<UL> factors(UL const n);
 
 // sorted: if a<b, a preceeds b in the list
 Vec<UL> sorted_factors(UL const n);
+
+// returns one of the square roots of value mod p, if 1 or 2 exist
+// undefined behavior if p is not prime
+Optional<UI> sqrtModPrime(SL value, UI p);
 
 /* Class<Prime_Power> */
 template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const& pp);

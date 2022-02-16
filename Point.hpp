@@ -24,31 +24,24 @@ MAKE_HASHABLE_TEMPLATE(<class Data>,Point2D<Data>,obj,obj.x,obj.y);
 template<class Data>
 struct Class<Point2D<Data> > {
     using T = Point2D<Data>;
+    using Pseudo = Class<std::pair<Data, Data>>;
     static std::ostream& print(std::ostream& os, T const& t) {
-	return os << "{" << t.x << "," << t.y << "}";
+	return Pseudo::print(os, {t.x, t.y});
     }
     static Optional<T> parse(std::istream& is) {
-	Resetter resetter{is};
-	if (auto opt = consume_opt(is,'{'); !opt)
-	    return Failure(opt.cause());
-	auto x = Class<Data>::parse(is);
-	if (!x)
-	    return Failure(x.cause());
-	if (auto opt = consume_opt(is,','); !opt)
-	    return Failure(opt.cause());
-	auto y = Class<Data>::parse(is);
-	if (!y)
-	    return Failure(y.cause());
-	if (auto opt = consume_opt(is,'}'); !opt)
-	    return Failure(opt.cause());
-	resetter.ignore();
-	return {x,y};
+	auto xy = Pseudo::parse(is);
+	if (!xy) {
+	    return Failure(xy.cause());
+	} else {
+	    auto const& [x, y] = *xy;
+	    return T{x, y};
+	}
     }
     static std::string name() {
-	return "Point2D<" + Class<T>::name() + ">";
+	return "Point2D<" + Class<Data>::name() + ">";
     }
     static std::string format() {
-	return "{" + Class<T>::format() + "," + Class<T>::format() + "}";
+	return Pseudo::format();
     }
 };
 

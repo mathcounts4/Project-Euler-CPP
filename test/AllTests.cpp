@@ -10,6 +10,7 @@
 #include "tIndexing.hpp"
 #include "tMemoized.hpp"
 #include "tOverload.hpp"
+#include "tPrimeUtils.hpp"
 #include "tProjectEuler.hpp"
 #include "tPythagoreanTripleGenerator.hpp"
 #include "tSafeMath.hpp"
