@@ -110,7 +110,7 @@ template<class IntType> void Fraction<IntType>::reduce() {
     n = SafeMath<IntType>(n) / IntType(g);
     d = SafeMath<IntType>(d) / IntType(g);
     if (d < IntType(0)) {
-	IntType negOne(-1);
+	IntType negOne(static_cast<IntType>(-1));
 	n = SafeMath<IntType>(n) * negOne;
 	d = SafeMath<IntType>(d) * negOne;
     }

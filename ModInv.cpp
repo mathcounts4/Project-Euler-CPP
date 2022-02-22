@@ -6,7 +6,7 @@
 //
 //
 
-#include "ModInv.h"
+#include "ModInv.hpp"
 
 // finds x^(-1) mod y in [0,y) (with x,y coprime)
 long getInv(long x, long y) {

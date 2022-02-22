@@ -44,6 +44,7 @@ class Mod {
     Mod& operator++();
     Mod& operator--();
     explicit operator B() const;
+    explicit operator UI() const;
     explicit operator SL() const;
     explicit operator D() const;
     UI get_mod() const;

@@ -96,15 +96,22 @@ Mod& Mod::operator--() {
     return *this;
 }
 
-Mod::operator bool() const {
+Mod::operator B() const {
     return value > 0;
+}
+
+Mod::operator UI() const {
+    if (mod == 0) {
+	throw_exception<std::logic_error>("If mod can be 0, cast to SL instead of UI");
+    }
+    return static_cast<UI>(value);
 }
 
 Mod::operator SL() const {
     return value;
 }
 
-Mod::operator double() const {
+Mod::operator D() const {
     return value;
 }
 
