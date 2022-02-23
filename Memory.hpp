@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 
 // SmartMemory<Bytes> produces uninitialized memory on the stack or heap
@@ -10,7 +11,7 @@ namespace MemoryImpl {
 
 template<std::size_t Bytes, std::size_t AlignBytes> struct StackMemory {
   protected:
-    alignas(AlignBytes) char fData[Bytes];
+    alignas(AlignBytes) char fData[std::max(Bytes, static_cast<std::size_t>(1))];
     StackMemory() {} // forcefully never initialize fData
     
 };
@@ -19,7 +20,7 @@ template<std::size_t Bytes, std::size_t AlignBytes> struct HeapMemory {
   protected:
     char* const fData;
     HeapMemory()
-	: fData(new char[Bytes]) {}
+	: fData(new (std::align_val_t(AlignBytes)) char[Bytes]) {}
     HeapMemory(HeapMemory const&)
 	: HeapMemory() {}
     ~HeapMemory() {
@@ -30,10 +31,10 @@ template<std::size_t Bytes, std::size_t AlignBytes> struct HeapMemory {
 static constexpr std::size_t MaxStackArrayBytes = 2048;
     
 template<std::size_t Bytes, std::size_t AlignBytes, bool leqMaxStackArrayBytes> struct SmartMemoryImpl;
-    template<std::size_t Bytes, std::size_t AlignBytes> struct SmartMemoryImpl<Bytes,AlignBytes,true> {
-	using Type = StackMemory<Bytes, AlignBytes>;
-    };
-    template<std::size_t Bytes, std::size_t AlignBytes> struct SmartMemoryImpl<Bytes,AlignBytes,false> {
+template<std::size_t Bytes, std::size_t AlignBytes> struct SmartMemoryImpl<Bytes,AlignBytes,true> {
+    using Type = StackMemory<Bytes, AlignBytes>;
+};
+template<std::size_t Bytes, std::size_t AlignBytes> struct SmartMemoryImpl<Bytes,AlignBytes,false> {
     using Type = HeapMemory<Bytes, AlignBytes>;
 };
 
