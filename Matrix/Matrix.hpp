@@ -173,6 +173,12 @@ class Matrix : private SmartMemory<sizeof(T)*M*N, alignof(T)> {
     Matrix operator^(UL exponent) const;
 
     Matrix& operator^=(UL exponent);
+
+    template<class OtherMatrix, class = decltype(declval<OtherMatrix>()[0][0])>
+    bool operator==(OtherMatrix const& other) const;
+
+    template<class OtherMatrix, class = decltype(declval<OtherMatrix>()[0][0])>
+    bool operator!=(OtherMatrix const& other) const;
 };
 
 template<class T, SZ M, SZ N>
@@ -241,8 +247,8 @@ ItemViewIterator<T_cvref> RowView<T_cvref,N>::end() const {
 }
 template<class T_cvref, SZ N>
 template<class SomeRow>
-RowView<T_cvref,N>& RowView<T_cvref,N>::operator=(SomeRow&& x) {
-    for (auto&& [x,y] : zipNoTmpRvalues(*this,static_cast<SomeRow&&>(x)))
+RowView<T_cvref,N>& RowView<T_cvref,N>::operator=(SomeRow&& r) {
+    for (auto&& [x,y] : zipNoTmpRvalues(*this,static_cast<SomeRow&&>(r)))
 	x = static_cast<decltype(y)>(y);
     return *this;
 }
@@ -408,7 +414,8 @@ template<class T, SZ M, SZ N>
 Matrix<T,M,N> Matrix<T,M,N>::operator-() const {
     Matrix result(*this);
     for (auto&& row : result)
-	row = -row;
+	for (auto&& x : row)
+	    x = -x;
     return result;
 }
 
@@ -641,6 +648,30 @@ Matrix<T,M,N> Matrix<T,M,N>::operator^(UL exponent) const {
 template<class T, SZ M, SZ N>
 Matrix<T,M,N>& Matrix<T,M,N>::operator^=(UL exponent) {
     return *this = *this ^ exponent;
+}
+
+namespace matrix::detail {
+    template<class T> static constexpr bool isMatrix = false;
+    template<class T, SZ M, SZ N> static constexpr bool isMatrix<Matrix<T, M, N>> = true;
+}
+
+template<class T, SZ M, SZ N>
+template<class OtherMatrix, class>
+bool Matrix<T,M,N>::operator==(OtherMatrix const& other) const {
+    if constexpr (matrix::detail::isMatrix<OtherMatrix>) {
+	static_assert(OtherMatrix::rows == M && OtherMatrix::cols == N);
+    }
+    for (SZ i = 0; i < M; ++i)
+	for (SZ j = 0; j < N; ++j)
+	    if ((*this)[i][j] != other[i][j]) {
+		return false;
+	    }
+    return true;
+}
+template<class T, SZ M, SZ N>
+template<class OtherMatrix, class>
+bool Matrix<T,M,N>::operator!=(OtherMatrix const& other) const {
+    return !(*this == other);
 }
 
 /* Class<Matrix> template impl */
