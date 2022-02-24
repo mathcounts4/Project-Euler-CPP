@@ -16,14 +16,14 @@ struct Test {
     Str file;
     UI line;
     
-    B operator<(Test const & other) const {
-	if (file != other.file)
-	    return file < other.file;
-	if (line != other.line)
-	    return line < other.line;
-	if (name != other.name)
-	    return name < other.name;
-	return function < other.function;
+    friend B operator<(Test const& x, Test const& y) {
+	if (x.name != y.name)
+	    return x.name < y.name;
+	if (x.file != y.file)
+	    return x.file < y.file;
+	if (x.line != y.line)
+	    return x.line < y.line;
+	return x.function < y.function;
     }
 };
 
