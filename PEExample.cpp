@@ -1,4 +1,5 @@
-// compile: g++ -std=c++11 -O3 Testing.cpp
+// compile: g++ -std=c++11 -O3 PEExample.cpp
+// or if on Mac, make PEExample.cpp
 
 // try calling the executable in various ways:
 // ./a.out
