@@ -4,7 +4,7 @@
 #include "tCircleIterator.hpp"
 #include "tClass.hpp"
 #include "tContainerTransformer.hpp"
-#include "tcountWithSmallPrimeFactors.hpp"
+#include "ttCountWithSmallPrimeFactors.hpp"
 #include "tDFS.hpp"
 #include "tFraction.hpp"
 #include "tGraphReducer.hpp"
