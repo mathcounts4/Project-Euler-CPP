@@ -11,11 +11,12 @@
 
 template<class T> struct Optional {
   private:
-    std::variant<T,std::string> value;
+    std::variant<T, std::string> value;
 
   public:
     Optional(Failure f);
-    template<class... R> Optional(R&&... r);
+    template<class Other> Optional(Optional<Other> other);
+    template<class... R, class = std::enable_if_t<none<is_a<Optional, R>...>>> Optional(R&&... r);
     
     explicit operator bool() const;
     
@@ -57,12 +58,22 @@ static constexpr B is_Optional<Optional<T>> = true;
 
 template<class T>
 Optional<T>::Optional(Failure f)
-    : value(std::in_place_index<1>,std::move(f.reason)) {
+    : value(std::in_place_index<1>, std::move(f.reason)) {
 }
 
-template<class T> template<class... R>
+template<class T> template<class Other>
+Optional<T>::Optional(Optional<Other> other)
+    : Optional(Failure("Constructing Optional from a different optional")) {
+    if (other) {
+	*this = *other;
+    } else {
+	*this = Failure(other.cause());
+    }
+}
+
+template<class T> template<class... R, class>
 Optional<T>::Optional(R&&... r)
-    : value(std::in_place_index<0>,fwd<R>(r)...) {
+    : value(std::in_place_index<0>, fwd<R>(r)...) {
 }
 
 template<class T>
