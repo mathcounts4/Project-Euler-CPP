@@ -166,6 +166,9 @@ class Matrix : private SmartMemory<sizeof(T)*M*N, alignof(T)> {
 
     template<class S>
     Matrix& operator*=(Matrix<S,N,N> const& other);
+
+    // solves M⨯M lhs * M⨯N result = *this
+    Matrix ldivide(Matrix<T,M,M> lhs) const;
     
     Matrix operator^(UL exponent) const;
 
@@ -564,6 +567,63 @@ template<class S>
 Matrix<T,M,N>& Matrix<T,M,N>::operator*=(Matrix<S,N,N> const& other) {
     return *this = (*this).template operator*<S,N,T>(other);
 }
+
+// solves M⨯M lhs * M⨯N result = *this
+template<class T, SZ M, SZ N>
+Matrix<T,M,N> Matrix<T,M,N>::ldivide(Matrix<T,M,M> lhs) const {
+    static_assert(!std::is_integral_v<T>, "Cannot properly divide integer matrices - use floating-point instead");
+    // Gauss-Jordan elimination
+    Matrix rhs = *this;
+    // ignore rows that were already chosen for some column
+    std::array<B, M> usedRows{};
+    std::array<SZ, M> rowToCol{};
+    for (SZ col = 0; col < M; ++col) {
+	SZ biggestRow = 0;
+	T biggestAbsRowVal(0);
+	for (SZ row = 0; row < M; ++row) {
+	    if (usedRows[row]) {
+		continue;
+	    }
+	    auto absVal = std::abs(lhs[row][col]);
+	    if (absVal > biggestAbsRowVal) {
+		biggestAbsRowVal = absVal;
+		biggestRow = row;
+	    }
+	}
+	if (biggestAbsRowVal == static_cast<T>(0)) {
+	    throw_exception<std::logic_error>("Singular matrix in column " + to_string(col) + " with row " + to_string(biggestRow) + " = " + to_string(lhs[biggestRow][col]) + " with biggestAbsRowVal = " + to_string(biggestAbsRowVal) + ":\n" + to_string(lhs));
+	}
+	usedRows[biggestRow] = true;
+	rowToCol[biggestRow] = col;
+	for (SZ row = 0; row < M; ++row) {
+	    if (row != biggestRow) {
+		auto scale = lhs[row][col] / lhs[biggestRow][col];
+		for (SZ colSub = 0; colSub < N; ++colSub) {
+		    rhs[row][colSub] -= scale * rhs[biggestRow][colSub];
+		}
+		for (SZ colSub = col+1; colSub < M; ++colSub) {
+		    lhs[row][colSub] -= scale * lhs[biggestRow][colSub];
+		}
+		lhs[row][col] = static_cast<T>(0);
+	    }
+	}
+    }
+    // Need to permute rhs and divide by entries in lhs
+    // We have a sparse LHS with entries in [row][col] (one per row, one per col).
+    auto permutedScaled = rhs;
+    for (SZ row = 0; row < M; ++row) {
+	auto col = rowToCol[row];
+	auto scale = lhs[row][col];
+	// lhs[row][...] * ans[...][i] = rhs[row][i]
+	// lhs[row] only has nonzero "scale" at lhs[row][col]
+	// lhs[row][col] * ans[col][i] = rhs[row][i]
+	for (SZ i = 0; i < N; ++i) {
+	    permutedScaled[col][i] = rhs[row][i] / scale;
+	}
+    }
+    return permutedScaled;
+}
+
 template<class T, SZ M, SZ N>
 Matrix<T,M,N> Matrix<T,M,N>::operator^(UL exponent) const {
     static_assert(M == N, "Cannot exponentiate non-square matrices");
