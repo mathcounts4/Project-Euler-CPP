@@ -8,6 +8,7 @@
 #include "tFraction.hpp"
 #include "tGraphReducer.hpp"
 #include "tIndexing.hpp"
+#include "tMatrix.hpp"
 #include "tMemoized.hpp"
 #include "tOverload.hpp"
 #include "tPrimeUtils.hpp"
