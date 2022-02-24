@@ -7,3 +7,8 @@ class One {
 	return T(1);
     }
 };
+
+template<class T>
+T one() {
+    return One<T>::get();
+}
