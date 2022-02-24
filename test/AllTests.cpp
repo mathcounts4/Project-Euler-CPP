@@ -1,4 +1,5 @@
 #include "tAlgorithm.hpp"
+#include "tBetterRegex.hpp"
 #include "tBigInt.hpp"
 #include "tCircleIterator.hpp"
 #include "tClass.hpp"
