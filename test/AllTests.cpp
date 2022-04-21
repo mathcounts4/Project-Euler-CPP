@@ -17,6 +17,7 @@
 #include "tPythagoreanTripleGenerator.hpp"
 #include "tSafeMath.hpp"
 #include "tSafeMathNegative.hpp"
+#include "tSegmentTree.hpp"
 #include "tTuple.hpp"
 #include "tUseRef.hpp"
 #include "tZip.hpp"

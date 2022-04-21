@@ -316,6 +316,21 @@ Prime_Factorization Prime_Factorization::square() const {
     return sqPE;
 }
 
+// {x, y} where n = x^2 * y and y is square-free
+std::pair<Prime_Factorization, Prime_Factorization> Prime_Factorization::splitSquareFree() const {
+    Vec<Prime_Power> x;
+    Vec<Prime_Power> y;
+    for (auto const& [p, e] : primes_and_exponents()) {
+	if (e > 1) {
+	    x.emplace_back(p, e / 2);
+	}
+	if (e % 2) {
+	    y.emplace_back(p, 1);
+	}
+    }
+    return {x, y};
+}
+
 Vec<Prime_Factorization> Prime_Factorization::factors_prime_factorizations() const {
     Vec<Prime_Factorization> result;
     Prime_Factorization empty;

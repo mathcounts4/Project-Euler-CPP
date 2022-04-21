@@ -1,0 +1,6 @@
+Divide the squares per player (which player could possibly ever play on each square) by a parity argument (based on the location of the first move).
+If it's player X's turn and the board can be (partially or completely) tiled with dominos such that all of player X's squares are covered, player X loses.
+Player Y's strategy is to choose the other square in the domino from player X's move, thus Y always has a valid move.
+
+This means, for an MxN board, if either M or N are even, the second player wins.
+If M and N are both odd, the first player can win by selecting one of the majority squares as the first move (and would lose by selecting one of the minority squares).

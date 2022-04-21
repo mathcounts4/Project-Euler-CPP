@@ -1,0 +1,34 @@
+Solution:
+
+It is always possible for your friend to identify the correct square X.
+
+Label the squares as unique 8-bit binary numbers, 0-63.
+We define a function that maps any board of coins to an individual square:
+
+Of the coins that are heads, xor all their 8-bit binary numbers.
+Take the 8-bit binary number - that square is the result.
+
+Now, we need a way, given any initial configuration and a square X, to flip exactly one coin to produce a configuration that maps to X.
+Denoting the current configuration result as C, we select the square corresponding to xor(X,C).
+
+This produces result of xor(C,xor(X,C)) = X, and your friend successfully identifies X via the mapping function.
+
+
+How does this change with n squares?
+
+From each position, there are n possibilities of coins to flip, and n possible values of X.
+Therefore, to have your friend be guaranteed to determine X, we need a mapping function where, for any configuration, each adjacent configuration maps to a different result square.
+
+We pick some particular square S.
+Summing over all 2^n configurations, over all n adjacent configurations, we must have 2^n configurations that map to S (since each must have exactly 1 adjacent that maps to S).
+
+However, looking at this sum another way, we can first sum over all configurations that map to S, then sum over all adjacent configurations.
+
+This is a multiple of n, as each of these configurations that maps to S has n adjacent configurations.
+
+Thus we have n | 2^n, which only holds if n is a power of 2.
+Otherwise, such a mapping is not possible.
+
+When n is a power of 2, the same xor strategy applies.
+
+Thus there is a perfect strategy iff n is a power of 2.

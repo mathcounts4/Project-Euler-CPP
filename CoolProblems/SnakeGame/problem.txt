@@ -1,0 +1,12 @@
+Mind-Benders for the Quarantined!
+
+momath.org
+mindbenders@momath.org
+
+Please enjoy this week's Mind-Benders for the Quarantined! from MoMath's puzzle master, Dr. Peter Winkler:
+
+PUZZLE: Snake Game
+
+Adam begins by marking any square of a chessboard; Eve then marks an orthogonally adjacent square.  Thereafter, Adam and Eve continue alternating, each marking a cell adjacent to the last one marked, creating a snake on the board.  The first player unable to play loses.
+
+Which starting cells (if any) lead to a win for Adam, with best play by both players?

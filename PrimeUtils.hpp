@@ -69,6 +69,9 @@ class Prime_Factorization {
     Optional<Prime_Power> max_prime_and_power() const;
 
     Prime_Factorization square() const;
+
+    // {x, y} where n = x^2 * y and y is square-free
+    std::pair<Prime_Factorization, Prime_Factorization> splitSquareFree() const;
 };
 
 // sorted: if a|b|n, a preceeds b in the list

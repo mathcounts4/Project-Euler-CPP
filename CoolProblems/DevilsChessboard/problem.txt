@@ -1,0 +1,26 @@
+You and your friend are playing a game with the devil.
+Before the game, you and your friend may discuss a strategy, but you cannot communicate in any way during the game.
+
+The game:
+
+1. You enter a room with the Devil, where he has set up a labeled chessboard.
+On each square of the board is a fair coin, heads or tails.
+The coins could all be heads, all be tails, or some mix.
+
+2. The Devil points to one particular square, call it X.
+
+3. You MUST pick exactly one coin and flip it to the other side.
+
+4. You leave the room.
+
+5. Your friend enters the room and can view the chessboard and the coins on it.
+
+6. Your friend picks one square (trying to identify X).
+
+7. If your friend picks X, you each get $1,000,000. Otherwise, you or your friend are killed at random, with any life insurance policy specifically excluding death-by-Devil.
+
+What strategy can you and your friend choose to maximize your probability of winning?
+
+Noe that the Devil can listen to your strategy, and choose which coins are heads vs tails, and X, in order to attempt to counteract your strategy.
+
+Rather than 64 labeled squares, how does the answer change when you have n (positive integer) labeled squares, and why?
