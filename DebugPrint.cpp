@@ -2,7 +2,7 @@
 
 namespace debug {
 
-    // ALWAYS_FORCE_REBUILD
+    // FORCE_REBUILD_DEBUG_CHANGED
 #ifdef DEBUG
     const bool doPrint = true;
 #else

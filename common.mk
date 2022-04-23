@@ -111,6 +111,7 @@ PAT_LNK := %.o %.a %.dylib %.tbd
 PAT_DEP := .%.d
 PAT_OBJ := .%.o
 PAT_CLN := %.clean
+PAT_DEBUG := %.debug
 
 
 
