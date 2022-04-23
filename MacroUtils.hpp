@@ -44,12 +44,14 @@
 #define FOR_EACH_STD_CONTAINER_ONE_ARG(MACRO,SEP)	\
     MACRO(std::list) SEP				\
     MACRO(std::set) SEP					\
+    MACRO(std::multiset) SEP				\
     MACRO(std::unordered_set) SEP			\
     MACRO(std::vector)
 
 // FOR_EACH_STD_CONTAINER_TWO_ARGS(MACRO)
 #define FOR_EACH_STD_CONTAINER_TWO_ARGS(MACRO,SEP)	\
     MACRO(std::map) SEP					\
+    MACRO(std::multimap) SEP				\
     MACRO(std::unordered_map)
 
 // container constants

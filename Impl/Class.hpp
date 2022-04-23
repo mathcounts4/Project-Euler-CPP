@@ -231,8 +231,8 @@ template<class X, SZ len> struct Class<std::array<X,len> > {
 };
 
 #define CONTAINER_ONE_ARG_CLASS(TYPE)					\
-    template<class X> struct Class<TYPE<X> > {				\
-	using T = TYPE<X>;						\
+    template<class X, class... Other> struct Class<TYPE<X, Other...> > { \
+	using T = TYPE<X, Other...>;						\
 	static std::ostream& print(std::ostream& os, T const& t) {	\
 	    os << "{";							\
 	    int printed = 0;						\
@@ -289,8 +289,8 @@ FOR_EACH_STD_CONTAINER_ONE_ARG(CONTAINER_ONE_ARG_CLASS,;);
 #undef CONTAINER_ONE_ARG_CLASS
 
 #define CONTAINER_TWO_ARG_CLASS(TYPE)					\
-    template<class X, class Y> struct Class<TYPE<X,Y> > {		\
-	using T = TYPE<X,Y>;						\
+    template<class X, class Y, class... Other> struct Class<TYPE<X,Y,Other...> > { \
+	using T = TYPE<X,Y,Other...>;					\
 	static std::ostream& print(std::ostream& os, T const& t) {	\
 	    os << "{";							\
 	    int printed = 0;						\
