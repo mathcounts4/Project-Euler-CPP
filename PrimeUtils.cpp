@@ -5,6 +5,7 @@
 #include "PrimeUtils.hpp"
 #include "Str.hpp"
 #include "TypeUtils.hpp"
+#include "U_Map.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -203,6 +204,188 @@ Vec<UL> prime_factor_list(UL const n) {
     return result;
 }
 
+Vec<UL> factors(UL const n) {
+    return Prime_Factorization(n).factors();
+}
+
+Vec<UL> sorted_factors(UL const n) {
+    auto list = factors(n);
+    std::sort(list.begin(), list.end());
+    return list;
+}
+
+Optional<UI> sqrtModPrime(SL value, UI p) {
+    value %= p;
+    if (value < 0) {
+	value += p;
+    }
+
+    auto x = static_cast<UI>(value);
+    {
+	auto rtX = static_cast<UI>(std::sqrt(x));
+	if (rtX * rtX == x) {
+	    return rtX;
+	}
+    }
+
+    // faster than factorization to determine legendre via quadratic reciprocity
+    auto legendre = Mod(p, x) ^ ((p-1) / 2);
+
+    FAIL_IF(legendre != 1);
+    
+    if (p % 4 == 3) {
+	return static_cast<UI>(static_cast<SL>((Mod(p, x) ^ ((p+1) / 4))));
+    }
+
+    // https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm
+    auto Q = p - 1;
+    UI S = 0;
+    for ( ; Q % 2 == 0; Q /= 2) {
+	++S;
+    }
+    UI nonresidue = 2;
+    for ( ; (Mod(p, nonresidue) ^ ((p-1) / 2)) == 1; ++nonresidue) {}
+    auto n = x;
+    auto z = nonresidue;
+    auto M = S;
+    auto c = Mod(p, z) ^ Q;
+    auto t = Mod(p, n) ^ Q;
+    auto R = Mod(p, n) ^ ((Q+1)/2);
+    while (t != 1) {
+	UI i = 0;
+	for (auto T = t; T != 1; T *= T) {
+	    ++i;
+	}
+	auto b = c ^ (1U << (M-i-1));
+	t *= b^2;
+	R *= b;
+    }
+    return static_cast<UI>(static_cast<SL>(R));
+}
+
+template<UI power>
+Mod sumPowersUpTo(UL) {
+    static_assert(power != power, "Unimplemented for this value of power");
+}
+
+template<>
+Mod sumPowersUpTo<0>(UL n) {
+    return n;
+}
+
+template<>
+Mod sumPowersUpTo<1>(UL n) {
+    return n % 2 ? Mod(n) * ((n+1) / 2) : Mod(n/2) * (n+1);
+}
+
+template<>
+Mod sumPowersUpTo<3>(UL n) {
+    auto r = sumPowersUpTo<1>(n);
+    return r * r;
+}
+
+template<UI power>
+struct SumPowersPrimesUpToComputerImpl {
+    // https://math.stackexchange.com/questions/1378286/find-the-sum-of-all-primes-smaller-than-a-big-number
+    // S(x,m) = ∑_{i=2}^{x} i * (i prime OR all of i's prime factors > m)
+    // S(x,m) =
+    //   S(x,m-1)                                        if m is not prime or x < m^2
+    //   S(x,m-1) - composite_with_smallest_factor_m     if m is prime and m^2 ≤ x
+    // composite_with_smallest_factor_m =
+    //    looking at multiples of m ≤ x:
+    //       m * S(⌊x/m⌋,m-1)
+    //          includes all composite_with_smallest_factor_m
+    //          but also includes m * all_primes_less_than_m = m * S(m-1,m-1)
+    // composite_with_smallest_factor_m =
+    //    m * (S(⌊x/m⌋,m-1) - S(m-1,m-1))
+
+    // Sum of all primes ≤ n is S(n,⌊sqrt(n)⌋)
+  public:
+    SumPowersPrimesUpToComputerImpl(UL n) {
+	if (n == 0) {
+	    fResults = {{0, 0}, {1, 0}};
+	    return;
+	}
+	auto rt = static_cast<UI>(std::sqrt(n));
+	
+	Vec<UL> nOverIntsDescending; // n, n/2, n/3, ..., ⌊sqrt(n)⌋, ⌊sqrt(n)⌋-1, ..., 2, 1
+	for (UI i = 1; i <= rt; ++i) {
+	    nOverIntsDescending.push_back(n / i);
+	}
+	for (UL i = nOverIntsDescending.back(); --i; ) {
+	    nOverIntsDescending.push_back(i);
+	}
+	// Initially:
+	//   sums[x] = ∑_{i=2}^{x} i^power
+	// Use dynamic programming to sieve out non-prime i from sums[x], one prime at a time.
+	// So after processing up to some prime p:
+	//   sums[x] = ∑_{i=2}^{x} i^power where i is prime or has minimal prime factor > p
+	// After processing all primes up to √n, this is equivalent to:
+	//   sums[x] = ∑_{i=2}^{x} i^power where i is prime
+	U_Map<UL, Mod> sums;
+	for (UL x : nOverIntsDescending) {
+	    sums.emplace(x, sumPowersUpTo<power>(x) - 1); // -1 because doesn't include 1^power = 1
+	}
+	auto isPrime = isPrimeUpTo(rt);
+	for (UI p = 2; p <= rt; ++p) {
+	    if (isPrime[p]) {
+		auto sumPowersPrimesLessThanP = sums[p-1];
+		auto pSq = static_cast<UL>(p) * p;
+		auto pPow = Mod(p) ^ power;
+		for (UL x : nOverIntsDescending) {
+		    if (x < pSq) {
+			break;
+		    }
+		    // Subtract i^power for composite i ≤ x where i's minimal prime factor is p.
+		    // These i are of the form p*j where j ≤ x/p and j's minimal prime factor is ≥ p.
+		    // Since this loop is in descending order of x and x/p<x and p-1<x,
+		    //   sums[x/p] and sums[p-1] have the value from the last iteration of p:
+		    //     sums[x/p] = ∑_{i=2}^{x/p} i^power where i is prime or has minimal prime factor ≥ p
+		    //     sums[p-1] = ∑_{i=2}^{p-1} i^power where i is prime or has minimal prime factor ≥ p
+		    //               = ∑_{i=2}^{p-1} i^power where i is prime
+		    // ∑i^power where i is composite with minimal prime factor p = p^power * (sums[x/p] - sums[p-1])
+		    sums[x] -= pPow * (sums[x / p] - sumPowersPrimesLessThanP);
+		}
+	    }
+	}
+	fResults = std::move(sums);
+    }
+    
+    Mod result(UL n) const {
+	return fResults.at(n);
+    }
+    
+  private:
+    U_Map<UL, Mod> fResults;
+};
+
+template<UI power>
+SumPowersPrimesUpToComputer<power>::SumPowersPrimesUpToComputer(UL n)
+    : fImpl(std::make_unique<SumPowersPrimesUpToComputerImpl<power>>(n)) {
+}
+
+template<UI power>
+SumPowersPrimesUpToComputer<power>::~SumPowersPrimesUpToComputer() = default;
+
+template<UI power>
+Mod SumPowersPrimesUpToComputer<power>::result(UL n) const {
+    return fImpl->result(n);
+}
+
+template struct SumPowersPrimesUpToComputer<1>;
+template struct SumPowersPrimesUpToComputer<3>;
+
+
+Mod sumOfPrimesUpTo(UL n) {
+    SumPowersPrimesUpToComputer<1> s(n);
+    return s.result(n);
+}
+
+Mod sumOfCubesOfPrimesUpTo(UL n) {
+    SumPowersPrimesUpToComputer<3> s(n);
+    return s.result(n);
+}
+
 Prime_Power::Prime_Power(UL const prime, UL const exponent)
     : fPrime(prime)
     , fExponent(exponent) {
@@ -336,65 +519,6 @@ Vec<Prime_Factorization> Prime_Factorization::factors_prime_factorizations() con
     Prime_Factorization empty;
     list_factors_prime_factorizations(result, empty);
     return result;
-}
-
-Vec<UL> factors(UL const n) {
-    return Prime_Factorization(n).factors();
-}
-
-Vec<UL> sorted_factors(UL const n) {
-    auto list = factors(n);
-    std::sort(list.begin(), list.end());
-    return list;
-}
-
-Optional<UI> sqrtModPrime(SL value, UI p) {
-    value %= p;
-    if (value < 0) {
-	value += p;
-    }
-
-    auto x = static_cast<UI>(value);
-    {
-	auto rtX = static_cast<UI>(std::sqrt(x));
-	if (rtX * rtX == x) {
-	    return rtX;
-	}
-    }
-
-    // faster than factorization to determine legendre via quadratic reciprocity
-    auto legendre = Mod(p, x) ^ ((p-1) / 2);
-
-    FAIL_IF(legendre != 1);
-    
-    if (p % 4 == 3) {
-	return static_cast<UI>(static_cast<SL>((Mod(p, x) ^ ((p+1) / 4))));
-    }
-
-    // https://en.wikipedia.org/wiki/Tonelli%E2%80%93Shanks_algorithm
-    auto Q = p - 1;
-    UI S = 0;
-    for ( ; Q % 2 == 0; Q /= 2) {
-	++S;
-    }
-    UI nonresidue = 2;
-    for ( ; (Mod(p, nonresidue) ^ ((p-1) / 2)) == 1; ++nonresidue) {}
-    auto n = x;
-    auto z = nonresidue;
-    auto M = S;
-    auto c = Mod(p, z) ^ Q;
-    auto t = Mod(p, n) ^ Q;
-    auto R = Mod(p, n) ^ ((Q+1)/2);
-    while (t != 1) {
-	UI i = 0;
-	for (auto T = t; T != 1; T *= T) {
-	    ++i;
-	}
-	auto b = c ^ (1U << (M-i-1));
-	t *= b^2;
-	R *= b;
-    }
-    return static_cast<UI>(static_cast<SL>(R));
 }
 
 template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const& pp) {

@@ -36,6 +36,9 @@ struct Memoized {
 	fEntries.insert({{ins...}, out});
 	return out;
     }
+    std::size_t numEntries() const {
+	return fEntries.size();
+    }
     
   private:
     std::unordered_map<In, Out> fEntries;
@@ -73,6 +76,10 @@ struct RecursiveMemoized {
         return fMemory(static_cast<X*>(this), ins...);
     }
 
+    std::size_t numEntries() const {
+	return fMemory.numEntries();
+    }
+    
   protected:
     Out recFcn(In const&... ins) {
 	return (*this)(ins...);

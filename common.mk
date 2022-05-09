@@ -158,7 +158,7 @@ OBJ := $(call TO_PAT,$(PAT_OBJ),$(SRC))
 DEP := $(call TO_PAT,$(PAT_DEP),$(SRC))
 SRC := # ensure we don't accidentally delete the source files
 
-FILES_TO_CLEAN := $(call EXIST,$(DEP) $(OBJ) $(EXE) $(SRCS_FL) $(ALL_SRC) $(EXTRA_LNK))
+FILES_TO_CLEAN := $(call EXIST,$(DEP) $(OBJ) $(EXE) $(ALL_SRC) $(EXTRA_LNK))
 GOALS_TO_CLEAN := $(call TO_PAT,$(PAT_CLN),$(FILES_TO_CLEAN))
 .PHONY: $(GOALS_TO_CLEAN)
 

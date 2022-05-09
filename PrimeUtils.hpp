@@ -2,6 +2,7 @@
 
 #include "BigInt.hpp"
 #include "Class.hpp"
+#include "Mod.hpp"
 #include "Optional.hpp"
 #include "Str.hpp"
 #include "TypeUtils.hpp"
@@ -25,6 +26,35 @@ UL find_prime_factor(UL n);
 
 // sorted list of prime factors, including duplicates
 Vec<UL> prime_factor_list(UL const n);
+
+// sorted: if a|b|n, a preceeds b in the list
+Vec<UL> factors(UL const n);
+
+// sorted: if a<b, a preceeds b in the list
+Vec<UL> sorted_factors(UL const n);
+
+// returns one of the square roots of value mod p, if 1 or 2 exist
+// undefined behavior if p is not prime
+Optional<UI> sqrtModPrime(SL value, UI p);
+
+Mod sumOfPrimesUpTo(UL n);
+Mod sumOfCubesOfPrimesUpTo(UL n);
+
+template<UI pwr>
+struct SumPowersPrimesUpToComputerImpl;
+// Computes ∑_{i=2}^{m} i^power where i is prime
+//   for each m = ⌊n/a⌋ for some integer a
+template<UI power>
+struct SumPowersPrimesUpToComputer {
+  public:
+    SumPowersPrimesUpToComputer(UL n);
+    ~SumPowersPrimesUpToComputer();
+    Mod result(UL n) const;
+  private:
+    std::unique_ptr<SumPowersPrimesUpToComputerImpl<power>> fImpl;
+};
+extern template struct SumPowersPrimesUpToComputer<1>;
+extern template struct SumPowersPrimesUpToComputer<3>;
 
 struct Prime_Power {
     UL fPrime;
@@ -73,16 +103,6 @@ class Prime_Factorization {
     // {x, y} where n = x^2 * y and y is square-free
     std::pair<Prime_Factorization, Prime_Factorization> splitSquareFree() const;
 };
-
-// sorted: if a|b|n, a preceeds b in the list
-Vec<UL> factors(UL const n);
-
-// sorted: if a<b, a preceeds b in the list
-Vec<UL> sorted_factors(UL const n);
-
-// returns one of the square roots of value mod p, if 1 or 2 exist
-// undefined behavior if p is not prime
-Optional<UI> sqrtModPrime(SL value, UI p);
 
 /* Class<Prime_Power> */
 template<> std::ostream& Class<Prime_Power>::print(std::ostream& os, Prime_Power const& pp);

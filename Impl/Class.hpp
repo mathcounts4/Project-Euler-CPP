@@ -8,6 +8,7 @@
 #include "../TypeUtils.hpp"
 
 #include <array>
+#include <bitset>
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -227,6 +228,35 @@ template<class X, SZ len> struct Class<std::array<X,len> > {
     }
     static std::string format() {
 	return "{" + Class<X>::format() + ", ...[" + to_string(len) + "]}";
+    }
+};
+template<SZ n> struct Class<std::bitset<n> > {
+    using T = std::bitset<n>;
+    static std::ostream& print(std::ostream& os, T const& t) {
+	return os << t.to_string();
+    }
+    static Optional<T> parse(std::istream& is) {
+	Resetter resetter{is};
+	try {
+	    std::string zerosAndOnes;
+	    auto nextChar = is.peek();
+	    while (nextChar == '0' || nextChar == '1') {
+		char c;
+		is.get(c);
+		zerosAndOnes += c;
+	    }
+	    T result(zerosAndOnes);
+	    resetter.ignore();
+	    return std::move(result);
+	} catch (std::exception const& ex) {
+	    return Failure(ex.what());
+	}
+    }
+    static std::string name() {
+	return "std::bitset<" + to_string(n) + ">";
+    }
+    static std::string format() {
+	return "(0|1){" + to_string(n) + "}";
     }
 };
 
