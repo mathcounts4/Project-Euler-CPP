@@ -24,7 +24,7 @@ class Mod;
 namespace PE {
     template<class In, SZ... i>
     std::string to_input_format(
-	std::array<char const *,In::size> const &   arg_names,
+	std::array<char const *, In::size> const&   arg_names,
 	Indices<i...>) {
 	std::vector<std::string> names {
 	    std::string(arg_names[i] ? arg_names[i] : "[no_name]") +
@@ -33,22 +33,25 @@ namespace PE {
 	return to_string(names);
     }
 	
-    template<class Out, class... In>
-    Optional<Vec<Case<Out,In...> > >
+    template<class Out, class... In, class TestList>
+    Optional<std::pair<Vec<Case<Out,In...> >, Vec<std::unique_ptr<Input<In...> > > > >
     get_cases(
-	Argc                          const   argc,
-	Argv                          const   argv,
-	Arg_Names<In...>              const & arg_names,
-	Vec<Test<Out,In...> >         const & tests,
-	Input<In...>                  const & real_input) {
+	Argc                          const  argc,
+	Argv                          const  argv,
+	Arg_Names<In...>              const& arg_names,
+	TestList                      const& tests,
+	Input<In...>                  const& real_input) {
         Vec<Case<Out,In...> > cases;
+
+	using Res = std::pair<Vec<Case<Out,In...> >, Vec<std::unique_ptr<Input<In...> > > >;
+	Vec<std::unique_ptr<Input<In...> > > parsedInputCases;
 
 	constexpr auto ans_unknown = "Answer unknown for real input";
 	
 	// no arguments: use the real input
 	if (argc <= 1) {
 	    cases.emplace_back(real_input,Failure{ans_unknown});
-	    return std::move(cases);
+	    return Res(std::move(cases), std::move(parsedInputCases));
 	}
 
 	if ("test" == std::string_view(argv[1])) {
@@ -57,9 +60,9 @@ namespace PE {
 	    
 	    // special case: test all
 	    if (argc == 2 || (argc == 3 && "all" == std::string_view(argv[2]))) {
-		for (auto const & test : tests)
-		    cases.emplace_back(test.template get<0>(),test.template get<1>());
-		return std::move(cases);
+		for (auto const& test : tests)
+		    cases.emplace_back(test.template get<0>(), test.template get<1>());
+		return Res(std::move(cases), std::move(parsedInputCases));
 	    }
 		
 	    // special case: test x y z
@@ -73,10 +76,10 @@ namespace PE {
 		    return Failure("Invalid test index " + to_string(*index) +
 				   " for range [1," + to_string(tests.size()) + "]");
 
-		auto const & test = tests[*index-1];
-		cases.emplace_back(test.template get<0>(),test.template get<1>());
+		auto const& test = std::data(tests)[*index-1];
+		cases.emplace_back(test.template get<0>(), test.template get<1>());
 	    }
-	    return std::move(cases);
+	    return Res(std::move(cases), std::move(parsedInputCases));
 	}
 
 	// general case: combine all argv into a single stream
@@ -99,41 +102,42 @@ namespace PE {
 		    "[exactly] test #\n" +
 		    "[one or more] " + to_input_format<Input<In...> >(arg_names,typename Input<In...>::Indices{}));
 	    }
-		
-	    cases.emplace_back(std::move(*value),Failure{ans_unknown});
+	    
+	    auto&& newCase = parsedInputCases.emplace_back(std::make_unique<Input<In...>>(std::move(*value)));
+	    cases.emplace_back(*newCase, Failure{ans_unknown});
 	}
-    
-	return std::move(cases);
+
+	// return parsed cases so they don't die
+	return Res(std::move(cases), std::move(parsedInputCases));
     }
 
-    template<class Out, class... In>
+    template<class Out, class... In, class TestList>
     bool run_problem(
-	Argc                                   const   argc,
-	Argv                                   const   argv,
-	Function<Optional<Out>,In...>          const   fcn,
-	Fcn_Names<In...>                       const & fcn_names,
-	Vec<Test<Out,In...> >                  const & tests,
-	Input<In...>                           const & input_problem)
-    {
-	static_assert(all<is_pure<In>...>,"All function arguments must have no cvref qualifiers");
+	Argc                                   const  argc,
+	Argv                                   const  argv,
+	Function<Optional<Out>, In...>         const  fcn,
+	Fcn_Names<In...>                       const& fcn_names,
+	TestList                               const& tests,
+	Input<No_cvref<In>...>                 const& input_problem) {
 
-	auto const & fcn_name = fcn_names.template get<0>();
-	auto const & input_names = fcn_names.template get<1>();
+	auto const& fcn_name = fcn_names.template get<0>();
+	auto const& input_names = fcn_names.template get<1>();
 	
-	auto cases = get_cases(argc,argv,input_names,tests,input_problem);
+	auto const& cases = get_cases<Out>(argc, argv, input_names, tests, input_problem);
 	if (!cases) {
 	    std::cerr << cases.cause() << std::endl;
 	    return false;
 	}
-    
+
 	bool ran_ok = true;
-	for (auto const & case1 : *cases) {
-	    auto const & input = case1.template get<0>();
+	for (auto const& case1 : cases->first) {
+	    auto const& input = case1.template get<0>();
 	    using Input_Tuple_Base = typename No_cvref<decltype(input)>::Base;
-	    auto const & expected = case1.template get<1>();
-	    std::cout << fcn_name << "(" << static_cast<Input_Tuple_Base const &>(input) << ")";
-	    if (expected)
+	    auto const& expected = case1.template get<1>();
+	    std::cout << fcn_name << "(" << static_cast<Input_Tuple_Base const&>(input) << ")";
+	    if (expected) {
 		std::cout << " [expected " << *expected << "]";
+	    }
 	    std::cout << std::flush;
 	    auto start = std::chrono::high_resolution_clock::now();
 	    try {
@@ -154,7 +158,7 @@ namespace PE {
 		    std::cout << " failed [" << diff.count() << " seconds]" <<
 			" due to:\n" << output.cause() << std::endl;
 		}
-	    } catch (std::exception const & ex) {
+	    } catch (std::exception const& ex) {
 		ran_ok = false;
 		auto end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> diff = end-start;

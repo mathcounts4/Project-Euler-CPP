@@ -6,6 +6,7 @@
 #include "../Optional.hpp"
 #include "../Resetter.hpp"
 #include "../TypeUtils.hpp"
+#include "../UniqueOwnedReferenceForHPP.hpp"
 
 #include <array>
 #include <bitset>
@@ -143,6 +144,27 @@ template<class X> struct Class<Optional<X> > {
     }
     static std::string name() {
 	return "Optional<" + Class<X>::name() + ">";
+    }
+    static std::string format() {
+	return Class<X>::format();
+    }
+};
+
+template<class X> struct Class<UniqueOwnedReference<X> > {
+    using T = UniqueOwnedReference<X>;
+    static std::ostream& print(std::ostream& os, T const& t) {
+	return os << *t;
+    }
+    static Optional<T> parse(std::istream& is) {
+        auto x = Class<X>::parse(is);
+	if (!x) {
+	    return Failure(x.cause());
+	} else {
+	    return std::move(*x);
+	}
+    }
+    static std::string name() {
+	return "UniqueOwnedReference<" + Class<X>::name() + ">";
     }
     static std::string format() {
 	return Class<X>::format();
@@ -390,27 +412,30 @@ template<class... Ts> struct Class<std::variant<Ts...>> {
     template<class X>
     static Optional<Type> parseImpl(std::istream& is) {
 	Resetter resetter{is};
-	if (auto optClassName = consume_opt(is, Class<X>::name() + "{")) {
-	    if (auto result = Class<X>::parse(is)) {
-		if (auto optCloseBrace = consume_opt(is, '}')) {
-		    resetter.ignore();
-		    return *result;
-		} else {
-		    return Failure(optCloseBrace.cause());
+	// T1{t1} or {t1} or t1
+        auto hadClassName = consume(is, Class<X>::name());
+	auto optOpenBrace = consume_opt(is, '{');
+	if (hadClassName && !optOpenBrace) {
+	    return Failure(optOpenBrace.cause());
+	}
+	if (auto result = Class<X>::parse(is)) {
+	    if (optOpenBrace) {
+		if (auto closeBrace = consume_opt(is, '}'); !closeBrace) {
+		    return Failure(closeBrace.cause());
 		}
-	    } else {
-		return Failure(result.cause());
 	    }
+	    resetter.ignore();
+	    return std::move(*result);
 	} else {
-	    return Failure(optClassName.cause());
+	    return Failure(result.cause());
 	}
     }
     template<class X1, class X2, class... Xs>
     static Optional<Type> parseImpl(std::istream& is) {
 	if (auto first = parseImpl<X1>(is)) {
-	    return *first;
+	    return std::move(*first);
 	} else if (auto rest = parseImpl<X2, Xs...>(is)) {
-	    return *rest;
+	    return std::move(*rest);
 	} else {
 	    return Failure(first.cause() + " | " + rest.cause());
 	}
@@ -420,12 +445,15 @@ template<class... Ts> struct Class<std::variant<Ts...>> {
     static std::ostream& print(std::ostream& os, Type const& ts) {
 	return std::visit([&os](auto const& t) -> decltype(auto) {
 	    using T = No_cvref<decltype(t)>;
+	    /*
 	    auto&& newOs = os << Class<T>::name() << "{";
 	    return Class<T>::print(newOs, t) << "}";
+	    */
+	    return Class<T>::print(os, t);
 	}, ts);
     }
     static Optional<Type> parse(std::istream& is) {
-	return parseImpl<Ts...>(is);
+        return parseImpl<Ts...>(is);
     }
     static std::string name() {
 	std::string separator = ", ";
@@ -434,8 +462,29 @@ template<class... Ts> struct Class<std::variant<Ts...>> {
     }
     static std::string format() {
 	std::string separator = " | ";
-	std::string withSep = ((separator + Class<Ts>::name() + "{" + Class<Ts>::format() + "}") + ...);
+	//std::string withSep = ((separator + Class<Ts>::name() + "{" + Class<Ts>::format() + "}") + ...);
+	std::string withSep = ((separator + Class<Ts>::format()) + ...);
 	return withSep.substr(separator.size());
+    }
+};
+
+// std::reference_wrapper
+template<class T> struct Class<std::reference_wrapper<T>> {
+  public:
+    using Type = std::reference_wrapper<T>;
+    
+  public:
+    static std::ostream& print(std::ostream& os, Type const& t) {
+	return Class<No_cvref<T>>::print(os, t);
+    }
+    static Optional<Type> parse(std::istream&) {
+	static_assert(alwaysFalse<T>, "Cannot parse reference types");
+    }
+    static std::string name() {
+	return "std::reference_wrapper<" + Class<T>::name() + ">";
+    }
+    static std::string format() {
+        return "Though " + name() + " cannot be parsed, its format is " + Class<T>::format();
     }
 };
 

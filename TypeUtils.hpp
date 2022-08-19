@@ -104,6 +104,10 @@ constexpr T&& identity(T&& t) noexcept { return fwd<T>(t); }
 template<B b>
 using verify = std::enable_if_t<b>;
 
+/* alwaysFalse - used to delay static_assert-s from parse-time to instantiation */
+template<class T>
+constexpr B alwaysFalse = false;
+
 /* make unsigned */
 template<class T>
 using Make_u = std::make_unsigned_t<T>;

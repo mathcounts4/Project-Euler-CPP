@@ -4,10 +4,10 @@
 
 template<class T> template<class... Args>
 UniqueOwnedReference<T>::UniqueOwnedReference(Args&&... args)
-    : t(*new T(static_cast<Args&&>(args)...)) {
+    : t(std::make_unique<T>(static_cast<Args&&>(args)...)) {
+    // If T's constructor is not public and this causes a compilation error,
+    //   pass your own constructed T (after friending the owner class) and ensure that T is publicly movable.
 }
 
 template<class T>
-UniqueOwnedReference<T>::~UniqueOwnedReference() {
-    delete &t;
-}
+UniqueOwnedReference<T>::~UniqueOwnedReference() = default;

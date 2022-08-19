@@ -22,12 +22,16 @@ template<class T> struct Optional {
     
     std::string const& cause() const;
     
-    T& operator*();
-    T const& operator*() const;
+    T& operator*() &;
+    T&& operator*() &&;
+    T const& operator*() const&;
+    T const&& operator*() const&&;
     T* operator->();
     T const* operator->() const;
-    T& deref_without_stack();
-    T const& deref_without_stack() const;
+    T& deref_without_stack() &;
+    T&& deref_without_stack() &&;
+    T const& deref_without_stack() const&;
+    T const&& deref_without_stack() const&&;
 };
 
 template<>
@@ -89,17 +93,31 @@ std::string const& Optional<T>::cause() const {
 }
 
 template<class T>
-T& Optional<T>::operator*() {
+T& Optional<T>::operator*() & {
     if (!*this)
 	throw_exception<BadOptionalAccess>(cause());
     return std::get<0>(value);
 }
 
 template<class T>
-T const& Optional<T>::operator*() const {
+T&& Optional<T>::operator*() && {
+    if (!*this)
+	throw_exception<BadOptionalAccess>(cause());
+    return static_cast<T&&>(std::get<0>(value));
+}
+
+template<class T>
+T const& Optional<T>::operator*() const&  {
     if (!*this)
 	throw_exception<BadOptionalAccess>(cause());
     return std::get<0>(value);
+}
+
+template<class T>
+T const&& Optional<T>::operator*() const&&  {
+    if (!*this)
+	throw_exception<BadOptionalAccess>(cause());
+    return static_cast<T const&&>(std::get<0>(value));
 }
 
 template<class T>
@@ -113,16 +131,30 @@ T const* Optional<T>::operator->() const {
 }
 
 template<class T>
-T& Optional<T>::deref_without_stack() {
+T& Optional<T>::deref_without_stack() & {
     if (!*this)
 	throw_exception_no_stack<BadOptionalAccess>(cause());
     return std::get<0>(value);
 }
 
 template<class T>
-T const& Optional<T>::deref_without_stack() const {
+T&& Optional<T>::deref_without_stack() &&  {
+    if (!*this)
+	throw_exception_no_stack<BadOptionalAccess>(cause());
+    return static_cast<T&&>(deref_without_stack());
+}
+
+template<class T>
+T const& Optional<T>::deref_without_stack() const& {
     if (!*this)
 	throw_exception_no_stack<BadOptionalAccess>(cause());
     return std::get<0>(value);
+}
+
+template<class T>
+T const&& Optional<T>::deref_without_stack() const&& {
+    if (!*this)
+	throw_exception_no_stack<BadOptionalAccess>(cause());
+    return static_cast<T const&&>(deref_without_stack());
 }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 /* This class is meant to help with header #include overhead
  * Requirements:
  * 1. class X "owns" a member y of class Y, constructed upon X's construction
@@ -11,15 +13,31 @@
  */ 
 template<class T>
 struct UniqueOwnedReference {
-private:
-    T& t;
-public:
+  private:
+    // Though t is nullable, it will only be null if this object has been moved-from
+    //   (in which case, why are you looking at this object?)
+    std::unique_ptr<T> t;
+  public:
     template<class... Args> UniqueOwnedReference(Args&&... args);
+    UniqueOwnedReference(UniqueOwnedReference&&) = default;
+    UniqueOwnedReference& operator=(UniqueOwnedReference&&) = default;
     ~UniqueOwnedReference();
     operator T& () noexcept {
-	return t;
+	return *t;
     }
     operator T const& () const noexcept {
-	return t;
+	return *t;
+    }
+    T& operator*() noexcept {
+	return *t;
+    }
+    T const& operator*() const noexcept {
+	return *t;
+    }
+    T* operator->() noexcept {
+	return t.get();
+    }
+    T const* operator->() const noexcept {
+	return t.get();
     }
 };

@@ -16,7 +16,7 @@ namespace PE {
 
     // {{arg1,arg2},out_expected}
     template<class Out, class... In> using Test =
-	BasicTuple<Input<In...>,Out>;
+	BasicTuple<Input<In...>, Out>;
 
     // {"arg 1","arg 2"}
     template<class... In> using Arg_Names = std::array<char const *, sizeof...(In)>;
@@ -28,7 +28,7 @@ namespace PE {
     // {{arg1,arg2},out_expected}
     // {{arg1,arg2},Failure{"No expected value"}}
     template<class Out, class... In> using Case =
-	BasicTuple<Input<In...>,Optional<Out> >;
+	SmartTuple<Input<In...> const&, Optional<std::reference_wrapper<Out const> > >;
 
     /* bool ran_ok = PE::run_problem(
            argc,
@@ -42,14 +42,14 @@ namespace PE {
 	   },
 	   {real_a1,real_a2});
     */
-    template<class Out, class... In>
+    template<class Out, class... In, class TestList = std::initializer_list<Test<Out, No_cvref<In>...>>>
     bool run_problem(
-	Argc                            const  argc,
-	Argv                            const  argv,
-	Function<Optional<Out>,In...>   const  fcn,
-	Fcn_Names<In...>                const& fcn_names,
-	Vec<Test<Out,In...> >           const& tests,
-	Input<In...>                    const& input);
+	Argc                                   const  argc,
+	Argv                                   const  argv,
+	Function<Optional<Out>, In...>         const  fcn,
+	Fcn_Names<In...>                       const& fcn_names,
+	TestList                               const& tests,
+	Input<No_cvref<In>...>                 const& input_problem);
 } /* namespace PE */
 
 #include "Impl/ProjectEuler.hpp"
