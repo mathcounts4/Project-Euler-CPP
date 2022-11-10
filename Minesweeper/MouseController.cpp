@@ -150,7 +150,8 @@ static Vec<PosAndTime> intermediateMovements(Mouse::Position const& start,
 }
 
 [[nodiscard]] static Mouse::Moved immediateMoveWithEventIfAtExpectedPosition(Mouse::Position const& position, Mouse::Position& expectedOldPosition) {
-    if (Mouse::position() != expectedOldPosition) {
+    auto currentPosition = Mouse::position();
+    if (currentPosition != expectedOldPosition) {
 	return Mouse::Moved::YES;
     }
     Mouse::immediateMoveWithEvent(position);

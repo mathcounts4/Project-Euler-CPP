@@ -16,10 +16,18 @@ class Mouse {
 									     std::chrono::milliseconds(5));
   public:
     enum class Moved : B { NO = 0, YES = 1 };
-    using Coordinate = double;
+    using Coordinate = int; // Apple rounds to int now? Used to be double.
     struct Position {
 	Coordinate x;
 	Coordinate y;
+	Position(double dx, double dy)
+	    : x(static_cast<Coordinate>(std::round(dx)))
+	    , y(static_cast<Coordinate>(std::round(dy))) {
+	}
+	Position(Coordinate ix, Coordinate iy)
+	    : x(ix)
+	    , y(iy) {
+	}
 	friend inline bool operator==(Position const& a, Position const& b) {
 	    auto eps = 0.01;
 	    return std::abs(a.x - b.x) < eps && std::abs(a.y - b.y) < eps;
