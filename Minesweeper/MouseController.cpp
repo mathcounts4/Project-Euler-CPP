@@ -79,6 +79,7 @@ void Mouse::immediateMoveWithoutEvent(Position const& position) {
 void Mouse::immediateMoveWithEvent(Position const& position) {
     MouseMoveEvent event(position);
     event.trigger();
+    CGAssociateMouseAndMouseCursorPosition(true);
 }
 
 struct PosAndTime {

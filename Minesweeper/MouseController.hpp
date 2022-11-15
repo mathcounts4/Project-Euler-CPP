@@ -16,7 +16,7 @@ class Mouse {
 									     std::chrono::milliseconds(5));
   public:
     enum class Moved : B { NO = 0, YES = 1 };
-    using Coordinate = int; // Apple rounds to int now? Used to be double.
+    using Coordinate = int;
     struct Position {
 	Coordinate x;
 	Coordinate y;
@@ -27,6 +27,9 @@ class Mouse {
 	Position(Coordinate ix, Coordinate iy)
 	    : x(ix)
 	    , y(iy) {
+	    // Apple rounds to int now? API takes doubles and used to allow non-int values,
+	    // but now seems to round down to ints.
+	    // Thus we round so the position we expect to move to is the position we actually move it.
 	}
 	friend inline bool operator==(Position const& a, Position const& b) {
 	    auto eps = 0.01;
