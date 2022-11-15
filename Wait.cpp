@@ -40,6 +40,10 @@ ScopedSetValue<bool> neverWait() {
     return ScopedSetValue(neverWaitFlag, true);
 }
 
+bool canWait() {
+    return neverWaitFlag;
+}
+
 ScopedSetValue<double> NormalDuration::slowDownBy(double delayFactor) {
     return ScopedSetValue(timeMultiplyByFactor, timeMultiplyByFactor * delayFactor);
 }

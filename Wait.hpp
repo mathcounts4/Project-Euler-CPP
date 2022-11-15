@@ -47,3 +47,4 @@ Time timeFrom(std::chrono::time_point<std::chrono::system_clock> const& start);
 void waitFor(NormalDuration const& duration);
 [[nodiscard]] ScopedSetValue<bool> alwaysWait();
 [[nodiscard]] ScopedSetValue<bool> neverWait();
+bool canWait();

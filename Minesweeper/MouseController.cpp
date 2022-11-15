@@ -165,40 +165,42 @@ Mouse::Moved Mouse::realisticMove(Position const& endPosition,
 				  NormalDuration const& waitAfter) {
     constexpr auto mouseEventRegisterTime = 0.0079;
     constexpr auto mouseEventRegisterStdDev = 0.0005;
-    auto time = timeDuration.toDouble();
 
-    // Even when time is dilated, do not change the time between mouse movements
-    // to avoid overloading the system.
-    auto selfManagedTime = NormalDuration::setSlowDownFactor(1);
-
-    auto numMovementsWithWait = static_cast<UI>(round(time / mouseEventRegisterTime));
     auto lastPos = position();
-    auto movementTimeFunction = [&]() -> Time { return Time(randNormal(mouseEventRegisterTime, mouseEventRegisterStdDev)); };
-    auto movements = intermediateMovements(lastPos, endPosition, numMovementsWithWait, movementTimeFunction);
+    if (canWait()) {
+	auto time = timeDuration.toDouble();
+	// Even when time is dilated, do not change the time between mouse movements
+	// to avoid overloading the system.
+	auto selfManagedTime = NormalDuration::setSlowDownFactor(1);
 
-    Time expectedDelay(0);
-    UI steps = 0;
-    auto before = now();
-    for (auto const& [waitAfter, intermediatePosition] : movements) {
-	auto moved = immediateMoveWithEventIfAtExpectedPosition(intermediatePosition, lastPos);
-	if (moved == Moved::YES) {
-	    return moved;
-	}
-	auto waitAfterModified = waitAfter;
-	if (steps > 0) {
-	    // self-correcting wait time:
-	    // If the system delays more than we tell it to,
-	    // shorten how long we tell it.
-	    Time diff = timeFrom(before);
-	    if (diff > expectedDelay) {
-		// actual delay > expected delay
-		auto adjustment = (diff - expectedDelay) / steps;
-		waitAfterModified -= adjustment;
+	auto numMovementsWithWait = static_cast<UI>(round(time / mouseEventRegisterTime));
+	auto movementTimeFunction = [&]() -> Time { return Time(randNormal(mouseEventRegisterTime, mouseEventRegisterStdDev)); };
+	auto movements = intermediateMovements(lastPos, endPosition, numMovementsWithWait, movementTimeFunction);
+
+	Time expectedDelay(0);
+	UI steps = 0;
+	auto before = now();
+	for (auto const& [waitAfter, intermediatePosition] : movements) {
+	    auto moved = immediateMoveWithEventIfAtExpectedPosition(intermediatePosition, lastPos);
+	    if (moved == Moved::YES) {
+		return moved;
 	    }
+	    auto waitAfterModified = waitAfter;
+	    if (steps > 0) {
+		// self-correcting wait time:
+		// If the system delays more than we tell it to,
+		// shorten how long we tell it.
+		Time diff = timeFrom(before);
+		if (diff > expectedDelay) {
+		    // actual delay > expected delay
+		    auto adjustment = (diff - expectedDelay) / steps;
+		    waitAfterModified -= adjustment;
+		}
+	    }
+	    waitFor(Time(waitAfterModified));
+	    ++steps;
+	    expectedDelay += waitAfterModified;
 	}
-	waitFor(Time(waitAfterModified));
-	++steps;
-	expectedDelay += waitAfterModified;
     }
     // final movement to actually reach the point
     auto movedAtEnd = immediateMoveWithEventIfAtExpectedPosition(endPosition, lastPos);
