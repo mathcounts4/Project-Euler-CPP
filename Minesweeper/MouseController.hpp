@@ -18,6 +18,10 @@ class Mouse {
     enum class Moved : B { NO = 0, YES = 1 };
     using Coordinate = int;
     struct Position {
+	// Position is in "global display coordinate space":
+	// https://developer.apple.com/documentation/coregraphics/1456395-cgdisplaybounds
+	// Note that this may be different from the raw number of pixels when viewing the contents of a display:
+	// CGDisplayCreateImage: https://developer.apple.com/documentation/coregraphics/1455691-cgdisplaycreateimage
 	Coordinate x;
 	Coordinate y;
 	Position(double dx, double dy)

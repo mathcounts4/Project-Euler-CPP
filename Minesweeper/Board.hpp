@@ -127,7 +127,9 @@ class ScreenBoard {
 		unsigned int outerBorderMinX,
 		unsigned int outerBorderMaxX,
 		unsigned int outerBorderMinY,
-		unsigned int outerBorderMaxY);
+		unsigned int outerBorderMaxY,
+		std::size_t screenshotWidth,
+		std::size_t screenshotHeight);
     enum class Outcome { NOT_DONE, DONE_UNKNOWN, LOST, WON };
     enum class LookFor { EXACT_SQUARE, ADJACENT_UNKNOWN };
     bool updateFromScreen(Screen const& screen, BoardPosition const& position, LookFor lookFor);
@@ -148,6 +150,8 @@ class ScreenBoard {
     unsigned int fOuterBorderMaxX;
     unsigned int fOuterBorderMinY;
     unsigned int fOuterBorderMaxY;
+    std::size_t fScreenshotWidth;
+    std::size_t fScreenshotHeight;
     bool fUsesSpaceForSurrounding;
     bool fGuessWhenUnsure;
     mutable Outcome fOutcome{Outcome::NOT_DONE};

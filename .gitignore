@@ -4,6 +4,8 @@ ProjectEuler*
 !ProjectEuler.*
 !ProjectEulerTemplate.cpp
 Matrix/NDimExprTemplate
+tileCache.txt
+Minesweeper/tileCache.txt
 boost*
 fftw*
 bin*

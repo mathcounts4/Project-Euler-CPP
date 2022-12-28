@@ -887,7 +887,9 @@ FoundOuterBorder:
 		       outerBorderMinX,
 		       outerBorderMaxX,
 		       outerBorderMinY,
-		       outerBorderMaxY);
+		       outerBorderMaxY,
+		       screen[0].size(),
+		       screen.size());
     return result;
 }
 
@@ -960,7 +962,9 @@ ScreenBoard::ScreenBoard(Board board,
 			 unsigned int outerBorderMinX,
 			 unsigned int outerBorderMaxX,
 			 unsigned int outerBorderMinY,
-			 unsigned int outerBorderMaxY)
+			 unsigned int outerBorderMaxY,
+			 std::size_t screenshotWidth,
+			 std::size_t screenshotHeight)
     : fBoard(std::move(board))
     , fTileWidth(tileWidth)
     , fTileHeight(tileHeight)
@@ -974,6 +978,8 @@ ScreenBoard::ScreenBoard(Board board,
     , fOuterBorderMaxX(outerBorderMaxX)
     , fOuterBorderMinY(outerBorderMinY)
     , fOuterBorderMaxY(outerBorderMaxY)
+    , fScreenshotWidth(screenshotWidth)
+    , fScreenshotHeight(screenshotHeight)
     , fUsesSpaceForSurrounding(true)
     , fGuessWhenUnsure(true)
     , fTileCache(loadTileCacheFromFile()) {
@@ -1080,10 +1086,17 @@ Mouse::Position ScreenBoard::boardToNormalPixel(BoardPosition const& boardPositi
     while (yDiff <= 0 || yDiff >= fTileHeight) {
 	yDiff = randNormal(ySpread, ySpread / 2.0);
     }
-    auto x = xStart + xDiff;
-    auto y = yStart + yDiff;
-    // Mouse position is half of pixels. Why? Ask Apple.
-    return {x / 2, y / 2};
+    auto xPixels = xStart + xDiff;
+    auto yPixels = yStart + yDiff;
+    // Need to convert from pixels to global coordinates
+    auto globalDisplayBounds = CGDisplayBounds(CGMainDisplayID());
+    auto xGlobalScreenWidth = CGRectGetMaxX(globalDisplayBounds);
+    auto yGlobalScreenHeight = CGRectGetMaxY(globalDisplayBounds);
+
+    auto xGlobalCoord = xGlobalScreenWidth * xPixels / fScreenshotWidth;
+    auto yGlobalCoord = yGlobalScreenHeight * yPixels / fScreenshotHeight;
+
+    return {xGlobalCoord, yGlobalCoord};
 }
 
 bool ScreenBoard::moveToBoardPosition(BoardPosition const& boardPosition) const {
