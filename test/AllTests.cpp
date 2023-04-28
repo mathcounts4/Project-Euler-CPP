@@ -1,6 +1,7 @@
 #include "tAlgorithm.hpp"
 #include "tBetterRegex.hpp"
 #include "tBigInt.hpp"
+#include "tBulgarianSolitaire.hpp"
 #include "tCircleIterator.hpp"
 #include "tClass.hpp"
 #include "tCombinations.hpp"
