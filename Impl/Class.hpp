@@ -284,11 +284,12 @@ template<SZ n> struct Class<std::bitset<n> > {
 
 #define CONTAINER_ONE_ARG_CLASS(TYPE)					\
     template<class X, class... Other> struct Class<TYPE<X, Other...> > { \
-	using T = TYPE<X, Other...>;						\
+	using T = TYPE<X, Other...>;					\
 	static std::ostream& print(std::ostream& os, T const& t) {	\
 	    os << "{";							\
 	    int printed = 0;						\
-	    for (X const& x : t) {					\
+	    using Val = std::conditional_t<std::is_same_v<X, B>, X, X const&>; \
+	    for (Val x : t) {						\
 		if (printed != 0)					\
 		    os << ",";						\
 		if (printed == PRINT_LIMIT) {				\
