@@ -211,6 +211,11 @@ Mod& Mod::operator^=(SL const pow) {
     return *this;
 }
 
+B operator<(Mod const& x, Mod const& y) {
+    x.mod_mismatch_check(y);
+    return x.value < y.value;
+}
+
 Mod::GlobalModSentinel::GlobalModSentinel(UI newMod)
     : prev(Mod::globalMod) {
     Mod::globalMod = newMod;

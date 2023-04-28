@@ -142,6 +142,8 @@ class Mod {
     // ^=
     Mod& operator^=(SL pow);
 
+    friend B operator<(Mod const& x, Mod const& y);
+
 #undef MOD_CAN_CREATE_TYPE
 
     struct GlobalModSentinel {
