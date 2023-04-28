@@ -80,8 +80,9 @@ bool Percent_Tracker::update(double value) {
 	    using Percent_Format = Formatted<D,5,Adjust_Format::Right,Float_Format::Fixed,2>;
 	    using Time_Format = Formatted<D,3,Adjust_Format::Right,Float_Format::Fixed,0>;
 	    std::string time_left;
-	    if (fPercent < 100 && diff.count() >= fTimeEstThreshold)
-		time_left = ", " + to_string(Time_Format((100./fPercent-1)*diff.count())) + " s remaining";
+	    if (fPercent < 100 && diff.count() >= fTimeEstThreshold) {
+		time_left = ", " + to_string(Time_Format((100./fPercent-1)*diff.count())) + " s remaining" + " (" + to_string(Time_Format(100./fPercent*diff.count())) + " s total)";
+	    }
 	    fLastPrinted =
 		"[" + fPrefix +
 		to_string(Percent_Format(fPercent)) + "%" +
