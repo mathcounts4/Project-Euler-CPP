@@ -12,6 +12,7 @@
 #include "tIndexing.hpp"
 #include "tMatrix.hpp"
 #include "tMemoized.hpp"
+#include "tMod.hpp"
 #include "tOverload.hpp"
 #include "tPermutationMapping.hpp"
 #include "tPrimeUtils.hpp"
