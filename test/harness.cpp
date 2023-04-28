@@ -1,5 +1,6 @@
 #include "harness.hpp"
 
+#include "../Now.hpp"
 #include "../Str.hpp"
 #include "../TypeUtils.hpp"
 #include "../Vec.hpp"
@@ -33,12 +34,12 @@ static auto& testList() {
     static Vec<Test> list;
     return list;
 }
-SI registerTest(void(*function)(), C const * test, C const * file, UI line) {
-    testList().push_back({function,test,file,line});
+SI registerTest(void(*function)(), C const* test, C const* file, UI line) {
+    testList().push_back({function,test, file, line});
     return 0;
 }
 
-inline Test::Result runTest(Test const & test) noexcept {
+static Test::Result runTest(Test const& test) noexcept {
     try {
 	global_success = true;
 	test.function();
@@ -54,6 +55,13 @@ inline Test::Result runTest(Test const & test) noexcept {
     return Test::Result::Failed;
 }
 
+static auto runTestWithTiming(Test const& test) noexcept {
+    auto start = now();
+    auto result = runTest(test);
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(now() - start).count() / 1e9 * 1e3; // -> ms
+    return std::make_pair(result, duration);
+}
+
 TrueFunctor isTrue() {
     return {};
 }
@@ -67,26 +75,31 @@ SI main() {
     UI passed = 0;
     UI total = 0;
     Vec<Str> failed;
+    Vec<std::pair<Str, D>> slow;
     
-    std::sort(testList().begin(),testList().end());
-    for (Test const & test : testList()) {
+    std::sort(testList().begin(), testList().end());
+    for (Test const& test : testList()) {
 	++total;
 	std::cout << test.name << " starting..." << std::endl;
-	switch (runTest(test)) {
+	auto [result, time] = runTestWithTiming(test);
+	switch (result) {
 	case Test::Result::Terminated:
 	    failed.push_back(test.name + " (unfinished)");
-	    std::cout << test.name << " terminated." << std::endl;
+	    std::cout << test.name << " terminated." << "[" << time << " milliseconds]" << std::endl;
 	    break;
 	case Test::Result::Failed:
 	    ++completed;
 	    failed.push_back(test.name);
-	    std::cout << test.name << " failed." << std::endl;
+	    std::cout << test.name << " failed." << "[" << time << " milliseconds]" << std::endl;
 	    break;
 	case Test::Result::Passed:
 	    ++completed;
 	    ++passed;
-	    std::cout << test.name << " passed." << std::endl;
+	    std::cout << test.name << " passed." << "[" << time << " milliseconds]" << std::endl;
 	    break;
+	}
+	if (time > 100) {
+	    slow.push_back({test.name, time});
 	}
     }
     
@@ -94,9 +107,15 @@ SI main() {
     std::cout << completed << "/" << total << " tests completed." << std::endl;
     std::cout << passed << "/" << total << " tests passed." << std::endl;
     std::cout << std::endl;
-    if (failed.size()) {
+    if (!slow.empty()) {
+	std::cout << "Slow tests:" << std::endl;
+	for (auto const& [name, ms] : slow)
+	    std::cout << name << ": " << ms << " milliseconds" << std::endl;
+	std::cout << std::endl;
+    }
+    if (!failed.empty()) {
 	std::cout << "Failed tests:" << std::endl;
-	for (auto const & name : failed)
+	for (auto const& name : failed)
 	    std::cout << name << std::endl;
 	std::cout << std::endl;
     }
