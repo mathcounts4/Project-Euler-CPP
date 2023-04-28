@@ -85,17 +85,17 @@ SI main() {
 	switch (result) {
 	case Test::Result::Terminated:
 	    failed.push_back(test.name + " (unfinished)");
-	    std::cout << test.name << " terminated." << "[" << time << " milliseconds]" << std::endl;
+	    std::cout << test.name << " terminated." << " [" << time << " milliseconds]" << std::endl;
 	    break;
 	case Test::Result::Failed:
 	    ++completed;
 	    failed.push_back(test.name);
-	    std::cout << test.name << " failed." << "[" << time << " milliseconds]" << std::endl;
+	    std::cout << test.name << " failed." << " [" << time << " milliseconds]" << std::endl;
 	    break;
 	case Test::Result::Passed:
 	    ++completed;
 	    ++passed;
-	    std::cout << test.name << " passed." << "[" << time << " milliseconds]" << std::endl;
+	    std::cout << test.name << " passed." << " [" << time << " milliseconds]" << std::endl;
 	    break;
 	}
 	if (time > 100) {
