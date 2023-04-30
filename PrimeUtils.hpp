@@ -10,6 +10,7 @@
 
 Vec<B> isPrimeUpTo(UI const n);
 Vec<UI> primesUpTo(UI const n);
+Vec<UL> primesInRange(UL lowerBoundInclusive, UL upperBoundInclusive);
 Vec<UI> phiUpTo(UI const n);
 Vec<UI> somePrimeFactorUpTo(UI const n);
 Vec<Vec<UI>> allFactorsUpTo(UI const n);
@@ -74,6 +75,7 @@ class Prime_Factorization {
 	Vec<Prime_Factorization>& result,
 	Prime_Factorization& new_pf,
 	SZ const index = 0) const;
+    
   public:
     // Do not construct with 0
     Prime_Factorization(UL const n);
@@ -92,7 +94,7 @@ class Prime_Factorization {
     Vec<UL> factors() const;
     Vec<Prime_Factorization> factors_prime_factorizations() const;
 
-    // returns the prime powers of this factorization
+    // returns the prime powers of this factorization, ascending by prime
     Vec<Prime_Power> const& primes_and_exponents() const;
     
     // returns the biggest prime and its power, if one exists

@@ -16,7 +16,7 @@
 Vec<UL> const tiny_primes{2,3,5,7,11,13,17,19,23,29,31,37,41};
 
 Vec<B> isPrimeUpTo(UI const n) {
-    Vec<B> prime(n+1,true);
+    Vec<B> prime(n+1, true);
     SZ maxI = static_cast<SZ>(sqrt(n));
     for (UI i = 2; i <= maxI; ++i)
 	if (prime[i])
@@ -35,6 +35,35 @@ Vec<UI> primesUpTo(UI const n) {
 	if (isPrime[i])
 	    primes.push_back(i);
     return primes;
+}
+
+Vec<UL> primesInRange(UL lowerBoundInclusive, UL upperBoundInclusive) {
+    if (lowerBoundInclusive < 2) {
+	lowerBoundInclusive = 2;
+    }
+    if (lowerBoundInclusive > upperBoundInclusive) {
+	return {};
+    }
+    // Every composite number ≤ upperBoundInclusive will have a prime factor ≤ maxP.
+    UI maxP = static_cast<UI>(std::sqrt(upperBoundInclusive));
+    auto isPrime = isPrimeUpTo(maxP);
+    Vec<B> bigShiftedIsPrime(upperBoundInclusive - lowerBoundInclusive + 1, true);
+    for (UI i = 2; i <= maxP; ++i) {
+	if (isPrime[i]) {
+	    // start marking at max(i^2, (lowerBoundInclusive-1)/i*i+i
+	    for (UL j = i * std::max(static_cast<UL>(i - 1), (lowerBoundInclusive - 1) / i); j <= upperBoundInclusive - i; ) {
+		j += i;
+		bigShiftedIsPrime[j - lowerBoundInclusive] = false;
+	    }
+	}
+    }
+    Vec<UL> result;
+    for (UL x = lowerBoundInclusive; x <= upperBoundInclusive; ++x) {
+	if (bigShiftedIsPrime[x - lowerBoundInclusive]) {
+	    result.push_back(x);
+	}
+    }
+    return result;
 }
 
 Vec<UI> phiUpTo(UI const n) {
