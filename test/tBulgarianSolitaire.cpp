@@ -28,3 +28,7 @@ TEST(BulgarianSolitaire, DoNotRecordEarlySeq) {
     
     CHECK(makeSummary({1000, 1}, 10000000u, 100000000u), equals("starting from 956: {[44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,45,45,45,45,45,45,45,45,45,45,45]*}"));
 }
+
+TEST(BulgarianSolitaire, SingleStartingPile) {
+    CHECK(makeSummary({6}), equals("{1,2,2,[3,3,3,3]*}"));
+}

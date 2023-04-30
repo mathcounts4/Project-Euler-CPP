@@ -81,7 +81,11 @@ BulgarianSolitaire::Summary BulgarianSolitaire::summarize(UL min, UL max) const 
 	auto lengthPlusIndexToInsert = numToInsert + static_cast<UI>(index);
 	// insert new pile
 	++totalNumPiles;
-	for (auto it = piles.begin(), end = piles.end(); it != end; ++it) {
+	for (auto it = piles.begin(), end = piles.end(); ; ++it) {
+	    if (it == end) {
+		piles.insert(it, {lengthPlusIndexToInsert, 1u});
+		break;
+	    }
 	    auto pileLengthPlusIndex = it->fLengthPlusIndex;
 	    if (pileLengthPlusIndex < lengthPlusIndexToInsert) {
 		piles.insert(it, {lengthPlusIndexToInsert, 1u});
