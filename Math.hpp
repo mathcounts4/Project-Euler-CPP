@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Class.hpp"
+#include "Constants/One.hpp"
 #include "ExitUtils.hpp"
 #include "TypeUtils.hpp"
 
@@ -81,7 +82,7 @@ Common_u<X,Y> my_lcm(X const x, Y const y) {
 
 template<class Base, class Exp>
 Base my_pow(Base b, Exp e) {
-    Base result(1);
+    Base result = one(b);
     Exp two(2);
     for (; e; e /= two) {
 	if (e%two)
