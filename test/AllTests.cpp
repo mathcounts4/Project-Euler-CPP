@@ -1,3 +1,4 @@
+#include "tAdjoin.hpp"
 #include "tAlgorithm.hpp"
 #include "tBetterRegex.hpp"
 #include "tBigInt.hpp"
