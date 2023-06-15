@@ -528,6 +528,46 @@ Prime_Factorization Prime_Factorization::square() const {
     return sqPE;
 }
 
+Prime_Factorization operator*(Prime_Factorization const& x, Prime_Factorization const& y) {
+    auto const& xpe = x.primes_and_exponents();
+    auto const& ype = y.primes_and_exponents();
+    auto xit = xpe.begin();
+    auto yit = ype.begin();
+    auto xend = xpe.end();
+    auto yend = ype.end();
+    Vec<Prime_Power> prod;
+    while (true) {
+	auto hasX = xit != xend;
+	auto hasY = yit != yend;
+	if (hasX && hasY) {
+	    auto [xp, xe] = *xit;
+	    auto [yp, ye] = *yit;
+	    if (xp == yp) {
+		prod.emplace_back(xp, xe + ye);
+		++xit;
+		++yit;
+	    } else if (xp < yp) {
+		prod.emplace_back(xp, xe);
+		++xit;
+	    } else {
+		prod.emplace_back(yp, ye);
+		++yit;
+	    }
+	} else if (hasX) {
+	    auto [xp, xe] = *xit;
+	    prod.emplace_back(xp, xe);
+	    ++xit;
+	} else if (hasY) {
+	    auto [yp, ye] = *yit;
+	    prod.emplace_back(yp, ye);
+	    ++yit;
+	} else {
+	    break;
+	}
+    }
+    return {std::move(prod)};
+}
+
 // {x, y} where n = x^2 * y and y is square-free
 std::pair<Prime_Factorization, Prime_Factorization> Prime_Factorization::splitSquareFree() const {
     Vec<Prime_Power> x;
