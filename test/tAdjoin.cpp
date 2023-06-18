@@ -3,17 +3,17 @@
 #include "harness.hpp"
 
 TEST(AdjoinSqrt, Construction) {
-    AdjoinSqrt<SI> x{1, 3, 2};
-    CHECK(x.getA(), equals(1));
-    CHECK(x.getB(), equals(3));
+    AdjoinSqrt<SI> x{2, {1, 3}};
+    CHECK(x.getValues()[0], equals(1));
+    CHECK(x.getValues()[1], equals(3));
     CHECK(x.getK(), equals(2));
 }
 
 TEST(AdjoinSqrt, Eq) {
-    AdjoinSqrt<SI> x{1, 3, 2};
-    AdjoinSqrt<SI> y{1, 3, 2};
-    AdjoinSqrt<SI> z{1, 4, 2};
-    AdjoinSqrt<SI> q{2, 3, 2};
+    AdjoinSqrt<SI> x{2, {1, 3}};
+    AdjoinSqrt<SI> y{2, {1, 3}};
+    AdjoinSqrt<SI> z{2, {1, 4}};
+    AdjoinSqrt<SI> q{2, {2, 3}};
 
     CHECK(x, equals(y));
     CHECK(y, equals(x));
@@ -24,12 +24,12 @@ TEST(AdjoinSqrt, Eq) {
 }
 
 TEST(AdjoinSqrt, PlusMinusMultiply) {
-    AdjoinSqrt<SI> x{1, 3, 17};
-    AdjoinSqrt<SI> y{2, 5, 17};
+    AdjoinSqrt<SI> x{17, {1, 3}};
+    AdjoinSqrt<SI> y{17, {2, 5}};
     
-    AdjoinSqrt<SI> xplusy{1+2, 3+5, 17};
-    AdjoinSqrt<SI> xminusy{1-2, 3-5, 17};
-    AdjoinSqrt<SI> xtimesy{1*2+3*5*17, 1*5+3*2, 17};
+    AdjoinSqrt<SI> xplusy{17, {1+2, 3+5}};
+    AdjoinSqrt<SI> xminusy{17, {1-2, 3-5}};
+    AdjoinSqrt<SI> xtimesy{17, {1*2+3*5*17, 1*5+3*2}};
 
     CHECK(x+y, equals(xplusy));
     CHECK(x-y, equals(xminusy));
@@ -49,8 +49,8 @@ TEST(AdjoinSqrt, PlusMinusMultiply) {
 }
 
 TEST(AdjoinSqrt, Power) {
-    AdjoinSqrt<SI> x{1, 3, 17};
-    AdjoinSqrt<SI> one{1, 0, 17};
+    AdjoinSqrt<SI> x{17, {1, 3}};
+    AdjoinSqrt<SI> one{17, {1, 0}};
 
     CHECK(x ^ 0, equals(one));
     CHECK(x ^ 1, equals(x));
@@ -61,9 +61,9 @@ TEST(AdjoinSqrt, Power) {
 }
 
 TEST(AdjoinSqrt, Constants) {
-    AdjoinSqrt<SI> x{1, 3, 17};
-    AdjoinSqrt<SI> zeroVal{0, 0, 17};
-    AdjoinSqrt<SI> oneVal{1, 0, 17};
+    AdjoinSqrt<SI> x{17, {1, 3}};
+    AdjoinSqrt<SI> zeroVal{17, {0, 0}};
+    AdjoinSqrt<SI> oneVal{17, {1, 0}};
 
     CHECK(zero(x), equals(zeroVal));
     CHECK(one(x), equals(oneVal));
@@ -72,11 +72,20 @@ TEST(AdjoinSqrt, Constants) {
 TEST(AdjoinSqrt, Mod) {
     Mod::GlobalModSentinel sentinel(23);
     
-    AdjoinSqrt<Mod> x{1, 3, 5};
-    AdjoinSqrt<Mod> xplusx{1 + 1, 3 + 3, 5};
-    AdjoinSqrt<Mod> xx{1*1+3*3*5, 1*3*2, 5};
+    AdjoinSqrt<Mod> x{5, {1, 3}};
+    AdjoinSqrt<Mod> xplusx{5, {1 + 1, 3 + 3}};
+    AdjoinSqrt<Mod> xx{5, {1*1+3*3*5, 1*3*2}};
 
     CHECK(x + x, equals(xplusx));
     CHECK(x * x, equals(xx));
     CHECK(x ^ 2, equals(xx));
+}
+
+TEST(AdjoinCubeRt, Multiply) {
+    Adjoin<3, SI> x{17, {1, 3, 4}};
+    Adjoin<3, SI> y{17, {2, 5, 7}};
+    
+    Adjoin<3, SI> xtimesy{17, {1*2+3*7*17+4*5*17, 1*5+3*2+4*7*17, 1*7+3*5+4*2}};
+    
+    CHECK(x*y, equals(xtimesy));
 }
