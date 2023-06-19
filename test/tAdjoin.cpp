@@ -48,6 +48,26 @@ TEST(AdjoinSqrt, PlusMinusMultiply) {
     CHECK(xtimeseqy, equals(xtimesy));
 }
 
+TEST(Adjoin, Divide) {
+    Adjoin<2, SI> x{3, {5, 6}};
+    Adjoin<2, SI> y{3, {2, 1}}; // 1/(2+√3) = 2-√3
+    Adjoin<2, SI> xdivy{3, {5*2-6*1*3, 5*-1+6*2}};
+    CHECK(x/y, equals(xdivy));
+
+    Adjoin<2, SI> a{3, {4, 2}};
+    Adjoin<2, SI> b{3, {5, 3}}; // 1/(5+3√3) = (5-3√3)/-2
+    Adjoin<2, SI> adivb{3, {(4*5+2*-3*3)/-2, (4*-3+2*5)/-2}};
+    CHECK(a/b, equals(adivb));
+
+    Adjoin<2, UI> u{3, {14, 35}};
+    Adjoin<2, UI> u7{3, {14/7, 35/7}};
+    CHECK(u / 7, equals(u7));
+
+    Adjoin<3, UI> u3{3, {14, 35, 70}};
+    Adjoin<3, UI> u37{3, {14/7, 35/7, 70/7}};
+    CHECK(u3 / 7, equals(u37));
+}
+
 TEST(AdjoinSqrt, Power) {
     AdjoinSqrt<SI> x{17, {1, 3}};
     AdjoinSqrt<SI> one{17, {1, 0}};

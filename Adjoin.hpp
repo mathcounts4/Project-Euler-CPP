@@ -17,11 +17,12 @@ class Adjoin {
     void kMismatchCheck(Adjoin const& o) const {
 	if (fK != o.fK) {
 	    throw_exception<std::invalid_argument>(
-		"Adjoin values " +
+		Class<Adjoin>::name() +
+		" k-values " +
 		to_string(fK) +
 		" and " +
 	        to_string(o.fK) +
-		" do not agree");
+		" do not match.");
 	}
     }
 
@@ -81,6 +82,37 @@ class Adjoin {
     friend Adjoin operator*(Adjoin const& x, Adjoin const& y) {
 	x.kMismatchCheck(y);
 	return {x.getK(), Adjoin::multiply(x.getK(), x.getValues(), y.getValues(), std::make_index_sequence<nthRoot>{})};
+    }
+    template<class DivBy>
+    Adjoin& operator/=(DivBy const& y) {
+	*this = *this / y;
+	return *this;
+    }
+    friend Adjoin operator/(Adjoin const& x, T const& y) {
+	auto result = x;
+	for (auto& v : result.fValues) {
+	    if constexpr (std::is_integral_v<T>) {
+		if (y == 0) {
+		    throw_exception<std::invalid_argument>("Adjoin / 0");
+		}
+		if (v % y) {
+		    throw_exception<std::invalid_argument>("Unintentional rounding in " + to_string(x) + " / " + to_string(y));
+		}
+	    }
+	    v = v / y;
+	}
+	return result;
+	
+    }
+    friend Adjoin operator/(Adjoin const& x, Adjoin const& y) {
+	static_assert(nthRoot == 2, "Adjoin / Adjoin only makes sense when it's dealing with square roots");
+	static_assert(!std::is_unsigned_v<T>, "Cannot Adjoin / Adjoin when using an unsigned type, since we must negate the value of the sqrt coefficient.");
+	x.kMismatchCheck(y);
+	auto const& k = x.getK();
+	auto const& a = y.getValues()[0];
+	auto const& b = y.getValues()[1];
+	// 1/(a+b√k) = (a-b√k)/(a*a-b*b*k)
+	return x * Adjoin(k, {a, -b}) / (a*a-b*b*k);
     }
     Adjoin operator^(UL pow) const {
 	return my_pow(*this, pow);
