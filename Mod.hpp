@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Class.hpp"
+#include "Optional.hpp"
+
+#include <vector>
 
 class Mod;
 template<> std::ostream& Class<Mod>::print(std::ostream& oss, Mod const& mod);
@@ -143,6 +146,11 @@ class Mod {
     Mod& operator^=(SL pow);
 
     friend B operator<(Mod const& x, Mod const& y);
+
+    // CRT = Chinese Remainder Theorem
+    // Inputs: a mod A, b mod B, ...
+    // Returns: x mod lcm(A,B,...) with x≡a mod A, x≡b mod B, ...
+    static Optional<Mod> uniqueMerge(std::vector<Mod> const& mods);
 
 #undef MOD_CAN_CREATE_TYPE
 
