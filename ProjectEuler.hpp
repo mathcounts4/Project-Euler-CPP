@@ -9,6 +9,16 @@
 #include "TypeUtils.hpp"
 #include "Vec.hpp"
 
+namespace {
+    template<class T> struct RemoveOptIfPresent_S {
+	using Type = T;
+    };
+    template<class T> struct RemoveOptIfPresent_S<Optional<T>> {
+	using Type = T;
+    };
+    template<class T> using RemoveOptIfPresent = typename RemoveOptIfPresent_S<T>::Type;
+} /* namespace */
+
 namespace PE {
     // {arg1,arg2}
     template<class... In> using Input =
@@ -41,12 +51,14 @@ namespace PE {
 	       {{t3_arg1,t3_arg2},t3_ans}
 	   },
 	   {real_a1,real_a2});
+
+       See ProjectEulerTemplate.cpp for an example.
     */
-    template<class Out, class... In, class TestList = std::initializer_list<Test<Out, No_cvref<In>...>>>
+    template<class OutOrOptOut, class... In, class TestList = std::initializer_list<Test<RemoveOptIfPresent<OutOrOptOut>, No_cvref<In>...>>>
     bool run_problem(
 	Argc                                   const  argc,
 	Argv                                   const  argv,
-	Function<Optional<Out>, In...>         const  fcn,
+	Function<OutOrOptOut, In...>           const  fcn,
 	Fcn_Names<In...>                       const& fcn_names,
 	TestList                               const& tests,
 	Input<No_cvref<In>...>                 const& input_problem);

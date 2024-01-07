@@ -27,6 +27,7 @@ template<class Coefficient> class Polynomial {
     template<class X> auto eval(X const& x) const;
 
     static Polynomial term(std::size_t i);
+    static Polynomial x();
 
     Polynomial& operator+=(Polynomial const& o);
     Polynomial operator+(Polynomial const& o) const&;
@@ -130,6 +131,11 @@ Polynomial<Coefficient> Polynomial<Coefficient>::term(std::size_t i) {
     result.coefficients.resize(i+1);
     result.coefficients[i] = Coefficient(1);
     return result;
+}
+
+template<class Coefficient>
+Polynomial<Coefficient> Polynomial<Coefficient>::x() {
+    return term(1);
 }
 
 template<class Coefficient>

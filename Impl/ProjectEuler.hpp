@@ -111,14 +111,16 @@ namespace PE {
 	return Res(std::move(cases), std::move(parsedInputCases));
     }
 
-    template<class Out, class... In, class TestList>
+    template<class OutOrOptOut, class... In, class TestList>
     bool run_problem(
 	Argc                                   const  argc,
 	Argv                                   const  argv,
-	Function<Optional<Out>, In...>         const  fcn,
+	Function<OutOrOptOut, In...>           const  fcn,
 	Fcn_Names<In...>                       const& fcn_names,
 	TestList                               const& tests,
 	Input<No_cvref<In>...>                 const& input_problem) {
+
+	using Out = RemoveOptIfPresent<OutOrOptOut>;
 
 	auto const& fcn_name = fcn_names.template get<0>();
 	auto const& input_names = fcn_names.template get<1>();
@@ -141,7 +143,7 @@ namespace PE {
 	    std::cout << std::flush;
 	    auto start = std::chrono::high_resolution_clock::now();
 	    try {
-		if (auto output = apply_tuple(fcn,input)) {
+		if (Optional<Out> output = apply_tuple(fcn,input)) {
 		    auto end = std::chrono::high_resolution_clock::now();
 		    std::chrono::duration<double> diff = end-start;
 		    auto eq = "=";
