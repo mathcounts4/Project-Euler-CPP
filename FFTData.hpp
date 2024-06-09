@@ -1,9 +1,10 @@
 #pragma once
 
-#include <fftw3.h>
+#include "fftw.hpp"
 
 #include "Function.hpp"
 #include "TypeUtils.hpp"
+#include "Vec.hpp"
 
 namespace FFT {
     
@@ -29,7 +30,7 @@ namespace FFT {
 	FFT_1D_Container& operator=(FFT_1D_Container const&) = delete;
 	~FFT_1D_Container();
 	
-	V<Out> operator()(V<In> const& data);
+	Vec<Out> operator()(Vec<In> const& data);
     };
 }
 

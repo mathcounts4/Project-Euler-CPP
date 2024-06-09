@@ -1,14 +1,16 @@
 #pragma once
 
+#include "fftw.hpp"
 #include <stdexcept>
-#include <fftw3.h>
 
 #include "FFTData.hpp"
+#include "TypeUtils.hpp"
+#include "Vec.hpp"
 
 namespace FFT {
     
-    template<class Data> FFTW_Vector<Data>::FFTW_Vector(SZ size)
-	: size(size)
+    template<class Data> FFTW_Vector<Data>::FFTW_Vector(SZ sz)
+	: size(sz)
 	, data(static_cast<Data*>(fftw_malloc(sizeof(Data) * size))) {}
 
     template<class Data> FFTW_Vector<Data>::~FFTW_Vector() {
@@ -27,7 +29,7 @@ namespace FFT {
 	: input(in_bigger ? n/2+1 : n)
 	, output(out_bigger ? n/2+1 : n)
 	, plan(make_plan(
-		   n,
+		   static_cast<int>(n),
 		   reinterpret_cast<Fcn_In*>(input.data),
 		   reinterpret_cast<Fcn_Out*>(output.data),
 		   try_hard ? FFTW_MEASURE : FFTW_ESTIMATE)) {
@@ -41,11 +43,12 @@ namespace FFT {
 	} catch (...) {}
     }
 
-    template<class In, class Out> V<Out> FFT_1D_Container<In,Out>::operator()(V<In> const& data) {
-	if (data.size() != input.size)
+    template<class In, class Out> Vec<Out> FFT_1D_Container<In,Out>::operator()(Vec<In> const& data) {
+	if (data.size() != input.size) {
 	    throw_exception<std::invalid_argument>("Wrong data size passed to FFT_1D_Container: expected size " + std::to_string(input.size) + " but passed " + std::to_string(data.size()));
+	}
 
-	V<Out> result(output.size);
+	Vec<Out> result(output.size);
 	memcpy(input.data,&data[0],sizeof(In) * input.size);
 	fftw_execute(plan);
 	memcpy(&result[0],output.data,sizeof(Out) * output.size);

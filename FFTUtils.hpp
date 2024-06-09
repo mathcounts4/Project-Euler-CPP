@@ -6,21 +6,20 @@
 #include <complex>
 
 #include "Math.hpp"
+#include "Mod.hpp"
 #include "TypeUtils.hpp"
+#include "Vec.hpp"
 
 namespace FFT {
     
     using CD = std::complex<D>;
     
-    void fft_1d_r2c_discard(SI n);
-    void fft_1d_c2r_discard(SI n);
-    
-    V<CD> fft(V<D> const& in, B save = false);
-    V<D> ifft(SZ const n, V<CD> const& in, B save = false);
+    Vec<CD> fft(Vec<D> const& in, B save = false);
+    Vec<D> ifft(SZ const n, Vec<CD> const& in, B save = false);
 
-    V<D> convolution(V<D> x, V<D> y, SZ goal = -1, B save = false);
-    V<Mod> convolution(V<Mod> const& x, V<Mod> const& y, SZ goal = -1, B save = false);
+    Vec<D> convolution(Vec<D> x, Vec<D> y, SZ goal = SZ(-1), B save = false);
+    Vec<Mod> convolution(Vec<Mod> const& x, Vec<Mod> const& y, SZ goal = SZ(-1));
     
-    V<Mod> double_to_Mod(V<D> const& v, UI mod);
-    V<D> Mod_to_double(V<Mod> const& v);
+    Vec<Mod> double_to_Mod(Vec<D> const& v, UI mod);
+    Vec<D> Mod_to_double(Vec<Mod> const& v);
 }
