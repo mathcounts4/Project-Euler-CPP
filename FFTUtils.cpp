@@ -43,14 +43,14 @@ namespace FFT {
 	SZ size = x.size() + y.size() - 1;
 	if (goal == static_cast<SZ>(-1))
 	    goal = size;
-	x.resize(size,0);
-	y.resize(size,0);
-	Vec<CD> fft_x = fft(x,save);
-	Vec<CD> fft_y = fft(y,save);
+	x.resize(size, 0);
+	y.resize(size, 0);
+	Vec<CD> fft_x = fft(x, save);
+	Vec<CD> fft_y = fft(y, save);
 	SZ fft_size = fft_x.size();
 	for (SZ i = 0; i < fft_size; ++i)
 	    fft_x[i] *= fft_y[i];
-	Vec<D> result = ifft(size,fft_x,save);
+	Vec<D> result = ifft(size, fft_x, save);
 	result.resize(goal);
 	return result;
     }
@@ -74,13 +74,13 @@ namespace FFT {
 	if (goal == static_cast<SZ>(-1))
 	    goal = x.size() + y.size() - 1;
 	UI mod = x[0].get_mod();
-	Vec<Mod> result(goal,Mod(mod,0));
+	Vec<Mod> result(goal, Mod(mod, 0));
 
-	Vec<Mod> const& shorter = x.size()<y.size() ? x : y;
-	Vec<Mod> const& longer = x.size()<y.size() ? y : x;
+	Vec<Mod> const& shorter = x.size() < y.size() ? x : y;
+	Vec<Mod> const& longer = x.size() < y.size() ? y : x;
     
-	SZ small = std::min(shorter.size(),goal);
-	SZ big = std::min(longer.size(),goal);
+	SZ small = std::min(shorter.size(), goal);
+	SZ big = std::min(longer.size(), goal);
     
 	SZ bottom = 0;
 	SZ top = small;
@@ -103,7 +103,7 @@ namespace FFT {
 	Vec<Mod> result;
 	SZ size = v.size();
 	for (SZ i = 0; i < size; ++i)
-	    result.emplace_back(mod,lround(v[i]));
+	    result.emplace_back(mod, lround(v[i]));
 	return result;
     }
     Vec<D> Mod_to_double(Vec<Mod> const& v) {

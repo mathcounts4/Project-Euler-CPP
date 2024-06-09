@@ -10,6 +10,7 @@
 #include "tCountWithSmallPrimeFactors.hpp"
 #include "tDFS.hpp"
 #include "tFraction.hpp"
+#include "tFFTUtils.hpp"
 #include "tGraphReducer.hpp"
 #include "tIndexing.hpp"
 #include "tMatrix.hpp"
