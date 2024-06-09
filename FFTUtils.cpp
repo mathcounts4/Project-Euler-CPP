@@ -88,29 +88,5 @@ namespace FFT {
 	    
 	}
 	throw_exception<std::invalid_argument>("convolution for Mod not fully implemented");
-	/*
-	return double_to_Mod(
-	    convolution(
-		Mod_to_double(x),
-		Mod_to_double(y),
-		goal,
-		save),
-	    mod);
-	*/
-    }
-
-    Vec<Mod> double_to_Mod(Vec<D> const& v, UI mod) {
-	Vec<Mod> result;
-	SZ size = v.size();
-	for (SZ i = 0; i < size; ++i)
-	    result.emplace_back(mod, lround(v[i]));
-	return result;
-    }
-    Vec<D> Mod_to_double(Vec<Mod> const& v) {
-	Vec<D> result;
-	SZ size = v.size();
-	for (SZ i = 0; i < size; ++i)
-	    result.push_back(D(v[i]));
-	return result;
     }
 }

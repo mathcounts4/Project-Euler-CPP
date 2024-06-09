@@ -19,7 +19,4 @@ namespace FFT {
 
     Vec<D> convolution(Vec<D> x, Vec<D> y, SZ goal = SZ(-1), B save = false);
     Vec<Mod> convolution(Vec<Mod> const& x, Vec<Mod> const& y, SZ goal = SZ(-1));
-    
-    Vec<Mod> double_to_Mod(Vec<D> const& v, UI mod);
-    Vec<D> Mod_to_double(Vec<Mod> const& v);
 }
