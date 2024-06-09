@@ -8,10 +8,11 @@
 #include <vector>
 
 template<class Coefficient> class Polynomial {
+  private:
     friend struct Class<Polynomial>;
     friend class std::hash<Polynomial>;
     
-    std::vector<Coefficient> coefficients;
+    std::vector<Coefficient> fCoefficients;
 
     void reduce();
     
@@ -22,6 +23,7 @@ template<class Coefficient> class Polynomial {
     void swap(Polynomial& o);
     std::size_t degree_plus_one() const;
     Coefficient const& operator[](std::size_t i) const;
+    std::vector<Coefficient> const& coefficients() const;
     explicit operator bool() const;
 
     template<class X> auto eval(X const& x) const;
@@ -46,8 +48,12 @@ template<class Coefficient> class Polynomial {
     Polynomial& operator^=(std::size_t exp);
     Polynomial operator^(std::size_t exp) const&;
     Polynomial operator^(std::size_t exp) &&;
+
+    friend bool operator==(Polynomial const& x, Polynomial const& y) {
+	return x.fCoefficients == y.fCoefficients;
+    }
 };
-MAKE_HASHABLE_TEMPLATE(<class Coefficient>, Polynomial<Coefficient>, p, p.coefficients);
+MAKE_HASHABLE_TEMPLATE(<class Coefficient>, Polynomial<Coefficient>, p, p.fCoefficients);
 
 template<class Coefficient> struct Class<Polynomial<Coefficient> > {
     using T = Polynomial<Coefficient>;
@@ -64,8 +70,9 @@ template<class Coefficient> struct Class<Polynomial<Coefficient> > {
 
 template<class Coefficient>
 void Polynomial<Coefficient>::reduce() {
-    while (coefficients.size() && !coefficients.back())
-	coefficients.pop_back();
+    while (fCoefficients.size() && !fCoefficients.back()) {
+	fCoefficients.pop_back();
+    }
 }
 
 template<class Coefficient>
@@ -74,31 +81,36 @@ Polynomial<Coefficient>::Polynomial() {
 
 template<class Coefficient>
 Polynomial<Coefficient>::Polynomial(Coefficient in)
-    : coefficients{std::move(in)} {
+    : fCoefficients{std::move(in)} {
     reduce();
 }
 
 template<class Coefficient>
 Polynomial<Coefficient>::Polynomial(std::vector<Coefficient> in)
-    : coefficients(std::move(in)) {
+    : fCoefficients(std::move(in)) {
     reduce();
 }
 
 template<class Coefficient>
 void Polynomial<Coefficient>::swap(Polynomial& o) {
-    std::swap(coefficients,o.coefficients);
+    std::swap(fCoefficients, o.fCoefficients);
 }
 
 template<class Coefficient>
 std::size_t Polynomial<Coefficient>::degree_plus_one() const {
-    return coefficients.size();
+    return fCoefficients.size();
 }
 
 template<class Coefficient>
 Coefficient const& Polynomial<Coefficient>::operator[](std::size_t i) const {
     if (i >= degree_plus_one())
 	throw_exception<std::out_of_range>(to_string(i) + " too large for " + to_string(*this) + " - check degree_plus_one()");
-    return coefficients[i];
+    return fCoefficients[i];
+}
+
+template<class Coefficient>
+std::vector<Coefficient> const& Polynomial<Coefficient>::coefficients() const {
+    return fCoefficients;
 }
 
 template<class Coefficient>
@@ -117,7 +129,7 @@ auto Polynomial<Coefficient>::eval(X const& x) const {
 	    result = (*this)[0];
     } else {
 	X mult(1);
-	for (auto const& c : coefficients) {
+	for (auto const& c : coefficients()) {
 	    result += c * mult;
 	    mult *= x;
 	}
@@ -128,8 +140,8 @@ auto Polynomial<Coefficient>::eval(X const& x) const {
 template<class Coefficient>
 Polynomial<Coefficient> Polynomial<Coefficient>::term(std::size_t i) {
     Polynomial result;
-    result.coefficients.resize(i+1);
-    result.coefficients[i] = Coefficient(1);
+    result.fCoefficients.resize(i+1);
+    result.fCoefficients[i] = Coefficient(1);
     return result;
 }
 
@@ -140,11 +152,13 @@ Polynomial<Coefficient> Polynomial<Coefficient>::x() {
 
 template<class Coefficient>
 Polynomial<Coefficient>& Polynomial<Coefficient>::operator+=(Polynomial const& o) {
-    std::size_t const n = o.coefficients.size();
-    if (coefficients.size() < n)
-	coefficients.resize(n);
-    for (std::size_t i = 0; i < n; ++i)
-	coefficients[i] += o.coefficients[i];
+    std::size_t const n = o.fCoefficients.size();
+    if (fCoefficients.size() < n) {
+	fCoefficients.resize(n);
+    }
+    for (std::size_t i = 0; i < n; ++i) {
+	fCoefficients[i] += o.fCoefficients[i];
+    }
     reduce();
     return *this;
 }
@@ -169,11 +183,13 @@ Polynomial<Coefficient> operator+(Coercible x, Polynomial<Coefficient> const& y)
 
 template<class Coefficient>
 Polynomial<Coefficient>& Polynomial<Coefficient>::operator-=(Polynomial const& o) {
-    std::size_t const n = o.coefficients.size();
-    if (coefficients.size() < n)
-	coefficients.resize(n);
-    for (std::size_t i = 0; i < n; ++i)
-	coefficients[i] -= o.coefficients[i];
+    std::size_t const n = o.fCoefficients.size();
+    if (fCoefficients.size() < n) {
+	fCoefficients.resize(n);
+    }
+    for (std::size_t i = 0; i < n; ++i) {
+	fCoefficients[i] -= o.fCoefficients[i];
+    }
     reduce();
     return *this;
 }
@@ -204,14 +220,17 @@ Polynomial<Coefficient>& Polynomial<Coefficient>::operator*=(Polynomial const& o
 template<class Coefficient>
 Polynomial<Coefficient> Polynomial<Coefficient>::operator*(Polynomial const& o) const {
     Polynomial result;
-    if (!*this || !o)
+    if (!*this || !o) {
 	return result;
-    std::size_t const n = coefficients.size();
-    std::size_t const o_n = o.coefficients.size();
-    result.coefficients.resize(n+o_n-1);
-    for (std::size_t i = 0; i < n; ++i)
-	for (std::size_t j = 0; j < o_n; ++j)
-	    result.coefficients[i+j] += (*this)[i] * o[j];
+    }
+    std::size_t const n = fCoefficients.size();
+    std::size_t const o_n = o.fCoefficients.size();
+    result.fCoefficients.resize(n+o_n-1);
+    for (std::size_t i = 0; i < n; ++i) {
+	for (std::size_t j = 0; j < o_n; ++j) {
+	    result.fCoefficients[i+j] += (*this)[i] * o[j];
+	}
+    }
     result.reduce();
     return result;
 }
@@ -225,7 +244,7 @@ template<class Coefficient>
 Polynomial<Coefficient>& Polynomial<Coefficient>::operator/=(Coefficient const& d) {
     if (!d)
 	throw_exception<std::domain_error>("Division by zero " + class_name<Polynomial<Coefficient> >());
-    for (auto& c : coefficients)
+    for (auto& c : fCoefficients)
 	c /= d;
     return *this;
 }
@@ -288,8 +307,8 @@ std::ostream& Class<Polynomial<Coefficient> >::print(std::ostream& os, Polynomia
     
     Cleanup appendZero{[&os,&started,&zero](){if (!started) os<<zero;}};
     
-    for (std::size_t i = p.coefficients.size(); i--; ) {
-	auto&& c = p.coefficients[i];
+    for (std::size_t i = p.fCoefficients.size(); i--; ) {
+	auto&& c = p.fCoefficients[i];
 	if (c) {
 	    if (started)
 		os << "+";
