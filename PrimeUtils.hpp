@@ -34,6 +34,11 @@ Vec<UL> factors(UL const n);
 // sorted: if a<b, a preceeds b in the list
 Vec<UL> sorted_factors(UL const n);
 
+// Determines a primitive root x mod p, where p is a prime.
+// This means that x^(p-1) ≡ 1 mod p, but x^k ≢ 1 mod p for 0 < k < p-1.
+// undefined behavior if p is not prime
+UI primitiveRoot(UI p);
+
 // returns one of the square roots of value mod p, if 1 or 2 exist
 // undefined behavior if p is not prime
 Optional<UI> sqrtModPrime(SL value, UI p);

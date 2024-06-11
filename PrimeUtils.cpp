@@ -243,6 +243,26 @@ Vec<UL> sorted_factors(UL const n) {
     return list;
 }
 
+UI primitiveRoot(UI p) {
+    // primitive roots are fairly common (there are ϕ(p-1) of them) so just loop to find one
+    if (!is_prime(p)) {
+	throw_exception<std::invalid_argument>("Cannot compute primitive root mod non-prime " + to_string(p));
+    }
+    Prime_Factorization order(p - 1);
+    for (UI x = 1; ; ++x) {
+	B ok = true;
+	for (auto [orderp, ordere] : order.primes_and_exponents()) {
+	    if ((Mod(p, x) ^ ((p-1)/orderp)) == 1) {
+		ok = false;
+		break;
+	    }
+	}
+	if (ok) {
+	    return x;
+	}
+    }
+}
+
 Optional<UI> sqrtModPrime(SL value, UI p) {
     value %= p;
     if (value < 0) {
