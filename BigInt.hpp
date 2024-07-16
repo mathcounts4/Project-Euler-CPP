@@ -209,7 +209,7 @@ BigInt::BigInt(T const& t)
 	if (value > u_0)
 	    data = {static_cast<small_t>(value)};
     } else {
-	for ( ; value > u_0; value >>= (too_small ? 0 : shift_sz))
+	for ( ; value > u_0; value >>= shift_sz)
 	    data.push_back(value & low_digits);
     }
 }

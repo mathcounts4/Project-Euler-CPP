@@ -297,18 +297,19 @@ BigInt& BigInt::operator/=(BigInt const& other) {
     if (!other)
 	throw_exception<std::domain_error>("Division by zero");
     if (inf() && other.inf())
-	throw_exception<std::domain_error>("Inf/Inf");
-    if (inf()) {
-	if (other.neg())
-	    negateMe();
+	throw_exception<std::domain_error>("±Inf/±Inf");
+    if (other.neg())
+	negateMe();
+    if (!*this)
 	return *this;
-    }
+    if (inf())
+	return *this;
     if (other.inf())
 	return *this = BigInt{};
-	    
+    
     if (other.isPowerOf2())
 	return *this >>= static_cast<SL>(other.log2());
-	    
+    
     if (other.data.size() == 1) {
 	big_t value = 0;
 	small_t div = other.data[0];
@@ -317,37 +318,33 @@ BigInt& BigInt::operator/=(BigInt const& other) {
 	    data[i] = static_cast<small_t>(value / div);
 	    value %= div;
 	}
-	if (other.neg())
-	    negateMe();
 	reduce();
 	return *this;
     }
-	    
-    Vec<BigInt> mult{1};
-    Vec<BigInt> times{other};
-    // other is not used past this point, and *this hasn't been modified yet
-    // so this is safe when this = &other
-    times[0].negative = Negative::False;
-	
+
+    SZ shift;
+    {
+	auto l2 = log2();
+	auto ol2 = other.log2();
+	if (l2 < ol2)
+	    return *this = BigInt{};
+	shift = l2 - ol2;
+    }
+
     BigInt result;
-    B result_negative = neg() ^ other.neg();
-    negative = Negative::False;
-	
-    while (times.back() <= *this) {
-	mult.push_back(mult.back() * 2);
-	times.push_back(times.back() * 2);
-    }
-    mult.pop_back();
-    times.pop_back();
-    while (B(*this) && times.size()) {
-	if (*this >= times.back()) {
-	    *this -= times.back();
-	    result += mult.back();
+    result.data.resize(shift / shift_sz + 1);
+    B resultNegative = neg();
+    absMe();
+    
+    BigInt times = other.abs() << static_cast<SL>(shift);
+    for (++shift; shift--; times >>= 1) {
+	if (*this >= times) {
+	    *this -= times;
+	    result.data[shift / shift_sz] |= small_t(1) << (shift % shift_sz);
 	}
-	times.pop_back();
-	mult.pop_back();
     }
-    result.negative = result_negative ? Negative::True : Negative::False;
+    result.negative = resultNegative ? Negative::True : Negative::False;
+    result.reduce();
     swap(result);
     return *this;
 }

@@ -110,6 +110,14 @@ TEST(BigInt,Arithmetic) {
     CHECK(negativeFive / three, equals(-1));
     CHECK(negativeFive / 2, equals(-2));
     CHECK(big / 7, equals(bigUL/7));
+    CHECK(BigInt("12345678900000000000000000000") / (BigInt(10) ^ 20), equals(123456789U));
+    CHECK(BigInt("12345678999999999999999999999") / (BigInt(10) ^ 20), equals(123456789U));
+    CHECK(BigInt("-12345678900000000000000000000") / (BigInt(10) ^ 20), equals(-123456789L));
+    CHECK(BigInt("-12345678999999999999999999999") / (BigInt(10) ^ 20), equals(-123456789L));
+    CHECK(BigInt("12345678900000000000000000000") / -(BigInt(10) ^ 20), equals(-123456789L));
+    CHECK(BigInt("12345678999999999999999999999") / -(BigInt(10) ^ 20), equals(-123456789L));
+    CHECK(BigInt("-12345678900000000000000000000") / -(BigInt(10) ^ 20), equals(123456789L));
+    CHECK(BigInt("-12345678999999999999999999999") / -(BigInt(10) ^ 20), equals(123456789L));
     CHECK(inf / three, equals(inf));
     CHECK(inf / negativeFive, equals(negInf));
     CHECK(negInf / three, equals(negInf));
