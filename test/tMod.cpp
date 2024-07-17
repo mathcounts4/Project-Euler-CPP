@@ -29,6 +29,20 @@ TEST(Mod, Order) {
     }
 }
 
+TEST(Mod, BigModMult) {
+    UI max = std::numeric_limits<UI>::max();
+    {
+	Mod::GlobalModSentinel s(max);
+	CHECK(Mod(-1) * Mod(-1), equals(Mod(1)));
+	CHECK(Mod(-2) * Mod(-3), equals(Mod(6)));
+    }
+    {
+	Mod::GlobalModSentinel s(max - 7);
+	CHECK(Mod(-1) * Mod(-1), equals(Mod(1)));
+	CHECK(Mod(-2) * Mod(-3), equals(Mod(6)));
+    }
+}
+
 TEST(Mod, ChineseRemainderTheorem) {
     Mod x(3, 2); // 2 mod 3
     Mod y(7, 3); // 3 mod 7

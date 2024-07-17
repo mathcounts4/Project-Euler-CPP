@@ -159,9 +159,11 @@ Mod Mod::operator*(Mod const& y) const {
 
 Mod& Mod::operator*=(Mod const& o) {
     mod_mismatch_check(o);
-    value *= o.value;
-    if (mod)
-	value %= mod;
+    if (mod) {
+	value = static_cast<SL>(static_cast<UL>(value) * static_cast<UL>(o.value) % mod);
+    } else {
+	value *= o.value;
+    }
     return *this;
 }
 
