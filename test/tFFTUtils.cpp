@@ -26,11 +26,27 @@ TEST(conv, modBasic) {
 	    FFT::ConvolutionConsts::biggest[2].fPrime}) {
 	Mod::GlobalModSentinel s(mod);
 	CHECK(FFT::convolution(Vec<Mod>{2}, Vec<Mod>{3}), equals(Vec<Mod>{6}));
+	CHECK(FFT::convolution(Vec<Mod>{2, 1}, Vec<Mod>{3, 1}), equals(Vec<Mod>{6, 5, 1}));
 	CHECK(FFT::convolution(Vec<Mod>{1, 4, 6}, Vec<Mod>{2, 1}), equals(Vec<Mod>{2, 9, 16, 6}));
     }
 }
 
+TEST(conv, modBig) {
+    UI n = 100000;
+    Mod::GlobalModSentinel s(4 * n);
+    Vec<Mod> expected;
+    for (UI i = 1; i <= n; ++i) {
+	expected.push_back(2 * i);
+    }
+    for (UI i = n-1; i > 0; --i) {
+	expected.push_back(2 * i);
+    }
+    // conv([1...1],[2...2]) = 2*[1,2,...,n,...,2,1]
+    CHECK(FFT::convolution(Vec<Mod>(n, 1), Vec<Mod>(n, 2)), equals(expected));
+}
+
 TEST(conv, algorithmConsts) {
+    // Found via FFT::ConvolutionConsts::findPrimes
     for (auto const& info : FFT::ConvolutionConsts::biggest) {
 	auto e = info.fExp2;
 	auto m = info.fMultFactor;

@@ -1,0 +1,34 @@
+We show that
+
+1^3 + 2^3 + 3^3 + ... + n^3
+= an + bn^2 + cn^3 + dn^4
+
+for some specific a, b, c, d.
+
+We first assume the conclusion, from which we can describe how to determine a, b, c, d.
+Then we show that those particular a, b, c, d satisfy the original condition.
+
+Writing 1^3 + ... + (n+1)^3 two different ways (including vs excluding the (n+1)^3 term), and substituting the conclusion, we get:
+(n+1)^3 + an + bn^2 + cn^3 + dn^4 = a(n+1) + b(n+1)^2 + c(n+1)^3 + d(n+1)^4
+
+(n+1)^3 = a*((n+1)-n) + b*((n+1)^2-n^2) + c*((n+1)^3-n^3) + d*((n+1)^4-n^4)
+
+(n+1)^3 = d*poly_degree_3_in_n + c*poly_degree_2_in_n + b*poly_degree_1_in_n + a*poly_degree_0_in_n
+
+This is solvable for d, c, b, a, in that order, with a unique solution that holds for all n.
+
+Now we show that the particular a, b, c, d satisfy the original condition.
+n = 0 holds trivially.
+Assuming n = N holds, we must show that n = N+1 holds.
+This just requires running the above algebraic steps in reverse:
+
+(N+1)^3 = a*((N+1)-N) + b*((N+1)^2-N^2) + c*((N+1)^3-N^3) + d*((N+1)^4-N^4) (since it holds for all n).
+
+a*N + b*N^2 + c*N^3 + d*N^4 = 1^3 + ... + N^3 (by inductive hypothesis)
+1^3 + ... + (N+1)^3 = a(N+1) + b(N+1)^2 + c(N+1)^3 + d(N+1)^4
+
+Thus it holds for all n, by induction.
+
+
+There was nothing special about the exponent here being 3, so this argument is generalizable for any exponent k.
+

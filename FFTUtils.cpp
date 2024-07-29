@@ -11,28 +11,154 @@
 #include "U_Map.hpp"
 #include "Vec.hpp"
 
-static Vec<Mod> withModAndLength(Vec<Mod> const& x, UI p, UI len) {
-    Vec<Mod> result;
+static Vec<UI> withLength(Vec<Mod> const& x, UI len) {
+    Vec<UI> result;
     result.reserve(len);
     for (Mod const& m : x) {
-	result.push_back(Mod(p, static_cast<UI>(m)));
+	result.push_back(static_cast<UI>(m));
     }
-    result.resize(len, Mod(p, 0));
+    result.resize(len, 0u);
     return result;
 }
 
-static Vec<Mod> nttImplPow2(Vec<Mod> x, UI exp2, Mod const& r) {
+static Vec<UI> fntImplPow2(Vec<UI> x, UI exp2, Mod const& r) {
     // Required invariants:
-    // x has length 2^exp2
-    // r has order 2^exp2:
-    //   r^(2^exp2) = 1, and r^k ≠ 1 for 0 < k < 2^exp2
-    // r and all elements of x have the same modulus
+    // x has length n = 2^exp2
+    // r has order n:
+    //   r^n = 1, and r^k ≠ 1 for 0 < k < n
+
+    // https://en.wikipedia.org/wiki/Discrete_Fourier_transform_over_a_ring#Number-theoretic_transform
+    // https://en.wikipedia.org/wiki/Talk%3ANumber-theoretic_transform
+    // NTT = Number-theoretic transform
+    // FNT = Fast Number Theoretic Transform
+    
+    // Calculates (treating x as a column vector)
+    // y = M * x
+    // where M is a n⨯n matrix of coefficients (0 ≤ i,j < n):
+    // M_{i,j} = r^(bitrev_d(i) * j)
+    // (d = exp2)
+    // Note that this is slightly different from the normal DFT, where N_{i,j} = r^(i*j).
+    // It would be easy to swap elements to get the DFT, but this step is unnecessary.
+    // Notably, M has the same rows as N, but the order of rows is different.
+    // This corresponds to a reordering of elements in y from the normal DFT.
+    // But for convolution via DFT, you multiply element-wise after performing the DFT.
+    // So the order of elements in the DFT doesn't matter, as long as it's consistent.
+
+    // To show that this impl is correct, we define a sequence of functions f_e(a,b,j) for 0 ≤ e ≤ d, where
+    // 0 ≤ a < 2^e
+    // 0 ≤ b < 2^(d-e)
+    // 0 ≤ j < n = 2^d
+    // as:
+    // f_e(a,b,j) = r^(b*j) if j ≡ a mod 2^e
+    //              0       otherwise
+    // and see that M_{i,j} = f_0(0,bitrev_d(i),j), as j ≡ 0 mod 2^0 is always true, so f_0(0,bitrev_d(i),j) = r^(bitrev_d(i) * j).
+    // and see that I_n_{i,j} = f_d(i,0,j), as j ≡ i mod 2^d is true iff j = i, so f_d(i,0,j) = r^(0*j) = 1 when i = j, and 0 otherwise.
+    // Iterating e from d to 0, we see this as a series of steps transforming I_n into M.
+    // In reality, we're transforming I_n * x into M * x.
+    // Row i = bitrev_{d-e}(b) * 2^e + a satisfies both endpoints above: e=0, a=0 -> i = bitrev_d(b) -> b = bitrev_d(i), and b = 0 -> i = a.
+    // We show that f is satisfied by:
+    // f_0    (0,        b,j) = r^(b*j)
+    // f_{e>0}(a,        b,j) = [f_{e-1}(a,b,j) + r^(-a*2^(d-e)) * f_{e-1}(a,b+2^(d-e),j)] / 2
+    // f_{e>0}(a+2^(e-1),b,j) = [f_{e-1}(a,b,j) - r^(-a*2^(d-e)) * f_{e-1}(a,b+2^(d-e),j)] / 2
+    // Proof:
+    // e=0, a=0 is satisfied by definition.
+    // e>0 is proved by induction on e:
+    //   f_e(a,b,j)
+    //    = [f_{e-1}(a,b,j)                + r^(-a*2^(d-e)) * f_{e-1}(a,b+2^(d-e),j)] / 2
+    //    = [r^(b*j) * (j ≡ a mod 2^(e-1)) + r^(-a*2^(d-e)) * r^((b+2^(d-e)) * j) * (j ≡ a mod 2^(e-1))] / 2
+    //    = [r^(b*j)                       + r^(-a*2^(d-e)) * r^((b+2^(d-e)) * j)] * (j ≡ a mod 2^(e-1)) / 2
+    //    = [r^(b*j)                       + r^(b*j) * r^(-a*2^(d-e)) * r^(2^(d-e) * j)] * (j ≡ a mod 2^(e-1)) / 2
+    //    = [r^(b*j)                       + r^(b*j) * r^(2^(d-e) * (j-a))] * (j ≡ a mod 2^(e-1)) / 2
+    //    = [1                             + r^(2^(d-e) * (j-a))] * r^(b*j) * (j ≡ a mod 2^(e-1)) / 2
+    //      = 0 if j ≢ a mod 2^(e-1)
+    //      = ? if j ≡ a + 2^(e-1) mod 2^e
+    //        = [1 + r^(2^(d-e) * (j-a))] * r^(b*j) / 2
+    //        = [1 + r^(2^(d-e) * (2^(e-1) + k*2^e))] * r^(b*j) / 2
+    //        = [1 + r^(2^(d-1) + k*2^d)] * r^(b*j) / 2
+    //        = [1 + r^(2^d)^k * r^(2^(d-1))] * r^(b*j) / 2
+    //        = [1 + 1^k * r^(2^(d-1))] * r^(b*j) / 2
+    //        = [1 + r^(2^(d-1))] * r^(b*j) / 2
+    //        = [1 + r^(2^(d-1))] * [r^(2^(d-1)) - 1] * r^(b*j) / 2 / [r^(2^(d-1)) - 1] since r^(2^(d-1)) != 1
+    //        = [r^(2^d) - 1] * r^(b*j) / 2 / [r^(2^(d-1)) - 1]
+    //        = [1 - 1] * r^(b*j) / 2 / [r^(2^(d-1)) - 1]
+    //        = 0
+    //      = ? if j ≡ a mod 2^e
+    //        = [1 + r^(2^(d-e) * (j-a))] * r^(b*j) / 2
+    //        = [1 + r^(2^(d-e) * k*2^e)] * r^(b*j) / 2
+    //        = [1 + r^(k*2^d)] * r^(b*j) / 2
+    //        = [1 + r^(2^d)^k] * r^(b*j) / 2
+    //        = [1 + 1^k] * r^(b*j) / 2
+    //        = 2 * r^(b*j) / 2
+    //        = r^(b*j)
+    //  f_e(a+2^(e-1),b,j)
+    //   = [f_{e-1}(a,b,j) - r^(-a*2^(d-e)) * f_{e-1}(a,b+2^(d-e),j)] / 2
+    //   = f_{e-1}(a,b,j) - f_e(a,b,j)
+    //   = r^(b*j) * (j ≡ a mod 2^(e-1)) - r^(b*j) * (j ≡ a mod 2^e)
+    //   = r^(b*j) * ((j ≡ a mod 2^(e-1)) - (j ≡ a mod 2^e))
+    //     = 0 if j ≢ a mod 2^(e-1)
+    //     = 0 if j ≡ a mod 2^e
+    //     = r^(b-j) if j ≡ a+2^(e-1) mod 2^e
+    // Next, we see how this transformation plays out in terms of row indices i, instead of a and b:
+    // i = bitrev_{d-e}(b) * 2^e + a = append(b_backwards,a), denoted as rev(b)#a
+    // and the transformation has a with 1 less bit (e-1 bits):
+    // f_0(0,b,j) = r^(b*j)
+    // f_{e>0}(a,        b,j) = [f_{e-1}(a,b,j) + r^(-a*2^(d-e)) * f_{e-1}(a,b+2^(d-e),j)] / 2
+    // f_{e>0}(a+2^(e-1),b,j) = [f_{e-1}(a,b,j) - r^(-a*2^(d-e)) * f_{e-1}(a,b+2^(d-e),j)] / 2
+    // which can be written as:
+    // f_{e>0}(rev(b)#(0#a),j)        = [f_{e-1}((rev(b)#0)#a,j) + r^(-a*2^(d-e)) * f_{e-1}(rev(b+2^(d-e))#a,j)] / 2
+    // f_{e>0}(rev(b)#(a+2^(e-1)),j)  = [f_{e-1}((rev(b)#0)#a,j) - r^(-a*2^(d-e)) * f_{e-1}(rev(b+2^(d-e))#a,j)] / 2
+    // and simplifying, we get:
+    // f_{e>0}(rev(b)#0#a,j)  = [f_{e-1}(rev(b)#0#a,j) + r^(-a*2^(d-e)) * f_{e-1}(rev(b)#1#a,j)] / 2
+    // f_{e>0}(rev(b)#1#a,j)  = [f_{e-1}(rev(b)#0#a,j) - r^(-a*2^(d-e)) * f_{e-1}(rev(b)#1#a,j)] / 2
+    // so we're transforming 2 values of f_{e-1} to 2 values of f_e at the same indices: rev(b)#0#a and rev(b)#1#a.
+    // But we want to start at f_d and end at f_0, so we recompute in terms of f_{e-1}:
+    // f_{e-1}(rev(b)#0#a,j) =  f_e(rev(b)#0#a,j) + f_e(rev(b)#1#a,j)
+    // f_{e-1}(rev(b)#1#a,j) = [f_e(rev(b)#0#a,j) - f_e(rev(b)#1#a,j)] * r^(a*2^(d-e))
+    // And we rewrite to compute f_e in terms of f_{e+1}:
+    // f_e(rev(b)#0#a,j) =  f_{e+1}(rev(b)#0#a,j) + f_{e+1}(rev(b)#1#a,j)
+    // f_e(rev(b)#1#a,j) = [f_{e+1}(rev(b)#0#a,j) - f_{e+1}(rev(b)#1#a,j)] * r^(a*2^(d-e-1))
+    // where we operate on pairs that differ only in the e'th bit from the right (0-indexed), and remember that a is the lower e bits of the row index i.
+    // For example, we can see the tranformation apply to d=2 -> n=2^d=4:
+    //    e=2    -> a     e=1     -> a      e=0         = permutation of rows (output) of DFT i <-> bitrev_d(i)
+    // ┏       ┓      ┏         ┓      ┏          ┓        ┏          ┓   ┏                               ┓
+    // ┃1 0 0 0┃    0 ┃1 0  1  0┃    0 ┃1  1  1  1┃        ┃1  1  1  1┃   ┃r^(0*0) r^(0*1) r^(0*2) r^(0*3)┃
+    // ┃0 1 0 0┃    1 ┃0 1  0  1┃    0 ┃1 -1  1 -1┃        ┃1  r -1 -r┃   ┃r^(1*0) r^(1*1) r^(1*2) r^(1*3)┃
+    // ┃0 0 1 0┃    0 ┃1 0 -1  0┃    0 ┃1  r -1 -r┃        ┃1 -1  1 -1┃   ┃r^(2*0) r^(2*1) r^(2*2) r^(2*3)┃
+    // ┃0 0 0 1┃    1 ┃0 r  0 -r┃    0 ┃1 -r -1  r┃        ┃1 -r -1  r┃   ┃r^(3*0) r^(3*1) r^(3*2) r^(3*3)┃
+    // ┗       ┛      ┗         ┛      ┗          ┛        ┗          ┛   ┗                               ┛
+    //                2^(d-e-1)=1      2^(d-e-1)=2
+    // And we can see the tranformation apply to d=3 -> n=2^d=8:
+    //        e=3        -> a           e=2              -> a             e=1                -> a                 e=0
+    // ┏               ┓      ┏                        ┓      ┏                            ┓      ┏                                 ┓
+    // ┃1 0 0 0 0 0 0 0┃    0 ┃1 0  0  0  1  0   0   0 ┃    0 ┃1  0   1   0  1   0   1   0 ┃    0 ┃1   1    1    1   1   1   1    1 ┃
+    // ┃0 1 0 0 0 0 0 0┃    1 ┃0 1  0  0  0  1   0   0 ┃    1 ┃0  1   0   1  0   1   0   1 ┃    0 ┃1  -1    1   -1   1  -1   1   -1 ┃
+    // ┃0 0 1 0 0 0 0 0┃    2 ┃0 0  1  0  0  0   1   0 ┃    0 ┃1  0  -1   0  1   0  -1   0 ┃    0 ┃1  r^2  -1  -r^2  1  r^2 -1  -r^2┃
+    // ┃0 0 0 1 0 0 0 0┃    3 ┃0 0  0  1  0  0   0   1 ┃    1 ┃0 r^2  0 -r^2 0  r^2  0 -r^2┃    0 ┃1 -r^2  -1   r^2  1 -r^2 -1   r^2┃
+    // ┃0 0 0 0 1 0 0 0┃    0 ┃1 0  0  0 -1  0   0   0 ┃    0 ┃1  0  r^2  0 -1   0 -r^2  0 ┃    0 ┃1   r   r^2  r^3 -1  -r -r^2 -r^3┃
+    // ┃0 0 0 0 0 1 0 0┃    1 ┃0 r  0  0  0 -r   0   0 ┃    1 ┃0  r   0  r^3 0  -r   0 -r^3┃    0 ┃1  -r   r^2 -r^3 -1   r -r^2  r^3┃
+    // ┃0 0 0 0 0 0 1 0┃    2 ┃0 0 r^2 0  0  0 -r^2  0 ┃    0 ┃1  0 -r^2  0 -1   0  r^2  0 ┃    0 ┃1  r^3 -r^2 -r^5 -1 -r^3 r^2  r^5┃
+    // ┃0 0 0 0 0 0 0 1┃    3 ┃0 0  0 r^3 0  0   0 -r^3┃    1 ┃0 r^3  0 -r^5 0 -r^3  0  r^5┃    0 ┃1 -r^3 -r^2  r^5 -1  r^3 r^2 -r^5┃
+    // ┗               ┛      ┗                        ┛      ┗                            ┛      ┗                                 ┛
+    //                               2^(d-e-1)=1                       2^(d-e-1)=2                            2^(d-e-1)=4
+    // = permutation of rows (output) of DFT i <-> bitrev_d(i)
+    // ┏                                 ┓  ┏                                                               ┓
+    // ┃1   1    1    1   1   1   1    1 ┃  ┃r^(0*0) r^(0*1) r^(0*2) r^(0*3) r^(0*4) r^(0*5) r^(0*6) r^(0*7)┃
+    // ┃1   r   r^2  r^3 -1  -r -r^2 -r^3┃  ┃r^(1*0) r^(1*1) r^(1*2) r^(1*3) r^(1*4) r^(1*5) r^(1*6) r^(1*7)┃
+    // ┃1  r^2  -1  -r^2  1  r^2 -1  -r^2┃  ┃r^(2*0) r^(2*1) r^(2*2) r^(2*3) r^(2*4) r^(2*5) r^(2*6) r^(2*7)┃
+    // ┃1  r^3 -r^2 -r^5 -1 -r^3 r^2  r^5┃  ┃r^(3*0) r^(3*1) r^(3*2) r^(3*3) r^(3*4) r^(3*5) r^(3*6) r^(3*7)┃
+    // ┃1  -1    1   -1   1  -1   1   -1 ┃  ┃r^(4*0) r^(4*1) r^(4*2) r^(4*3) r^(4*4) r^(4*5) r^(4*6) r^(4*7)┃
+    // ┃1  -r   r^2 -r^3 -1   r -r^2  r^3┃  ┃r^(5*0) r^(5*1) r^(5*2) r^(5*3) r^(5*4) r^(5*5) r^(5*6) r^(5*7)┃
+    // ┃1 -r^2  -1   r^2  1 -r^2 -1   r^2┃  ┃r^(6*0) r^(6*1) r^(6*2) r^(6*3) r^(6*4) r^(6*5) r^(6*6) r^(6*7)┃
+    // ┃1 -r^3 -r^2  r^5 -1  r^3 r^2 -r^5┃  ┃r^(7*0) r^(7*1) r^(7*2) r^(7*3) r^(7*4) r^(7*5) r^(7*6) r^(7*7)┃
+    // ┗                                 ┛  ┗                                                               ┛
 
     UI n = 1U << exp2;
-    Vec<Mod> rPow;
+    UI m = r.get_mod();
+    Vec<UI> rPow;
+    rPow.reserve(n/2);
     Mod curRPow = r.create(1);
     for (UI i = 0; i < n/2; ++i) {
-	rPow.push_back(curRPow);
+	rPow.push_back(static_cast<UI>(curRPow));
 	curRPow *= r;
     }
     for (UI step = 0; step < exp2; ++step) {
@@ -40,10 +166,19 @@ static Vec<Mod> nttImplPow2(Vec<Mod> x, UI exp2, Mod const& r) {
 	for (UI i = 0; i < n; ++i) {
 	    if (!(i & diff)) {
 		UI j = i | diff;
-		Mod top = x[i] + x[j];
-		Mod bot = (x[i] - x[j]) * rPow[(i & (diff - 1U)) << step];
-		x[i] = top;
-		x[j] = bot;
+		UI xi = x[i];
+		UI xj = x[j];
+		UL top = static_cast<UL>(xi) + xj;
+		if (top >= m) {
+		    top -= m;
+		}
+		UL bot = static_cast<UL>(xi) + m - xj;
+		if (bot >= m) {
+		    bot -= m;
+		}
+		bot = bot * rPow[(i & (diff - 1U)) << step] % m;
+		x[i] = static_cast<UI>(top);
+		x[j] = static_cast<UI>(bot);
 	    }
 	}
     }
@@ -51,21 +186,26 @@ static Vec<Mod> nttImplPow2(Vec<Mod> x, UI exp2, Mod const& r) {
     return x;
 }
 
-static Vec<Mod> inttImplPow2(Vec<Mod> x, UI exp2, Mod const& r) {
+static Vec<UI> ifntImplPow2(Vec<UI> y, UI exp2, Mod const& r) {
     // Required invariants:
-    // x has length 2^exp2
-    // r has order 2^exp2:
-    //   r^(2^exp2) = 1, and r^k ≠ 1 for 0 < k < 2^exp2
-    // r and all elements of x have the same modulus
-    // r is the same value passed to all ffts that contributed to x
+    // y has length n = 2^exp2
+    // r has order n:
+    //   r^n = 1, and r^k ≠ 1 for 0 < k < n
+    // r is the same value passed to all ntt's that contributed to y
 
+    // Calculates the inverse of fnt above.
+    // Namely, computes
+    // x such that y = M * x
+    // or equivalently, x = M^(-1) y
     
     UI n = 1U << exp2;
-    Vec<Mod> rInvPow;
+    UI m = r.get_mod();
+    Vec<UI> rInvPow;
+    rInvPow.reserve(n/2);
     Mod rInv = 1 / r;
     Mod curRInvPow = r.create(1);
     for (UI i = 0; i < n/2; ++i) {
-	rInvPow.push_back(curRInvPow);
+	rInvPow.push_back(static_cast<UI>(curRInvPow));
 	curRInvPow *= rInv;
     }
     for (UI step = exp2; step--; ) {
@@ -73,22 +213,100 @@ static Vec<Mod> inttImplPow2(Vec<Mod> x, UI exp2, Mod const& r) {
 	for (UI i = 0; i < n; ++i) {
 	    if (!(i & diff)) {
 		UI j = i | diff;
-		x[j] *= rInvPow[(i & (diff - 1U)) << step];
-		Mod top = x[i] + x[j];
-		Mod bot = x[i] - x[j];
-		x[i] = top;
-		x[j] = bot;
+		y[j] = static_cast<UI>(static_cast<UL>(y[j]) * rInvPow[(i & (diff - 1U)) << step] % m);
+		
+		UI yi = y[i];
+		UI yj = y[j];
+		UL top = UL(yi) + yj;
+		if (top >= m) {
+		    top -= m;
+		}
+		UL bot = UL(yi) + m - yj;
+		if (bot >= m) {
+		    bot -= m;
+		}
+		y[i] = static_cast<UI>(top);
+		y[j] = static_cast<UI>(bot);
 	    }
 	}
     }
 
-    auto nInv = 1 / r.create(n);
+    auto nInv = static_cast<UI>(1 / r.create(n));
     for (UI i = 0; i < n; ++i) {
-	x[i] *= nInv;
+	y[i] = static_cast<UI>(static_cast<UL>(y[i]) * nInv % m);
     }
 
-    return x;
+    return y;
 }
+
+template<SZ NumU32>
+class BoundedBigInt {
+  private:
+    uint32_t fData[NumU32]{};
+
+  public:
+    BoundedBigInt() = default;
+    BoundedBigInt(uint32_t x)
+	: fData{x} {}
+
+    friend B operator>=(BoundedBigInt const& x, BoundedBigInt const& y) {
+	for (SZ i = NumU32; i--; ) {
+	    if (x.fData[i] != y.fData[i]) {
+		return x.fData[i] >= y.fData[i];
+	    }
+	}
+	return true;
+    }
+
+    BoundedBigInt& operator+=(BoundedBigInt const& y) {
+        uint64_t carry = 0;
+	static_assert(sizeof(carry) > sizeof(fData[0]));
+	for (SZ i = 0; i < NumU32; ++i) {
+	    carry >>= 32;
+	    carry += fData[i];
+	    carry += y.fData[i];
+	    fData[i] = static_cast<uint32_t>(carry);
+	}
+	return *this;
+    }
+
+    BoundedBigInt& operator-=(BoundedBigInt const& y) {
+        B carry = false;
+	for (SZ i = 0; i < NumU32; ++i) {
+	    if (carry) {
+		carry = fData[i]-- == 0;
+	    }
+	    carry |= fData[i] < y.fData[i];
+	    fData[i] -= y.fData[i];
+	}
+	return *this;
+    }
+
+    friend BoundedBigInt operator*(BoundedBigInt const& x, BoundedBigInt const& y) {
+	uint64_t current = 0;
+	uint64_t carry = 0;
+	BoundedBigInt res;
+	for (SZ i = 0; i < NumU32; ++i) {
+	    current = carry;
+	    carry = 0;
+	    for (SZ j = 0; j <= i; ++j) {
+		current += static_cast<uint64_t>(x.fData[j]) * y.fData[i - j];
+		carry += current >> 32;
+		current %= static_cast<uint64_t>(1) << 32;
+	    }
+	    res.fData[i] = static_cast<uint32_t>(current);
+	}
+	return res;
+    }
+
+    uint32_t operator%(uint32_t y) {
+	uint64_t res = 0;
+	for (SZ i = NumU32; i--; ) {
+	    res = ((res << 32) | fData[i]) % y;
+	}
+	return static_cast<uint32_t>(res);
+    }
+};
 
 namespace FFT {
     
@@ -189,42 +407,56 @@ namespace FFT {
 	if (d > ConvolutionConsts::maxSizeExp2) {
 	    throw_exception<std::invalid_argument>("convolution for Mod supports max sum of lengths = 2^" + to_string(ConvolutionConsts::maxSizeExp2) + " = " + to_string(1u << ConvolutionConsts::maxSizeExp2) + " < " + to_string(outputSize) + " (the sum of your input sizes - 1)");
 	}
-	Vec<BigInt> bigResult(outputSize, 0);
-	BigInt bigMod = 1;
+	static constexpr SZ NumPrimes = sizeof(FFT::ConvolutionConsts::biggest) / sizeof(FFT::ConvolutionConsts::biggest[0]);
+	// Being careful to never overflow when performing + or *
+	using MyBoundedBigInt = BoundedBigInt<NumPrimes + 1>;
+	// In results, the MyBoundedBigInt is < max_uint_32^(NumPrimes-1)
+	Vec<std::tuple<UI, MyBoundedBigInt, UI, Vec<UI>>> results;
+	MyBoundedBigInt bigMod = 1;
 	for (auto const& info : FFT::ConvolutionConsts::biggest) {
 	    auto e = info.fExp2;
 	    auto p = info.fPrime;
 	    Mod dx = Mod(p, info.fRootPow2) ^ (1u << (e - d)); // element mod p with order 2^d
 	    UI len = 1u << d;
-	    bigMod *= p;
-	    Vec<Mod> fx = nttImplPow2(withModAndLength(x, p, len), d, dx);
+	    bigMod = bigMod * p;
+	    Vec<UI> fx = fntImplPow2(withLength(x, len), d, dx);
 	    {
-		Vec<Mod> fy = nttImplPow2(withModAndLength(y, p, len), d, dx);
+		Vec<UI> fy = fntImplPow2(withLength(y, len), d, dx);
 		for (UI i = 0; i < len; ++i) {
-		    fx[i] *= fy[i];
+		    fx[i] = static_cast<UI>(Mod(p, fx[i]) * fy[i]);
 		}
 	    }
-	    auto convModP = inttImplPow2(fx, d, dx);
-	    for (UI i = 0; i < outputSize; ++i) {
-		BigInt forResult = static_cast<UI>(convModP[i]);
-		for (auto const& info2 : FFT::ConvolutionConsts::biggest) {
-		    UI p2 = info2.fPrime;
-		    if (p != p2) {
-			forResult *= p2;
-			forResult *= static_cast<UI>(1 / Mod(p, p2));
-		    }
-		}
-		bigResult[i] += forResult;
-	    }
+	    auto convModP = ifntImplPow2(std::move(fx), d, dx);
 	    for (UI i = static_cast<UI>(outputSize) + 1; i < len; ++i) {
 		if (convModP[i] != 0) {
 		    throw_exception<std::logic_error>("convolution computed a nonzero element too far into the array - the impl is wrong!");
 		}
 	    }
+	    MyBoundedBigInt multFactor = 1;
+	    Mod multFactorModP(p, 1);
+	    for (auto const& info2 : FFT::ConvolutionConsts::biggest) {
+		UI p2 = info2.fPrime;
+		if (p != p2) {
+		    multFactor = multFactor * p2;
+		    multFactorModP /= p2;
+		}
+	    }
+	    results.push_back({p, std::move(multFactor), static_cast<UI>(multFactorModP), std::move(convModP)});
 	}
 	Vec<Mod> result(outputSize, Mod(mod, 0));
 	for (UI i = 0; i < outputSize; ++i) {
-	    result[i] = *(((bigResult[i] % bigMod) % mod).convert<UI>());
+	    MyBoundedBigInt total;
+	    for (auto const& [p, mult1, mult2modP, res] : results) {
+		// the RHS here is < max_uint_32^NumPrimes
+		// so the addition is safe when MyBoundedBigInt uses (NumPrimes+1) uint32_t-s
+		total += mult1 * static_cast<UI>((static_cast<UL>(mult2modP) * res[i]) % p);
+		if (total >= bigMod) {
+		    // Since we're only adding a value < bigMod, and we started < bigMod, our total is < 2*bigMod.
+		    // So to mod by bigMod, we need only subtract at most 1 of bigMod.
+		    total -= bigMod;
+		}
+	    }
+	    result[i] = total % mod;
 	}
 	return result;
     }
