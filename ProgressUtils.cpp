@@ -71,7 +71,7 @@ bool Percent_Tracker::update(double value) {
 	newPercent = 100;
     }
     auto time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> diff = time-fStart;
+    std::chrono::duration<double> diff = time - fStart;
     if (diff.count() > 0.1) { // for very fast results, don't bother displaying
 	if (fPercent + (newPercent >= 100 ? 0 : fThresholdPercent) < newPercent) {
 	    fPercent = newPercent;
@@ -103,4 +103,14 @@ Percent_Tracker& Percent_Tracker::operator++() {
 Percent_Tracker& Percent_Tracker::operator+=(double value) {
     update(fCurrent + value);
     return *this;
+}
+
+Timer::Timer(std::string name)
+    : fName(std::move(name))
+    , fStart(std::chrono::high_resolution_clock::now()) {}
+
+Timer::~Timer() {
+    auto time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = time - fStart;
+    std::cout << fName << ": " << Formatted<D, 3>(diff.count()) << " seconds" << std::endl;
 }

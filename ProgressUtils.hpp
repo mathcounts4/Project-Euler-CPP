@@ -77,3 +77,14 @@ class Percent_Tracker {
     // adds to the existing value
     Percent_Tracker& operator+=(double value);
 };
+
+class Timer {
+  private:
+    std::string fName;
+    std::chrono::time_point<std::chrono::high_resolution_clock> fStart;
+
+  public:
+    Timer(std::string name);
+    ~Timer();
+};
+
