@@ -61,6 +61,12 @@ class BigInt {
     
     // deletes extra 0's from the data
     void reduce();
+
+    enum class AddOrSubtract { Add, Subtract };
+    void addOrSubtract(BigInt const& other, AddOrSubtract action);
+
+    enum class DivOrRem { Div, Rem };
+    void divOrRem(BigInt const& other, DivOrRem action);
     
   public:
 
@@ -109,8 +115,8 @@ class BigInt {
     friend bool operator!=(BigInt const& x, BigInt const& y);
 
     // arithmetic operators
-    BigInt const abs() const;
-    BigInt const operator-() const;
+    BigInt abs() const;
+    BigInt operator-() const;
 
     BigInt& operator++();
     BigInt& operator--();
@@ -121,19 +127,19 @@ class BigInt {
     BigInt operator<<(long) const;
     BigInt operator>>(long) const;
 
-    friend BigInt operator+(BigInt const& x, BigInt const& y);
+    friend BigInt operator+(BigInt x, BigInt const& y);
     BigInt& operator+=(BigInt const& o);
 
-    friend BigInt operator-(BigInt const& x, BigInt const& y);
+    friend BigInt operator-(BigInt x, BigInt const& y);
     BigInt& operator-=(BigInt const& o);
     
-    friend BigInt operator*(BigInt const& x, BigInt const& y);
+    friend BigInt operator*(BigInt x, BigInt const& y);
     BigInt& operator*=(BigInt const& o);
 
-    friend BigInt operator/(BigInt const& x, BigInt const& y);
+    friend BigInt operator/(BigInt x, BigInt const& y);
     BigInt& operator/=(BigInt const& o);
 
-    friend BigInt operator%(BigInt const& x, BigInt const& y);
+    friend BigInt operator%(BigInt x, BigInt const& y);
     BigInt& operator%=(BigInt const& o);
     
     BigInt operator^(std::size_t exp) const;
@@ -150,17 +156,17 @@ template<>
 class std::numeric_limits<BigInt> {
   public:
     static constexpr bool is_specialized = true;
-    static BigInt const min() noexcept { return -infinity(); }
-    static BigInt const max() noexcept { return infinity(); }
-    static BigInt const lowest() noexcept { return min(); }
+    static BigInt min() noexcept { return -infinity(); }
+    static BigInt max() noexcept { return infinity(); }
+    static BigInt lowest() noexcept { return min(); }
     static constexpr int  digits = std::numeric_limits<int>::max();
     static constexpr int  digits10 = std::numeric_limits<int>::max();
     static constexpr bool is_signed = true;
     static constexpr bool is_integer = true;
     static constexpr bool is_exact = true;
     static constexpr int radix = 2;
-    static BigInt const epsilon() noexcept { return 1; }
-    static BigInt const round_error() noexcept { return 1; }
+    static BigInt epsilon() noexcept { return 1; }
+    static BigInt round_error() noexcept { return 1; }
     
     static constexpr int  min_exponent = 0;
     static constexpr int  min_exponent10 = 0;
@@ -172,10 +178,10 @@ class std::numeric_limits<BigInt> {
     static constexpr bool has_signaling_NaN = false;
     static constexpr float_denorm_style has_denorm = denorm_absent;
     static constexpr bool has_denorm_loss = false;
-    static BigInt const infinity() noexcept { return BigInt::Inf(); }
-    static BigInt const quiet_NaN() noexcept { return 0; }
-    static BigInt const signaling_NaN() noexcept { return 0; }
-    static BigInt const denorm_min() noexcept { return 0; }
+    static BigInt infinity() noexcept { return BigInt::Inf(); }
+    static BigInt quiet_NaN() noexcept { return 0; }
+    static BigInt signaling_NaN() noexcept { return 0; }
+    static BigInt denorm_min() noexcept { return 0; }
 
     static constexpr bool is_iec559 = false;
     static constexpr bool is_bounded = false;

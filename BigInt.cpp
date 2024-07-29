@@ -77,11 +77,11 @@ BigInt::BigInt(Infinite inf, Negative neg)
 
 // infinite constants
 BigInt const& BigInt::Inf() {
-    static BigInt const result{Infinite::True,Negative::False};
+    static BigInt const result{Infinite::True, Negative::False};
     return result;
 }
 BigInt const& BigInt::NegInf() {
-    static BigInt const result{Infinite::True,Negative::True};
+    static BigInt const result{Infinite::True, Negative::True};
     return result;
 }
 
@@ -157,9 +157,9 @@ BigInt& BigInt::absMe() {
     negative = Negative::False;
     return *this;
 }
-BigInt const BigInt::abs() const { return BigInt(*this).absMe(); }
+BigInt BigInt::abs() const { BigInt copy(*this); copy.absMe(); return copy; }
 BigInt& BigInt::negateMe() {
-    if (data.size() || inf()) {
+    if (*this) {
 	if (neg()) {
 	    negative = Negative::False;
 	} else {
@@ -168,59 +168,86 @@ BigInt& BigInt::negateMe() {
     }
     return *this;
 }
-BigInt const BigInt::operator-() const { return BigInt(*this).negateMe(); }
+BigInt BigInt::operator-() const { return BigInt(*this).negateMe(); }
 
 BigInt& BigInt::operator++() { return *this += 1; }
 BigInt& BigInt::operator--() { return *this -= 1; }
 
-BigInt& BigInt::operator+=(BigInt const& o) { return *this -= -o; }
-BigInt& BigInt::operator-=(BigInt const& other) {
-    if (this->abs() < other.abs()) {
-	*this = other - *this;
-	negateMe();
-	return *this;
-    }
-    
-    if (inf() && other.inf())
-	return negative == other.negative ? *this = 0 : *this;
-    if (inf())
-	return *this;
-    if (other.inf())
-	return *this = NegInf();
-
-    if (negative == other.negative) {
-	// same sign -> subtraction -> carry indicates subtract 1
-	B carry = false;
-	SZ i = 0;
-	for (; i < other.data.size(); ++i) {
-	    if (carry)
-		carry = 0 == data[i]--;
-	    carry |= data[i] < other.data[i];
-	    data[i] -= other.data[i];
+BigInt& BigInt::operator+=(BigInt const& o) {
+    addOrSubtract(o, AddOrSubtract::Add);
+    return *this;
+}
+BigInt& BigInt::operator-=(BigInt const& o) {
+    addOrSubtract(o, AddOrSubtract::Subtract);
+    return *this;
+}
+void BigInt::addOrSubtract(BigInt const& other, AddOrSubtract action) {
+    B matchesSign = (negative == other.negative) == (action == AddOrSubtract::Add);
+    if (inf()) {
+	if (other.inf() && !matchesSign) {
+	    throw_exception<std::domain_error>(static_cast<std::string>(*this) +
+					       (action == AddOrSubtract::Add ? " + " : " -") +
+					       static_cast<std::string>(other));
 	}
-	if (carry)
-	    while (0 == data[i++]--); // intentional ;
-	reduce();
-    } else {
-	// different signs -> addition -> carry indicates add 1
+	return;
+    }
+    if (other.inf()) {
+	*this = other;
+	if (action == AddOrSubtract::Subtract) {
+	    negateMe();
+	}
+	return;
+    }
+    if (matchesSign) {
+	// same sign -> addition -> carry indicates add 1
 	B carry = false;
 	SZ i = 0;
+	if (data.size() < other.data.size()) {
+	    data.resize(other.data.size(), small_t(0));
+	}
 	for (; i < other.data.size(); ++i) {
-	    if (carry)
+	    if (carry) {
 		carry = 0 == ++data[i];
-	    carry |= data[i] > max_small_t-other.data[i];
-	    data[i] += other.data[i];
+	    }
+	    small_t res = data[i] + other.data[i];
+	    carry |= res < data[i];
+	    data[i] = res;
 	}
 	while (carry) {
 	    if (i == data.size()) {
-		data.emplace_back(0);
+		data.emplace_back(1);
+		break;
 	    } else {
 		carry = 0 == ++data[i++];
 	    }
-	}	
+	}
+    } else {
+	if (this->abs() < other.abs()) {
+	    BigInt withOtherFirst(other);
+	    withOtherFirst.addOrSubtract(*this, action);
+	    if (action == AddOrSubtract::Subtract) {
+		// other - this -> this - other
+		withOtherFirst.negateMe();
+	    }
+	    swap(withOtherFirst);
+	    return;
+	}
+	
+	// different signs -> subtraction -> carry indicates subtract 1
+	B carry = false;
+	SZ i = 0;
+	for (; i < other.data.size(); ++i) {
+	    if (carry) {
+		carry = 0 == data[i]--;
+	    }
+	    carry |= data[i] < other.data[i];
+	    data[i] -= other.data[i];
+	}
+	if (carry) {
+	    while (0 == data[i++]--); // intentional ;
+	}
+	reduce();
     }
-
-    return *this;
 }
 BigInt& BigInt::operator*=(BigInt const& other) {
     if (!*this)
@@ -253,13 +280,13 @@ BigInt& BigInt::operator*=(BigInt const& other) {
     
     if (other.neg())
 	negateMe();
-    BigInt result{Infinite::False,negative};
+    BigInt result{Infinite::False, negative};
     auto& rdata = result.data;
     auto const& odata = other.data;
     SZ size = data.size();
     SZ osize = odata.size();
 	    
-    rdata.resize(size + osize - 1,0);
+    rdata.resize(size + osize - 1, 0);
 
     big_t current = 0;
     big_t carry = 0;
@@ -292,94 +319,112 @@ BigInt& BigInt::operator*=(BigInt const& other) {
     swap(result);
     return *this;
 }
-// always rounds towards 0
-BigInt& BigInt::operator/=(BigInt const& other) {
-    if (!other)
-	throw_exception<std::domain_error>("Division by zero");
-    if (inf() && other.inf())
-	throw_exception<std::domain_error>("±Inf/±Inf");
-    if (other.neg())
+void BigInt::divOrRem(BigInt const& other, DivOrRem action) {
+    if (!other) {
+	throw_exception<std::domain_error>("div/rem by zero");
+    }
+    if (inf() && other.inf()) {
+	throw_exception<std::domain_error>("±Inf div/rem ±Inf");
+    }
+    if (!*this) {
+	return;
+    }
+    if (other.neg() && action == DivOrRem::Div) {
+	// For the rest of this function, we ignore the sign of other.
+	// *this has the final sign (with a final reduce() at the end, if it becomes -0).
 	negateMe();
-    if (!*this)
-	return *this;
-    if (inf())
-	return *this;
-    if (other.inf())
-	return *this = BigInt{};
+    }
+    if (inf()) {
+	if (action == DivOrRem::Rem) {
+	    throw_exception<std::domain_error>("±Inf rem x");
+	}
+	return;
+    }
+    if (other.inf()) {
+	if (action == DivOrRem::Div) {
+	    *this = BigInt{};
+	}
+	return;
+    }
     
-    if (other.isPowerOf2())
-	return *this >>= static_cast<SL>(other.log2());
+    if (other.isPowerOf2()) {
+	if (action == DivOrRem::Div) {
+	    *this >>= static_cast<SL>(other.log2());
+	} else {
+	    SZ bits = other.log2();
+	    SZ data_sz = (bits + shift_sz - 1) / shift_sz;
+	    if (data.size() > data_sz)
+		data.resize(data_sz);
+	    SZ small_bits = bits % shift_sz;
+	    if (small_bits > 0 && data.size() == data_sz)
+		data.back() &= (small_t(1) << small_bits) - small_t(1);
+	    reduce();
+	}
+	return;
+    }
     
     if (other.data.size() == 1) {
 	big_t value = 0;
-	small_t div = other.data[0];
+	small_t divisor = other.data[0];
 	for (SZ i = data.size(); i-- > 0; ) {
 	    value = (value << shift_sz) | data[i];
-	    data[i] = static_cast<small_t>(value / div);
-	    value %= div;
+	    if (action == DivOrRem::Div) {
+		data[i] = static_cast<small_t>(value / divisor);
+	    }
+	    value %= divisor;
+	}
+	if (action == DivOrRem::Rem) {
+	    B const is_neg = neg();
+	    *this = value;
+	    if (is_neg) {
+		negateMe();
+	    }
 	}
 	reduce();
-	return *this;
+	return;
     }
 
     SZ shift;
     {
 	auto l2 = log2();
 	auto ol2 = other.log2();
-	if (l2 < ol2)
-	    return *this = BigInt{};
+	if (l2 < ol2) {
+	    if (action == DivOrRem::Div) {
+		*this = BigInt{};
+	    }
+	    return;
+	}
 	shift = l2 - ol2;
     }
-
-    BigInt result;
-    result.data.resize(shift / shift_sz + 1);
     B resultNegative = neg();
     absMe();
+
+    BigInt divResult;
+    divResult.data.resize(shift / shift_sz + 1);
     
-    BigInt times = other.abs() << static_cast<SL>(shift);
+    BigInt times = other.abs();
+    times <<= static_cast<SL>(shift);
     for (++shift; shift--; times >>= 1) {
 	if (*this >= times) {
 	    *this -= times;
-	    result.data[shift / shift_sz] |= small_t(1) << (shift % shift_sz);
+	    divResult.data[shift / shift_sz] |= small_t(1) << (shift % shift_sz);
 	}
     }
-    result.negative = resultNegative ? Negative::True : Negative::False;
-    result.reduce();
-    swap(result);
+    if (action == DivOrRem::Div) {
+	swap(divResult);
+    }
+    negative = resultNegative ? Negative::True : Negative::False;
+    reduce();
+}
+// always rounds towards 0
+BigInt& BigInt::operator/=(BigInt const& other) {
+    divOrRem(other, DivOrRem::Div);
     return *this;
 }
+// always has the same sign as *this (unless becomes 0)
 BigInt& BigInt::operator%=(BigInt const& other) {
-    if (!other)
-	throw_exception<std::domain_error>("Mod by zero");
-    if (inf())
-	throw_exception<std::domain_error>(to_string(*this) + " mod " + to_string(other));
-    if (other.inf())
-	return *this;
-    if (other.isPowerOf2()) {
-	SZ bits = other.log2();
-	SZ data_sz = (bits + shift_sz - 1) / shift_sz;
-	if (data.size() > data_sz)
-	    data.resize(data_sz);
-	SZ small_bits = bits % shift_sz;
-	if (small_bits > 0 && data.size() == data_sz)
-	    data.back() &= (small_t(1) << small_bits) - small_t(1);
-	reduce();
-	return *this;
-    }
-    if (other.data.size() == 1) {
-	big_t value = 0;
-	small_t o_mod = other.data[0];
-	for (SZ i = data.size(); i-- > 0; )
-	    value = ((value << shift_sz) | data[i]) % o_mod;
-	B const is_neg = neg();
-	*this = value;
-	if (is_neg)
-	    negateMe();
-	reduce();
-	return *this;
-    }
-    
-    return *this -= *this / other * other;
+    divOrRem(other, DivOrRem::Rem);
+    return *this;
 }
 BigInt& BigInt::operator^=(std::size_t exp) {
     if (!exp && !*this)
@@ -473,11 +518,11 @@ BigInt& BigInt::operator>>=(SL shift) {
     return *this;
 }
 
-BigInt operator+(BigInt const& x, BigInt const& y) { return BigInt(x) += y; }
-BigInt operator-(BigInt const& x, BigInt const& y) { return BigInt(x) -= y; }
-BigInt operator*(BigInt const& x, BigInt const& y) { return BigInt(x) *= y; }
-BigInt operator/(BigInt const& x, BigInt const& y) { return BigInt(x) /= y; }
-BigInt operator%(BigInt const& x, BigInt const& y) { return BigInt(x) %= y; }
+BigInt operator+(BigInt x, BigInt const& y) { x += y; return x; }
+BigInt operator-(BigInt x, BigInt const& y) { x -= y; return x; }
+BigInt operator*(BigInt x, BigInt const& y) { x *= y; return x; }
+BigInt operator/(BigInt x, BigInt const& y) { x /= y; return x; }
+BigInt operator%(BigInt x, BigInt const& y) { x %= y; return x; }
 BigInt BigInt::operator^(std::size_t exp) const { return BigInt(*this) ^= exp; }
 BigInt BigInt::operator<<(SL const l) const { return BigInt(*this) <<= l; }
 BigInt BigInt::operator>>(SL const l) const { return BigInt(*this) >>= l; }
