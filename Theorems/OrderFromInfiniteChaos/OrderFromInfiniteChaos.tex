@@ -393,7 +393,7 @@ Now, the key: consider grouping points on the line into groups of 5:
 In each group of 5 points, there are $2^5 = 32$ possible colorings.\\
 With $n=32$, and looking at each group as one ``point'', we have an infinite line of equally-spaced ``points'' colored with one of 32 colors.
 
-From our earlier result, looking at $32+1=33$ of these ``points'' means that at least 2 of them will have the same color, which means that each element the group of 5 has the same color:
+From our earlier result, looking at $32+1=33$ of these ``points'' means that at least 2 of them will have the same color, which means that each element of the group of 5 has the same color:
 
 \begin{center}
 \begin{tikzpicture}[scale=\scalePic] {
@@ -784,7 +784,7 @@ $n=1$ is trivial: $B=1$ ($a=1$, $\mathbf{b} = \mathbf{q} - \mathbf{p_1}$).
 
 For $n>1$, we use a new definition, and a new lemma:
 
-We define a "Convergent $k$-repeating pattern" (for patterns $p$ with at least $2$ points) as a new pattern. It consists of the input pattern (except for its final point) repeated $k$ times, each with a different color. In all copies of the pattern, the final points converge at the same point.\\
+We define a ``Convergent $k$-repeating pattern'' (for patterns $p$ with at least $2$ points) as a new pattern. It consists of the input pattern, except for its final point, repeated $k$ times, each with a different color. In all copies of the pattern, the final points converge at the same point.\\
 For example, for this pattern $(0,0), (1,0), (2,1)$:
 \begin{tikzpicture}[scale=\scalePic*0.75] {
   \point{0}{0}{\blue}
