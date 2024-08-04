@@ -384,7 +384,7 @@ namespace FFT {
 	// pick prime p, int d, int r with:
 	// s = 2^d
 	// s | p-1
-	// s ≥ length(x) + length(y)
+	// s ≥ length(x) + length(y) - 1
 	// r is a primitive root mod p (r^(p-1) is the smallest positive power of r that ≡ 1 mod p)
 	// Then we can perform the Number Theoretic Tranform (NTT)
 	
@@ -400,7 +400,7 @@ namespace FFT {
 	// out ≡ a_1 * p_2 * (p_2 ^ -1 mod p_1) * p_3 * (p_3 ^ -1 mod p_1) +
 	//       a_2 * p_1 * (p_1 ^ -1 mod p_2) * p_3 * (p_3 ^ -1 mod p_2) +
 	//       a_3 * p_1 * (p_1 ^ -1 mod p_3) * p_2 * (p_2 ^ -1 mod p_3) mod p_1 * p_2 * p_3
-	
+	// Thus, the result mod N is the actual result (since all output values v satisfy 0 ≤ v < N), and take these values mod the original modulus for the final result.	
 
 	auto outputSize = x.size() + y.size() - 1;
 	UI d = static_cast<UI>(std::ceil(std::log2(outputSize)));
@@ -411,7 +411,7 @@ namespace FFT {
 	// Being careful to never overflow when performing + or *
 	using MyBoundedBigInt = BoundedBigInt<NumPrimes + 1>;
 	// In results, the MyBoundedBigInt is < max_uint_32^(NumPrimes-1)
-	Vec<std::tuple<UI, MyBoundedBigInt, UI, Vec<UI>>> results;
+	Vec<std::tuple<UI, MyBoundedBigInt, UI, Vec<UI>>> results; // result for each prime
 	MyBoundedBigInt bigMod = 1;
 	for (auto const& info : FFT::ConvolutionConsts::biggest) {
 	    auto e = info.fExp2;
@@ -419,10 +419,52 @@ namespace FFT {
 	    Mod dx = Mod(p, info.fRootPow2) ^ (1u << (e - d)); // element mod p with order 2^d
 	    UI len = 1u << d;
 	    bigMod = bigMod * p;
+	    // conv(x, y) = ifnt(fnt(x) .* fnt(y))
+	    // Using 0-based indexing, and r = dx, and s = r^(-1), noting that r^(2^d) = 1, and r^k ≠ 1 for 0 < k < 2^d:
+	    // fnt(x)[i] = ∑_{j=0}^{n-1} r^(bitrev_d(i)*j) x[j]
+	    // fnt(y)[i] = ∑_{j=0}^{n-1} r^(bitrev_d(i)*j) y[j]
+	    // ifnt(z)[i] = (1/n) ∑_{j=0}^{n-1} r^(-i*bitrev_d(j)) z[j]
+	    // ifnt(fnt(z))[i]
+	    //  = (1/n) ∑_{j=0}^{n-1} r^(-i*bitrev_d(j)) ∑_{k=0}^{n-1} r^(bitrev_d(j)*k) x[k]
+	    //  = (1/n) ∑_{j=0}^{n-1} ∑_{k=0}^{n-1} r^((k-i)*bitrev_d(j)) x[k]
+	    //  = (1/n) ∑_{k=0}^{n-1} ∑_{j=0}^{n-1} r^((k-i)*bitrev_d(j)) x[k], then splitting where k=i and k≠i:
+	    //  = (1/n) ∑_{j=0}^{n-1} r^((i-i)*bitrev_d(j)) x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} ∑_{j=0}^{n-1} r^((k-i)*bitrev_d(j)) x[k]
+	    //  = (1/n) ∑_{j=0}^{n-1} 1 * x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} ∑_{j=0}^{n-1} r^((k-i)*bitrev_d(j)) x[k]
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k] ∑_{j=0}^{n-1} r^((k-i)*bitrev_d(j))
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k] ∑_{j=0}^{n-1} r^((k-i)*j)
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k] ∑_{j=0}^{n-1} r^((k-i)*j)*(r^(k-i)-1)/(r^(k-i)-1) (as r^(k-i)≠1 since k≠i)
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k]/(r^(k-i)-1) ∑_{j=0}^{n-1} r^((k-i)*j)*(r^(k-i)-1)
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k]/(r^(k-i)-1) (r^((k-i)*n) - 1)
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k]/(r^(k-i)-1) ((r^n)^(k-i) - 1)
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k]/(r^(k-i)-1) (1^(k-i) - 1)
+	    //  = x[i] + (1/n) ∑_{k=0,k≠i}^{n-1} x[k]/(r^(k-i)-1) (1 - 1)
+	    //  = x[i]
+	    // (fnt(x) .* fnt(y))[i] = ∑_{j=0}^{n-1} r^(bitrev(i)*j) x[j] * ∑_{k=0}^{n-1} r^(bitrev(i)*k) y[k]
+	    // ifnt(fnt(x) .* fnt(y))[i]
+	    //  = (1/n) ∑_{s=0}^{n-1} r^(-i*bitrev_d(s)) (∑_{j=0}^{n-1} r^(bitrev(s)*j) x[j] * ∑_{k=0}^{n-1} r^(bitrev(s)*k) y[k])
+	    //  = (1/n) ∑_{s=0}^{n-1} ∑_{j=0}^{n-1} ∑_{k=0}^{n-1} r^(-i*bitrev_d(s)) * r^(bitrev(s)*j) x[j] * r^(bitrev(s)*k) y[k]
+	    //  = (1/n) ∑_{s=0}^{n-1} ∑_{j=0}^{n-1} ∑_{k=0}^{n-1} r^((j+k-i)*bitrev_d(s)) x[j] y[k]
+	    //  = (1/n) ∑_{j=0}^{n-1} ∑_{k=0}^{n-1} ∑_{s=0}^{n-1} r^((j+k-i)*bitrev_d(s)) x[j] y[k]
+	    //  = (1/n) ∑_{j=0}^{n-1} ∑_{k=0}^{n-1} x[j] y[k] ∑_{s=0}^{n-1} r^((j+k-i)*bitrev_d(s))
+	    //  = (1/n) ∑_{j=0}^{n-1} ∑_{k=0}^{n-1} x[j] y[k] ∑_{s=0}^{n-1} r^((j+k-i)*s)
+	    //      ∑_{s=0}^{n-1} r^((j+k-i)*s) = n if i ≡ j+k mod n, 0 otherwise. So we set k≡i-j mod n and reduce that sum to n:
+	    //  = (1/n) ∑_{j=0}^{n-1} x[j] y[i-j mod n] n
+	    //  = ∑_{j=0}^{n-1} x[j] y[i-j mod n]
+	    //  = ∑_{j=0}^{i} x[j] y[i-j] + ∑_{j=i+1}^{n-1} x[j] y[i-j+n]
+	    //      But by design, we've extended x and y with 0's so n ≥ length(x) + length(y) - 1, so:
+	    //      j ≥ length(x) -> x[j] = 0
+	    //      j < length(x) ->  i-j+n > i-length(x)+n ≥ i-length(x)+length(x)+length(y)-1 = i+length(y)-1 ≥ length(y)-1, so i-j+n ≥ length(y), and y[i-j+n] = 0
+	    //      therefore x[j] * y[i-j+n] = 0, regardless of j
+	    //  = ∑_{j=0}^{i} x[j] y[i-j]
+	    //  = conv(x, y) as desired
+	    
+	    // fx = fnt(x);
 	    Vec<UI> fx = fntImplPow2(withLength(x, len), d, dx);
 	    {
+		// fy = fnt(y)
 		Vec<UI> fy = fntImplPow2(withLength(y, len), d, dx);
 		for (UI i = 0; i < len; ++i) {
+		    // fx = fnt(x) .* fnt(y)
 		    fx[i] = static_cast<UI>(Mod(p, fx[i]) * fy[i]);
 		}
 	    }

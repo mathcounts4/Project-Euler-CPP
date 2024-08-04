@@ -60,4 +60,16 @@ TEST(conv, algorithmConsts) {
 	CHECK(Mod(p, r) ^ (p - 1), equals(1));
 	CHECK(Mod(p, x) ^ (1u << e), equals(1));
     }
+
+    SZ numConsts = sizeof(FFT::ConvolutionConsts::biggest) / sizeof(FFT::ConvolutionConsts::biggest[0]);
+    auto computedConsts = FFT::ConvolutionConsts::findPrimes(static_cast<UI>(numConsts));
+    for (SZ i = 0; i < numConsts; ++i) {
+	auto const& hardCoded = FFT::ConvolutionConsts::biggest[i];
+	auto const& computed = computedConsts[i];
+	CHECK(hardCoded.fExp2, equals(computed.fExp2));
+	CHECK(hardCoded.fMultFactor, equals(computed.fMultFactor));
+	CHECK(hardCoded.fPrime, equals(computed.fPrime));
+	CHECK(hardCoded.fPrimRoot, equals(computed.fPrimRoot));
+	CHECK(hardCoded.fRootPow2, equals(computed.fRootPow2));
+    }
 }
