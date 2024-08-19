@@ -30,15 +30,15 @@ void Mod::mod_mismatch_check(Mod const& o) const {
 }
 
 Mod::Mod()
-    : Mod(globalMod,0) {}
+    : Mod(globalMod, 0) {}
 Mod::Mod(UL v)
-    : Mod(globalMod,v) {}
+    : Mod(globalMod, v) {}
 Mod::Mod(SL v)
-    : Mod(globalMod,v) {}
+    : Mod(globalMod, v) {}
 Mod::Mod(UI v)
-    : Mod(globalMod,v) {}
+    : Mod(globalMod, v) {}
 Mod::Mod(SI v)
-    : Mod(globalMod,v) {}
+    : Mod(globalMod, v) {}
 
 Mod::Mod(UI m, UL v)
     : mod(m) {
