@@ -688,11 +688,11 @@ We proceed by an argument similar to the 3-corner proof:
 }\end{tikzpicture}
 \end{center}
 
-With 2 colors, there is some $G_{2,1}$ where a $G_{2,1} \times G_{2,1}$ grid will contain the 3-corner pattern.\\
-For tiles of size $G_{2,1} \times G_{2,1}$, there are $2^{G_{2,1}^2}$ possible colorings of the tile.
+With $n$ colors, there is some $G_{n}$ where a $G_{n} \times G_{n}$ grid will contain the 3-corner pattern.\\
+For tiles of size $G_{2} \times G_{2}$, there are $2^{G_{2}^2}$ possible colorings of the tile.
 
-There is some $X=G_{2^{G_{2,1}^2},1}$ where a $X \times X$ grid, colored by $2^{G_{2,1}^2}$ colors, will contain the 3-corner pattern.\\
-Dividing the original grid into tiles of size $G_{2,1} \times G_{2,1}$, and taking a $X \times X$ grid of these tiles, we will find 3 identical tiles in the 3-corner pattern.
+There is some $X=G_{2^{G_{2}^2}}$ where a $X \times X$ grid, colored by $2^{G_{2}^2}$ colors, will contain the 3-corner pattern.\\
+Dividing the original grid into tiles of size $G_{2} \times G_{2}$, and taking a $X \times X$ grid of these tiles, we will find 3 identical tiles in the 3-corner pattern.
 
 But the tiles are big enough that they themselves contain the 3-corner pattern, so we end up with a nested 3-corner pattern.\\
 If the smaller 3-corner pattern also contained the same color in the upper-right corner of the square, we'd have a same-color square. So we assume it's the opposite color:
@@ -751,7 +751,7 @@ Other color:
 }\end{tikzpicture}
 \end{center}
 
-Thus, given an infinite grid colored by 2 colors, we can always find 4 corners of a coordinate-aligned square of the same color within a $Y \times Y$ grid, where $Y = X * G_{2,1}$.
+Thus, given an infinite grid colored by 2 colors, we can always find 4 corners of a coordinate-aligned square of the same color within a $Y \times Y$ grid, where $Y = X * G_{2}$.
 
 For illustrative purposes, see the following picture for finding 4 corners where the grid is colored by 4 colors (the black dot, as any of the 4 real colors, completes a square):
 \begin{center}
@@ -764,13 +764,15 @@ For illustrative purposes, see the following picture for finding 4 corners where
 \pagebreak
 \subsection*{General case}
 
+Any finite-dimensional pattern with integer coordinates can be found (at some scale) on an infinite $d$-dimensional grid of points colored by a finite number of colors.
+
 Define a ``pattern'' as a finite sequence of $n$ distinct points:\\
 $\left\{\mathbf{p_i} = \{x_{(i,1)}, ..., x_{(i,d)}\}\right\}_{i=1...n}$ with integer coordinates in any finite ($d$)-dimensional space.
 
 We shall prove:
 
-For any pattern in a $d$-dimensional space, where every point in the integer lattice is colored by one of a finite number of colors $C$ via some function $c(\mathbf{p})$, there exists a ``box size'' $B$ such that, in any $B \times B \times ... \times B$ box of points selected from the integer lattice, the pattern can be found (with some nonzero scaling factor $a$) with all points sharing the same color:\\
-$\exists B \in \N, \forall \mathbf{q} \in \Z^{d}, \exists a \in \Z \setminus \{ 0 \}, \exists \mathbf{b} \in \Z^{d}$:
+For any pattern in a $d$-dimensional space, where every point in the integer lattice is colored by one of a finite number of colors $C$ via some function $c(\mathbf{p})$, there exists a ``box size'' $B$ such that, in any $B \times B \times ... \times B$ box of points selected from the integer lattice, the pattern can be found (with some positive scaling factor $a$) with all points sharing the same color:\\
+$\exists B \in \N, \forall \mathbf{q} \in \Z^{d}, \exists a \in \Z^{+}, \exists \mathbf{b} \in \Z^{d}$:
 \begin{itemize}
 \item $c(a \cdot \mathbf{p_1} + \mathbf{b}) = c(a \cdot \mathbf{p_2} + \mathbf{b}) = ... = c(a \cdot \mathbf{p_n} + \mathbf{b})$ (same color points)
 \item $\forall 1 \leq i \leq n, \forall 1 \leq j \leq d, q_j \leq a \cdot x_{(i,j)} + b_j < q_j + B$ (pattern fits in the box)
@@ -800,12 +802,15 @@ In the following picture, we have a convergent 3-repeating pattern of colors blu
   \allred{(-12,-12),(-24,-12)}
   \allorange{(-9,-9),(-18,-9)}
   \allblack{(0,0)}
+  \mybigbox{-26}{-13}{27}{14}
+  \mybigbox{-24}{-12}{25}{13}
+  \mybigbox{-18}{-9}{19}{10}
 }\end{tikzpicture}
 \end{center}
 
 \pagebreak
 Formally, given a pattern $p = \left\{\mathbf{p_i} = \{x_{(i,1)}, ..., x_{(i,d)}\}\right\}_{i=1...n}$, a convergent $k$-repeating pattern is:\\
-$\exists \left\{ a_{i} \right\}_{i=1...k} a_{i} \in \Z \setminus \{ 0 \}, \exists \left\{ \mathbf{b_i} \right\}_{i=1...k} \mathbf{b_i} \in \Z^{d}$:
+$\exists \left\{ a_{i} \right\}_{i=1...k} a_{i} \in \Z^{+}, \exists \left\{ \mathbf{b_i} \right\}_{i=1...k} \mathbf{b_i} \in \Z^{d}$:
 \begin{itemize}
 \item $\forall 1 \leq i \leq k, \forall 1 \leq j < n$
 \end{itemize}
