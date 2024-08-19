@@ -211,9 +211,10 @@ BigInt::BigInt(T const& t)
     constexpr bool too_small = sizeof(u_T) <= sizeof(small_t);
     
     u_T value = my_abs(t);
-    if (too_small) {
-	if (value > u_0)
+    if constexpr (too_small) {
+	if (value > u_0) {
 	    data = {static_cast<small_t>(value)};
+	}
     } else {
 	for ( ; value > u_0; value >>= shift_sz)
 	    data.push_back(value & low_digits);
