@@ -216,8 +216,9 @@ BigInt::BigInt(T const& t)
 	    data = {static_cast<small_t>(value)};
 	}
     } else {
-	for ( ; value > u_0; value >>= shift_sz)
+	for ( ; value > u_0; value >>= shift_sz) {
 	    data.push_back(value & low_digits);
+	}
     }
 }
 
