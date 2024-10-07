@@ -98,6 +98,9 @@ class BigInt {
     // returns floor(log2(abs(this)))
     std::size_t log2() const;
 
+    // returns floor(abs(this)/2^n) % 2
+    bool getBit(UI n) const;
+
     // returns floor(sqrt(this))
     BigInt sqrt() const;
 

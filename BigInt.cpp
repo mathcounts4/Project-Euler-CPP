@@ -38,6 +38,15 @@ SZ BigInt::log2() const {
     throw_exception<std::domain_error>("BigInt log2 called on " + to_string(*this));
 }
 
+// floor(abs(this)/2^n) % 2
+B BigInt::getBit(UI n) const {
+    if (n / shift_sz < data.size()) {
+	return ((data[n / shift_sz] >> (n % shift_sz)) & 1u) == 1u;
+    } else {
+	return false;
+    }
+}
+
 // floor(sqrt(this))
 BigInt BigInt::sqrt() const {
     // f(x) = this-x^2
