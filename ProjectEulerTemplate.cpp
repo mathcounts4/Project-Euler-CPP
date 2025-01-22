@@ -1,5 +1,8 @@
 /* Problem
 
+Problem Title
+Problem Number
+
 f(1) = 4
 f(2) = 7
 Find f(3000).
