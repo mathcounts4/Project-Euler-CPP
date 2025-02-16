@@ -39,7 +39,7 @@ SZ BigInt::log2() const {
 }
 
 // floor(abs(this)/2^n) % 2
-B BigInt::getBit(UI n) const {
+B BigInt::getBit(SZ n) const {
     if (n / shift_sz < data.size()) {
 	return ((data[n / shift_sz] >> (n % shift_sz)) & 1u) == 1u;
     } else {
@@ -108,10 +108,13 @@ SI BigInt::cmp() const {
 }
 
 // swap
+void swap(BigInt& x, BigInt& y) {
+    std::swap(x.infinite, y.infinite);
+    std::swap(x.negative, y.negative);
+    std::swap(x.data, y.data);
+}
 void BigInt::swap(BigInt& other) {
-    std::swap(infinite,other.infinite);
-    std::swap(negative,other.negative);
-    std::swap(data,other.data);
+    ::swap(*this, other);
 }
 
 
@@ -259,22 +262,26 @@ void BigInt::addOrSubtract(BigInt const& other, AddOrSubtract action) {
     }
 }
 BigInt& BigInt::operator*=(BigInt const& other) {
-    if (!*this)
+    if (!*this) {
 	return *this;
-    if (!other)
+    }
+    if (!other) {
 	return *this = other;
+    }
     
     if (inf() || other.inf()) {
 	infinite = Infinite::True;
-	if (other.neg())
+	if (other.neg()) {
 	    negateMe();
+	}
 	data.clear();
 	return *this;
     }
     
     if (other.isPowerOf2()) {
-	if (other.neg())
+	if (other.neg()) {
 	    negateMe();
+	}
 	return *this <<= static_cast<SL>(other.log2());
     }
     
@@ -282,13 +289,15 @@ BigInt& BigInt::operator*=(BigInt const& other) {
 	auto pow = log2();
 	bool const wasNeg = neg();
 	*this = other;
-	if (wasNeg)
+	if (wasNeg) {
 	    negateMe();
+	}
 	return *this <<= static_cast<SL>(pow);
     }
     
-    if (other.neg())
+    if (other.neg()) {
 	negateMe();
+    }
     BigInt result{Infinite::False, negative};
     auto& rdata = result.data;
     auto const& odata = other.data;
@@ -296,6 +305,10 @@ BigInt& BigInt::operator*=(BigInt const& other) {
     SZ osize = odata.size();
 	    
     rdata.resize(size + osize - 1, 0);
+
+    // TODO:
+    // https://en.wikipedia.org/wiki/Karatsuba_algorithm
+    // https://www.youtube.com/watch?v=AMl6EJHfUWo
 
     big_t current = 0;
     big_t carry = 0;
@@ -328,6 +341,7 @@ BigInt& BigInt::operator*=(BigInt const& other) {
     swap(result);
     return *this;
 }
+
 void BigInt::divOrRem(BigInt const& other, DivOrRem action) {
     if (!other) {
 	throw_exception<std::domain_error>("div/rem by zero");
@@ -541,6 +555,37 @@ template<> std::ostream& Class<BigInt>::print(std::ostream& oss, BigInt const& b
     return oss << std::string(bi);
 }
 
+template<C Low, C High>
+static std::optional<UI> distFromBottomIfInRangeInclusive(C value) {
+    if (Low <= value && value <= High) {
+	return static_cast<UI>(value - Low);
+    } else {
+	return std::nullopt;
+    }
+}
+
+struct DigitParser {
+    function_pointer<std::optional<UI>, C> fCharToDigit;
+    UI fMultPerDigit;
+};
+
+static std::optional<UI> hexDigitParser(C value) {
+    if (auto decimal = distFromBottomIfInRangeInclusive<'0', '9'>(value)) {
+	return *decimal;
+    } else if (auto lowercaseHex = distFromBottomIfInRangeInclusive<'a', 'f'>(value)) {
+	return *lowercaseHex + 10u;
+    } else if (auto uppercaseHex = distFromBottomIfInRangeInclusive<'A', 'F'>(value)) {
+	return *uppercaseHex + 10u;
+    } else {
+	return std::nullopt;
+    }
+}
+
+constexpr DigitParser DecimalParser{&distFromBottomIfInRangeInclusive<'0', '9'>, 10};
+constexpr DigitParser BinaryParser{&distFromBottomIfInRangeInclusive<'0', '1'>, 2};
+constexpr DigitParser OctalParser{&distFromBottomIfInRangeInclusive<'0', '7'>, 8};
+constexpr DigitParser HexParser{&hexDigitParser, 16};
+
 template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is) {
     Resetter resetter{is};
     std::ws(is);
@@ -554,28 +599,46 @@ template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is) {
     }	    
     
     B const negative = is.peek() == '-';
-    if (negative)
+    if (negative) {
 	is.get();
+    }
 
     BigInt result;
     B init = false;
+    DigitParser digitParser = DecimalParser;
+    if (consume(is, '0')) {
+	if (consume(is, 'x') || consume(is, 'X')) {
+	    // 0x... -> hex
+	    digitParser = HexParser;
+	} else if (consume(is, 'o') || consume(is, 'O')) {
+	    // 0o... -> octal
+	    digitParser = OctalParser;
+	} else if (consume(is, 'b') || consume(is, 'B')) {
+	    // 0b... -> binary
+	    digitParser = BinaryParser;
+	} else {
+	    init = true;
+	}
+    }
     while (is) {
 	C const next = static_cast<C>(is.peek());
-	if (std::isdigit(next)) {
+	if (auto nextDigit = digitParser.fCharToDigit(next)) {
 	    init = true;
-	    result *= 10;
-	    result += next - '0';
+	    result *= digitParser.fMultPerDigit;
+	    result += *nextDigit;
 	    is.get();
 	} else {
 	    break;
 	}
     }
 
-    if (!init)
+    if (!init) {
 	return Failure("No digits encountered for BigInt");
+    }
 
-    if (negative && result)
+    if (negative && result) {
 	result.negateMe();
+    }
     
     resetter.ignore();
     return result;

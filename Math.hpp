@@ -64,8 +64,8 @@ Common_u<X,Y> my_gcd(X const x, Y const y) {
     if (!b)
 	return a;
     for (U c(0); bool(c = a % b); ) {
-	a = b;
-	b = c;
+	a = std::move(b);
+	b = std::move(c);
     }
     return b;
 }

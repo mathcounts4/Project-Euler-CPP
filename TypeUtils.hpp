@@ -294,3 +294,13 @@ namespace detail {
 			  types...>;
     };
 } /* namespace detail */
+
+namespace detail {
+    template<class Output, class... Inputs>
+    struct FunctionPointer {
+	typedef Output (*Type)(Inputs...);
+    };
+} /* namespace detail */
+
+template<class Output, class... Inputs>
+using function_pointer = Type<detail::FunctionPointer<Output, Inputs...>>;

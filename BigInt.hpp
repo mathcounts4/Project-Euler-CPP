@@ -90,6 +90,7 @@ class BigInt {
     BigInt& absMe();
     BigInt& negateMe();
 
+    friend void swap(BigInt&, BigInt&);
     void swap(BigInt &);
 
     // returns if this is +- a power of 2
@@ -99,7 +100,7 @@ class BigInt {
     std::size_t log2() const;
 
     // returns floor(abs(this)/2^n) % 2
-    bool getBit(UI n) const;
+    bool getBit(SZ n) const;
 
     // returns floor(sqrt(this))
     BigInt sqrt() const;
