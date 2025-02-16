@@ -15,6 +15,16 @@ TEST(BigInt,Construction) {
     CHECK(zero, equals(0));
     CHECK(negativeFive, equals(-5L));
     CHECK(big, equals(bigUL));
+    CHECK(BigInt("-5"), equals(BigInt(-5)));
+    CHECK(BigInt("5"), equals(BigInt(5)));
+    CHECK(BigInt("0"), equals(BigInt(0)));
+    CHECK(BigInt("-0"), equals(BigInt(0)));
+    CHECK(BigInt("0xFF"), equals(BigInt(255)));
+    CHECK(BigInt("0Xa0A"), equals(BigInt(2570)));
+    CHECK(BigInt("0o77"), equals(BigInt(63)));
+    CHECK(BigInt("-0O00012"), equals(BigInt(-10)));
+    CHECK(BigInt("0b00101"), equals(BigInt(5)));
+    CHECK(BigInt("-0B0000"), equals(BigInt(0)));
 }
 
 TEST(BigInt,Printing) {
@@ -195,4 +205,28 @@ TEST(BigInt,ModifyingArithmeticArgSelf) {
     BigInt modNeg(-3);
     modNeg %= modNeg;
     CHECK(modNeg, equals(0));
+}
+
+TEST(BigInt, gcd) {
+    CHECK(my_gcd(BigInt(2)*2*3*7*733*929*13723*4956871, BigInt(3)*3*3*5*929*74597*4956871), equals(BigInt(3)*929*4956871));
+
+    // Brilliant (app) > Number Theory > Fermat's Little Theorem > Primality Testing > Additional Problems
+    // https://brilliant.org/wiki/prime-testing/
+    // You've stumbled onto a significant vulnerability in a commonly used cryptographic library. It turns out that the random number generator it uses frequently produces the same primes when it is generating keys.
+    // Exploit this knowledge to factor the (hexadecimal) keys below, and enter your answer as the last six digits of the largest factor you find (in decimal).
+    /*
+Key 1:
+1c7bb1ae67670f7e6769b515c174414278e16c27e95b43a789099a1c7d55c717b2f0a0442a7d49503ee09552588ed9bb6eda4af738a02fb31576d78ff72b2499b347e49fef1028182f158182a0ba504902996ea161311fe62b86e6ccb02a9307d932f7fa94cde410619927677f94c571ea39c7f4105fae00415dd7d
+Key 2:
+2710e45014ed7d2550aac9887cc18b6858b978c2409e86f80bad4b59ebcbd90ed18790fc56f53ffabc0e4a021da2e906072404a8b3c5555f64f279a21ebb60655e4d61f4a18be9ad389d8ff05b994bb4c194d8803537ac6cd9f708e0dd12d1857554e41c9cbef98f61c5751b796e5b37d338f5d9b3ec3202b37a32f
+     */
+    BigInt assumedPQ("0x1c7bb1ae67670f7e6769b515c174414278e16c27e95b43a789099a1c7d55c717b2f0a0442a7d49503ee09552588ed9bb6eda4af738a02fb31576d78ff72b2499b347e49fef1028182f158182a0ba504902996ea161311fe62b86e6ccb02a9307d932f7fa94cde410619927677f94c571ea39c7f4105fae00415dd7d");
+    BigInt assumedPR("0x2710e45014ed7d2550aac9887cc18b6858b978c2409e86f80bad4b59ebcbd90ed18790fc56f53ffabc0e4a021da2e906072404a8b3c5555f64f279a21ebb60655e4d61f4a18be9ad389d8ff05b994bb4c194d8803537ac6cd9f708e0dd12d1857554e41c9cbef98f61c5751b796e5b37d338f5d9b3ec3202b37a32f");
+    BigInt assumedP("84712455329458472210475092572678509526272708993404574231933262963274962364443789510742328496333782156398316832447160740326193165821341070265858616467");
+    BigInt assumedQ("3435871829708679014447596389440344584309955989618078613506398153304765923748971812293610680963305820321694192278092116849920331574779248450640734127");
+    BigInt assumedR("4712455329458472210475092572678509526272708993404574231933262963274962364443789510742328496333782156398316832447160740326193165821341070265858616437");
+    auto computedGCD = my_gcd(assumedPQ, assumedPR);
+    ASSERT(computedGCD, equals(assumedP)); // answer: 616467
+    CHECK(assumedPQ / assumedP, equals(assumedQ));
+    CHECK(assumedPR / assumedP, equals(assumedR));
 }
