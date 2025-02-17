@@ -1,0 +1,16 @@
+This is a 2-player impartial game.
+
+The states are a list of piles sizes (all positive integers).
+
+The valid moves are:
+* remove any positive number of objects from a single pile
+* if the "end state" hasn't been declared yet, declare the "end state": deciding between:
+  * when there are no remaining piles, the person whose move it is loses
+  * when there are no remaining piles, the person whose move it is wins
+
+Describe:
+* the set of losing positions
+
+Prove:
+* any winning state has a move that reaches a losing state
+* from any losing state, any valid move reaches a winning state

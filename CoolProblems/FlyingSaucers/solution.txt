@@ -1,0 +1,17 @@
+Incredibly, as long as the number of men and number of women are positive, the answer is always 1/2!
+
+To see why, we consider the "terminal states", where the outcome is certain.
+
+If there are only men left in the house, we're in a terminal state: p = 0.
+If there are only women left in the house, we're in a terminal state: p = 1.
+
+From any nonterminal state, compare the probabilities of transitioning (on this spaceship visit) to each terminal state.
+To remove all the women and only be left with men, the probability is that of selecting all women before selecting any men. This is the number of orders of remaining people that begin with all women, divided by the number of orders of remaining people.
+To remove all the men and only be left with women, the probability is that of selecting all men before selecting any women. This is the number of orders of remaining people that begin with all men, divided by the number of orders of remaining people.
+We map these orders directly to each other by completely reversing the order:
+(ABCD are men, XYZ are women)
+ABCDXYZ <-> ZYXDCBA
+ACDBZYX <-> XYZBDCA
+etc
+Therefore the probability of transitioning from our nonterminal state to a terminal state with only men is the same as the probability of transitioning from our nonterminal state to a terminal state with only women.
+Since this is the only way to finish the process, and this fact is true of all nonterminal states, the probability that we end with a woman is the same as the probability that we end with a man. Thus this probability must be 1/2.

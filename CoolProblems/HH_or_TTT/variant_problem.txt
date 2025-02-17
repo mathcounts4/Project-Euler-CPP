@@ -1,0 +1,6 @@
+Variant:
+HTHTH
+HTTTH
+
+What are the probabilities that each is observed first when flipping a fair coin repeatedly until one pattern appears?
+

@@ -1,0 +1,10 @@
+Note: this problem is from Mathematical Puzzles by Peter Winkler, page xlvi.
+
+8 men and 5 women live in a house.
+An alien abducts these people according to the following strategy:
+* a spaceship visits the house, and picks a random person to board
+* the spaceship keeps choosing a random person from the house to board, until it picks a person of the opposite gender (if so, this person is left behind), or the house is empty
+* the spaceship leaves with all the people on board, and returns to the house empty
+* the spaceship repeats this process until the house is empty
+
+What is the probability that the last person to leave the house is a woman?

@@ -1,0 +1,35 @@
+Consider the progress along both sequences, and where you end up when failing to continue along the current path of progress.
+
+HTTTH fails as:
+T (overall progress: nothing)
+HH (overall progress: H)
+HTH (overall progress: HTH)
+HTTH (overall progress: H)
+HTTTT (overall progress: nothing)
+
+HTHTH fails as:
+T (overall progress: nothing)
+HH (overall progress: H)
+HTT (overall progress: HTT)
+HTHH (overall progress: H)
+HTHTT (overall progress: HTT)
+
+We can draw the states of progress towards either goal, and draw back-edges on the failure flips.
+From HT, we consider the probabilities of 3 results:
+1. get to HTTTH
+2. get to HTHTH
+3. cycle back to nothing, H, or HT
+
+(1) is 1/8 (direct) + 1/32 (HTHTTTH)
+(2) is 1/8 (direct)
+(3) is everything else
+
+Since (3) is just resetting the game, we can take the ratio of (1) and (2) to be their overall ratio after running the game infinitely.
+This is 5:4.
+
+Therefore:
+HTTTH has p = 5/9
+HTHTH has p = 4/9
+
+Intuitively, HTHTH can fail onto the HTTTH path, but not the other way around, making HTTTH slightly more likely.
+

@@ -1,0 +1,15 @@
+This is a 2-player normal-play impartial game.
+
+The states are a list of piles sizes (all positive integers).
+
+The valid moves are:
+* remove any positive number of objects from a single pile
+* remove any positive number of objects from 2 different piles (the same amount from each pile)
+
+Describe:
+* the set of losing positions
+
+Prove:
+* any winning state has a move that reaches a losing state
+* from any losing state, any valid move reaches a winning state
+

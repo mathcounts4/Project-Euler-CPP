@@ -1,0 +1,40 @@
+These are 3 kinds of states:
+
+1. Where the "end state" has been declared as:
+   when there are no remaining piles, the person whose move it is loses
+2. Where the "end state" has been declared as:
+   when there are no remaining piles, the person whose move it is wins
+3. Where the "end state" has not yet been declared
+
+(1) is commonly known as "Nim".
+(2) is commonly known as "Nim Misere"
+(3) is known as "Whim Nim"
+
+In (1), the losing states are where the XOR of all pile sizes = 0.
+For every losing state, any valid move moves to a winning state:
+If the move changes x -> y (y < x), the XOR of the new piles sizes is XOR(x,y) != 0 (a winning state).
+For every winning state, there is a valid move to a losing state:
+Let x be the XOR of all pile sizes. Since our state is winning, x != 0.
+Consider the leading 1 bit of x. There must be some pile with size p, where p has that bit set (otherwise the XOR of all piles would not have that bit set). XOR(p,x) does not have this bit set, and has the same larger bits as p (since this is the largest bit of x), so XOR(p,x) < p. We take the move p -> XOR(p,x), making the new XOR of all piles: XOR(x,p,XOR(pox)) = 0 (a losing state).
+
+In (2), the losing states are where:
+A. If there is a pile of size 2 or greater, the XOR of all pile sizes = 0
+B. If there is not a pile of size 2 or greater, the XOR of all pile sizes = 1
+For every losing state, any valid move moves to a winning state:
+(A) Since there is a pile of size 2 or greater, and the XOR of all pile sizes = 0, there are multiple piles of size 2 or greater. By the same logic as Nim, the resulting XOR after a valid move will be nonzero, and there will still be at least 1 pile of size 2 or greater (a winning state).
+(B) Since all piles have size 1, the only valid move is 1 -> 0, making the XOR of all states 0 (and there is not a pile of size 2 or greater) (a winning state).
+For every winning state, there is a valid move to a losing state:
+If there is not a pile of size 2 or greater, the XOR of all pile sizes = 0, and we either have 0 piles (winning by game definition), or we move 1 -> 0, making the XOR of all pile sizes = 1 (with no pile of size 2 or greater) (a losing position).
+If there are multiple piles of size 2 or greater the XOR of all pile sizes != 0. Employ the same strategy from Nim to produce piles with XOR = 0 (there is still at least 1 pile with size 2 or greater) (a losing position).
+If there is exactly 1 pile of size 2 or greater, reduce this tall pile to either 0 or 1, making the XOR of all piles 0 or 1. You may pick between making the XOR 0 and 1, and you pick to make it 1 (with no piles of size 2 or greater, this is a losing position).
+
+In (3), the losing states are where:
+A. If there is a pile of size 4 or greater, the XOR of all pile sizes = 1
+B. If there is not a pile of size 4 or greater, the XOR of all pile sizes = 2
+For every losing state, any valid move moves to a winning state:
+(A) Since there is a pile of size 4 or greater, and the XOR of all pile sizes = 1 < 4, there are multiple piles of size 4 or greater. By the same logic as Nim, any valid pile move will change the XOR to != 1, and there will will be a pile of size 4 or greater (a winning state). By declaring the end state, we have a pile of size 4 or greater, with XOR = 1, a winning state in either (1) or (2).
+(B) Since all piles have size <= 3, and the XOR of all pile sizes = 2, by the same logic as Nim, any valid move will change the XOR to != 2, and all piles have size <= 3 (a winning state). By declaring the end state, we have XOR = 2, a winning state in either (1) or (2).
+For every winning state, there is a valid move to a losing state:
+If there are multiple piles of size 4 or greater, x = XOR != 1. If XOR = 0, declare the end state as "Nim" (a losing position). Otherwise, XOR > 1, and we can find a pile p that contains the leading 1 bit of x. XOR(p,x,1) doesn't contain this bit, thus XOR(p,x,1) < p. Reduce p -> XOR(p,x,1), and the new XOR is XOR(x,p,XOR(p,x,1)) = 1, with a pile of size 4 or greater (a losing position).
+If there is exactly 1 pile of size 4 or greater, x = XOR >= 4. We can reduce the single pile with size >= 4 to {0,1,2,3}, producing possible pile XORs of {0,1,2,3}. We select the new size to make the new XOR = 2, and now no piles of size 4 or greater exist (a losing position).
+If there is not a pile of size 4 or greater, the XOR of all pile sizes != 2. If XOR = 0, declare the end state as "Nim", leaving a losing state. If XOR = 3, there is some pile with an odd number of elements: reduce this pile by 1, making the XOR = 2 (with no piles of size 4 or greater) (a losing state). If XOR = 1, and there is a pile of size 2 or 3, reduce that pile (2 -> 1 or 3 -> 0), making the new XOR = XOR(1,2,1) = 2 or XOR(1,3,0) = 2, with no piles of size 4 or greater (a losing state). If XOR = 1, and the only piles have size 1, declare the end state as "Nim Misere", and XOR = 1 with no pile of size 2 or greater (a losing position).
