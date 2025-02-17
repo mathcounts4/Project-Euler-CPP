@@ -50,13 +50,14 @@ template<class T> auto isGeq(T const& y) {
 	auto disp_fail = []() -> decltype(auto) {			\
 	    global_success = false;					\
 	    return std::cout << CHECK_TYPE << " failed in " <<		\
-	    __FILE__ << ": " << __LINE__ << ": " <<			\
-	    #VALUE << " " << #__VA_ARGS__ << " failed due to ";		\
+		__FILE__ << ": " << __LINE__ << ": " <<			\
+		#VALUE << " " << #__VA_ARGS__ << " failed due to ";	\
 	};								\
 	try {								\
 	    auto&& value = VALUE;					\
-	    if (!(__VA_ARGS__(value)))					\
+	    if (!(__VA_ARGS__(value))) {				\
 		disp_fail() << "incorrect value: " << value << std::endl; \
+	    }								\
 	} catch (std::exception const& ex) {				\
 	    disp_fail() << "exception: " << ex.what() << std::endl;	\
 	} catch (...) {							\

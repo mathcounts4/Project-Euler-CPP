@@ -26,6 +26,7 @@
 #include "tSegmentTree.hpp"
 #include "tTuple.hpp"
 #include "tUseRef.hpp"
+#include "tVariant.hpp"
 #include "tZip.hpp"
 
 // include headers rather than cpp so they're compiled independently
