@@ -8,8 +8,230 @@
 std::string const BigInt::INF_STR = "INF";
 std::string const BigInt::NEG_INF_STR = "-INF";
 
+class BigInt::Impl {
+  public:
+    static constexpr auto shift_sz = BigInt::shift_sz;
 
-// private functions:
+    enum class AddOrSubtract { Add, Subtract };
+    template<AddOrSubtract action>
+    static void addOrSubtract(BigInt& x, BigInt const& y) {
+	B matchesSign = (x.negative == y.negative) == (action == AddOrSubtract::Add);
+	if (x.inf()) {
+	    if (y.inf() && !matchesSign) {
+		throw_exception<std::domain_error>(static_cast<std::string>(x) +
+						   (action == AddOrSubtract::Add ? " + " : " -") +
+						   static_cast<std::string>(y));
+	    }
+	    return;
+	}
+	if (y.inf()) {
+	    x = y;
+	    if (action == AddOrSubtract::Subtract) {
+		x.negateMe();
+	    }
+	    return;
+	}
+	if (matchesSign) {
+	    // same sign -> addition -> carry indicates add 1
+	    B carry = false;
+	    SZ i = 0;
+	    if (x.data.size() < y.data.size()) {
+		x.data.resize(y.data.size(), small_t(0));
+	    }
+	    for (; i < y.data.size(); ++i) {
+		small_t d = x.data[i];
+		if (carry) {
+		    carry = 0 == ++d;
+		}
+		small_t res = d + y.data[i];
+		carry |= res < d;
+		x.data[i] = res;
+	    }
+	    while (carry) {
+		if (i == x.data.size()) {
+		    x.data.emplace_back(1);
+		    break;
+		} else {
+		    carry = 0 == ++x.data[i++];
+		}
+	    }
+	} else {
+	    if (lessThanInAbs(x, y)) {
+		// TODO: it'd be nice to avoid recursion and copying y
+		BigInt withYFirst(y);
+		addOrSubtract<action>(withYFirst, x);
+		if (action == AddOrSubtract::Subtract) {
+		    // other - this -> this - other
+		    withYFirst.negateMe();
+		}
+		x.swap(withYFirst);
+		return;
+	    }
+
+	    // different signs -> subtraction -> carry indicates subtract 1
+	    B carry = false;
+	    SZ i = 0;
+	    for (; i < y.data.size(); ++i) {
+		if (carry) {
+		    carry = 0 == x.data[i]--;
+		}
+		carry |= x.data[i] < y.data[i];
+		x.data[i] -= y.data[i];
+	    }
+	    if (carry) {
+		while (0 == x.data[i++]--); // intentional ;
+	    }
+	    x.reduce();
+	}
+    }
+
+    enum class DivRemKind { DivTowardsZero, DivAwayFromZero, Rem };
+    template<DivRemKind kind>
+    static void divOrRem(BigInt& x, BigInt const& y) {
+	constexpr B IsRem = kind == DivRemKind::Rem;
+	constexpr B IsDiv = kind != DivRemKind::Rem;
+	constexpr B RoundAway = kind == DivRemKind::DivAwayFromZero;
+	if (!y) {
+	    throw_exception<std::domain_error>("div/rem by zero");
+	}
+	if (x.inf() && y.inf()) {
+	    throw_exception<std::domain_error>("±Inf div/rem ±Inf");
+	}
+	if (!x) {
+	    return;
+	}
+	auto toAddIfBetweenInts = RoundAway ? x.neg() == y.neg() ? 1 : -1 : 0;
+	if constexpr (IsDiv) {
+	    if (y.neg()) {
+		// For the rest of this function, we ignore the sign of other.
+		// *this has the final sign (with a final reduce() at the end, if it becomes -0).
+		x.negateMe();
+	    }
+	}
+	if (x.inf()) {
+	    if constexpr (IsRem) {
+		throw_exception<std::domain_error>("±Inf rem x");
+	    }
+	    return;
+	}
+	if (y.inf()) {
+	    if constexpr (IsRem) {
+		// don't modify x (remainder mod ±inf)
+	    } else {
+		// Already checked for x=0 above, so we have a remainder to round away from 0
+		x = toAddIfBetweenInts;
+	    }
+	    return;
+	}
+
+	if (y.isPowerOf2()) {
+	    SZ k = y.log2();
+	    if constexpr (IsRem) {
+		// x % 2^k
+		SZ data_sz = (k + shift_sz - 1) / shift_sz;
+		if (x.data.size() > data_sz) {
+		    x.data.resize(data_sz);
+		}
+		SZ small_bits = k % shift_sz;
+		if (small_bits > 0 && x.data.size() == data_sz) {
+		    x.data.back() &= (small_t(1) << small_bits) - small_t(1);
+		}
+		x.reduce();
+		return;
+	    } else {
+		B betweenInts = false;
+		if constexpr (RoundAway) {
+		    // x / 2^k -> check last k bits
+		    if (x.data.size() > k / shift_sz &&
+			(x.data[k / shift_sz] & ((small_t(1) << (k % shift_sz)) - small_t(1)))) {
+			// last word of x that contains some of the final k bits
+			// check the last (k % shift_sz) bits of this word
+			betweenInts = true;
+		    } else {
+			for (auto word = std::min(k / shift_sz, x.data.size()); word--; ) {
+			    if (x.data[word]) {
+				betweenInts = true;
+				break;
+			    }
+			}
+		    }
+		}
+		x >>= static_cast<SL>(k);
+		if (betweenInts) {
+		    x += toAddIfBetweenInts;
+		}
+		return;
+	    }
+	}
+
+	if (y.data.size() == 1) {
+	    big_t value = 0;
+	    small_t divisor = y.data[0];
+	    for (SZ i = x.data.size(); i-- > 0; ) {
+		value = (value << shift_sz) | x.data[i];
+		if constexpr (IsDiv) {
+		    x.data[i] = static_cast<small_t>(value / divisor);
+		}
+		value %= divisor;
+	    }
+	    if constexpr (IsRem) {
+		B const is_neg = x.neg();
+		x = value;
+		if (is_neg) {
+		    x.negateMe();
+		}
+	    } else {
+		x.reduce();
+		if (value) {
+		    x += toAddIfBetweenInts;
+		}
+	    }
+	    return;
+	}
+
+	SZ shift;
+	{
+	    auto xl2 = x.log2();
+	    auto yl2 = y.log2();
+	    if (xl2 < yl2) {
+		if constexpr (IsDiv) {
+		    x = toAddIfBetweenInts;
+		}
+		return;
+	    }
+	    shift = xl2 - yl2;
+	}
+	B resultNegative = x.neg();
+	x.absMe();
+
+	BigInt divResult;
+	if constexpr (IsDiv) {
+	    divResult.data.resize(shift / shift_sz + 1);
+	}
+
+	BigInt times = y.abs();
+	times <<= static_cast<SL>(shift);
+	for (++shift; shift--; times >>= 1) {
+	    if (x >= times) {
+		x -= times;
+		if constexpr (IsDiv) {
+		    divResult.data[shift / shift_sz] |= small_t(1) << (shift % shift_sz);
+		}
+	    }
+	}
+	if constexpr (IsRem) {
+	    x.negative = resultNegative && x ? Negative::True : Negative::False;
+	} else {
+	    B isBetweenInts = static_cast<B>(x);
+	    x.swap(divResult);
+	    x.reduce();
+	    x.negative = resultNegative && x ? Negative::True : Negative::False;
+	    if (isBetweenInts) {
+		x += toAddIfBetweenInts;
+	    }
+	}
+    }
+};
 
 // deletes extra 0's from the data
 void BigInt::reduce() {
@@ -102,9 +324,35 @@ B BigInt::neg() const {
     return negative == Negative::True;
 }
 SI BigInt::cmp() const {
-    if (!*this)
+    if (!*this) {
 	return 0;
+    }
     return neg() ? -1 : 1;
+}
+B lessThanInAbs(BigInt const& x, BigInt const& y) {
+    if (x.inf()) {
+	return false;
+    }
+    if (y.inf()) {
+	return true;
+    }
+    if (!y) {
+	return false;
+    }
+    if (!x) {
+	return true;
+    }
+    auto sx = x.data.size();
+    auto sy = y.data.size();
+    if (sx != sy) {
+	return sx < sy;
+    }
+    for (auto i = sx; i--; ) {
+	if (x.data[i] != y.data[i]) {
+	    return x.data[i] < y.data[i];
+	}
+    }
+    return false;
 }
 
 // swap
@@ -186,80 +434,12 @@ BigInt& BigInt::operator++() { return *this += 1; }
 BigInt& BigInt::operator--() { return *this -= 1; }
 
 BigInt& BigInt::operator+=(BigInt const& o) {
-    addOrSubtract(o, AddOrSubtract::Add);
+    Impl::addOrSubtract<Impl::AddOrSubtract::Add>(*this, o);
     return *this;
 }
 BigInt& BigInt::operator-=(BigInt const& o) {
-    addOrSubtract(o, AddOrSubtract::Subtract);
+    Impl::addOrSubtract<Impl::AddOrSubtract::Subtract>(*this, o);
     return *this;
-}
-void BigInt::addOrSubtract(BigInt const& other, AddOrSubtract action) {
-    B matchesSign = (negative == other.negative) == (action == AddOrSubtract::Add);
-    if (inf()) {
-	if (other.inf() && !matchesSign) {
-	    throw_exception<std::domain_error>(static_cast<std::string>(*this) +
-					       (action == AddOrSubtract::Add ? " + " : " -") +
-					       static_cast<std::string>(other));
-	}
-	return;
-    }
-    if (other.inf()) {
-	*this = other;
-	if (action == AddOrSubtract::Subtract) {
-	    negateMe();
-	}
-	return;
-    }
-    if (matchesSign) {
-	// same sign -> addition -> carry indicates add 1
-	B carry = false;
-	SZ i = 0;
-	if (data.size() < other.data.size()) {
-	    data.resize(other.data.size(), small_t(0));
-	}
-	for (; i < other.data.size(); ++i) {
-	    if (carry) {
-		carry = 0 == ++data[i];
-	    }
-	    small_t res = data[i] + other.data[i];
-	    carry |= res < data[i];
-	    data[i] = res;
-	}
-	while (carry) {
-	    if (i == data.size()) {
-		data.emplace_back(1);
-		break;
-	    } else {
-		carry = 0 == ++data[i++];
-	    }
-	}
-    } else {
-	if (this->abs() < other.abs()) {
-	    BigInt withOtherFirst(other);
-	    withOtherFirst.addOrSubtract(*this, action);
-	    if (action == AddOrSubtract::Subtract) {
-		// other - this -> this - other
-		withOtherFirst.negateMe();
-	    }
-	    swap(withOtherFirst);
-	    return;
-	}
-	
-	// different signs -> subtraction -> carry indicates subtract 1
-	B carry = false;
-	SZ i = 0;
-	for (; i < other.data.size(); ++i) {
-	    if (carry) {
-		carry = 0 == data[i]--;
-	    }
-	    carry |= data[i] < other.data[i];
-	    data[i] -= other.data[i];
-	}
-	if (carry) {
-	    while (0 == data[i++]--); // intentional ;
-	}
-	reduce();
-    }
 }
 BigInt& BigInt::operator*=(BigInt const& other) {
     if (!*this) {
@@ -341,113 +521,18 @@ BigInt& BigInt::operator*=(BigInt const& other) {
     swap(result);
     return *this;
 }
-
-void BigInt::divOrRem(BigInt const& other, DivOrRem action) {
-    if (!other) {
-	throw_exception<std::domain_error>("div/rem by zero");
-    }
-    if (inf() && other.inf()) {
-	throw_exception<std::domain_error>("±Inf div/rem ±Inf");
-    }
-    if (!*this) {
-	return;
-    }
-    if (other.neg() && action == DivOrRem::Div) {
-	// For the rest of this function, we ignore the sign of other.
-	// *this has the final sign (with a final reduce() at the end, if it becomes -0).
-	negateMe();
-    }
-    if (inf()) {
-	if (action == DivOrRem::Rem) {
-	    throw_exception<std::domain_error>("±Inf rem x");
-	}
-	return;
-    }
-    if (other.inf()) {
-	if (action == DivOrRem::Div) {
-	    *this = BigInt{};
-	}
-	return;
-    }
-    
-    if (other.isPowerOf2()) {
-	if (action == DivOrRem::Div) {
-	    *this >>= static_cast<SL>(other.log2());
-	} else {
-	    SZ bits = other.log2();
-	    SZ data_sz = (bits + shift_sz - 1) / shift_sz;
-	    if (data.size() > data_sz)
-		data.resize(data_sz);
-	    SZ small_bits = bits % shift_sz;
-	    if (small_bits > 0 && data.size() == data_sz)
-		data.back() &= (small_t(1) << small_bits) - small_t(1);
-	    reduce();
-	}
-	return;
-    }
-    
-    if (other.data.size() == 1) {
-	big_t value = 0;
-	small_t divisor = other.data[0];
-	for (SZ i = data.size(); i-- > 0; ) {
-	    value = (value << shift_sz) | data[i];
-	    if (action == DivOrRem::Div) {
-		data[i] = static_cast<small_t>(value / divisor);
-	    }
-	    value %= divisor;
-	}
-	if (action == DivOrRem::Rem) {
-	    B const is_neg = neg();
-	    *this = value;
-	    if (is_neg) {
-		negateMe();
-	    }
-	}
-	reduce();
-	return;
-    }
-
-    SZ shift;
-    {
-	auto l2 = log2();
-	auto ol2 = other.log2();
-	if (l2 < ol2) {
-	    if (action == DivOrRem::Div) {
-		*this = BigInt{};
-	    }
-	    return;
-	}
-	shift = l2 - ol2;
-    }
-    B resultNegative = neg();
-    absMe();
-
-    BigInt divResult;
-    divResult.data.resize(shift / shift_sz + 1);
-    
-    BigInt times = other.abs();
-    times <<= static_cast<SL>(shift);
-    for (++shift; shift--; times >>= 1) {
-	if (*this >= times) {
-	    *this -= times;
-	    divResult.data[shift / shift_sz] |= small_t(1) << (shift % shift_sz);
-	}
-    }
-    if (action == DivOrRem::Div) {
-	swap(divResult);
-    }
-    negative = resultNegative ? Negative::True : Negative::False;
-    reduce();
-}
-// always rounds towards 0
 BigInt& BigInt::operator/=(BigInt const& other) {
-    divOrRem(other, DivOrRem::Div);
+    Impl::divOrRem<Impl::DivRemKind::DivTowardsZero>(*this, other);
     return *this;
 }
 // always has the same sign as *this (unless becomes 0)
 BigInt& BigInt::operator%=(BigInt const& other) {
-    divOrRem(other, DivOrRem::Rem);
+    Impl::divOrRem<Impl::DivRemKind::Rem>(*this, other);
     return *this;
+}
+BigInt divideRoundAwayFrom0(BigInt x, BigInt const& y) {
+    BigInt::Impl::divOrRem<BigInt::Impl::DivRemKind::DivAwayFromZero>(x, y);
+    return x;
 }
 BigInt& BigInt::operator^=(std::size_t exp) {
     if (!exp && !*this)

@@ -59,17 +59,13 @@ class BigInt {
     friend struct std::hash<BigInt>;
     friend struct Class<BigInt>;
     
+    class Impl;
+    friend class Impl;
+
     // deletes extra 0's from the data
     void reduce();
-
-    enum class AddOrSubtract { Add, Subtract };
-    void addOrSubtract(BigInt const& other, AddOrSubtract action);
-
-    enum class DivOrRem { Div, Rem };
-    void divOrRem(BigInt const& other, DivOrRem action);
     
   public:
-
     static std::string const INF_STR;
     static std::string const NEG_INF_STR;
     
@@ -86,6 +82,8 @@ class BigInt {
     bool inf() const;
     bool neg() const;
     int cmp() const;
+    // |x| < |y|
+    friend bool lessThanInAbs(BigInt const& x, BigInt const& y);
 
     BigInt& absMe();
     BigInt& negateMe();
@@ -140,8 +138,10 @@ class BigInt {
     friend BigInt operator*(BigInt x, BigInt const& y);
     BigInt& operator*=(BigInt const& o);
 
+    // / and /= round towards 0
     friend BigInt operator/(BigInt x, BigInt const& y);
     BigInt& operator/=(BigInt const& o);
+    friend BigInt divideRoundAwayFrom0(BigInt x, BigInt const& y);
 
     friend BigInt operator%(BigInt x, BigInt const& y);
     BigInt& operator%=(BigInt const& o);

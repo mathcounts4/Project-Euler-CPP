@@ -128,10 +128,34 @@ TEST(BigInt,Arithmetic) {
     CHECK(BigInt("12345678999999999999999999999") / -(BigInt(10) ^ 20), equals(-123456789L));
     CHECK(BigInt("-12345678900000000000000000000") / -(BigInt(10) ^ 20), equals(123456789L));
     CHECK(BigInt("-12345678999999999999999999999") / -(BigInt(10) ^ 20), equals(123456789L));
+    CHECK(((BigInt(2) ^ 39) - 1) / (BigInt(2) ^ 22), equals((BigInt(2) ^ 17) - 1));
+    CHECK((BigInt(2) ^ 39) / (BigInt(2) ^ 22), equals(BigInt(2) ^ 17));
+    CHECK(((BigInt(2) ^ 39) + 1) / (BigInt(2) ^ 22), equals(BigInt(2) ^ 17));
     CHECK(inf / three, equals(inf));
     CHECK(inf / negativeFive, equals(negInf));
     CHECK(negInf / three, equals(negInf));
     CHECK(negInf / negativeFive, equals(inf));
+
+    // divideRoundAwayFrom0
+    CHECK(divideRoundAwayFrom0(three, negativeFive), equals(-1));
+    CHECK(divideRoundAwayFrom0(negativeFive, three), equals(-2));
+    CHECK(divideRoundAwayFrom0(negativeFive, 2), equals(-3));
+    CHECK(divideRoundAwayFrom0(big, 7), equals(bigUL/7 + (bigUL%7 ? 1 : 0)));
+    CHECK(divideRoundAwayFrom0(BigInt("12345678900000000000000000000"), BigInt(10) ^ 20), equals(123456789U));
+    CHECK(divideRoundAwayFrom0(BigInt("12345678999999999999999999999"), BigInt(10) ^ 20), equals(123456790U));
+    CHECK(divideRoundAwayFrom0(BigInt("-12345678900000000000000000000"), BigInt(10) ^ 20), equals(-123456789L));
+    CHECK(divideRoundAwayFrom0(BigInt("-12345678999999999999999999999"), BigInt(10) ^ 20), equals(-123456790L));
+    CHECK(divideRoundAwayFrom0(BigInt("12345678900000000000000000000"), -(BigInt(10) ^ 20)), equals(-123456789L));
+    CHECK(divideRoundAwayFrom0(BigInt("12345678999999999999999999999"), -(BigInt(10) ^ 20)), equals(-123456790L));
+    CHECK(divideRoundAwayFrom0(BigInt("-12345678900000000000000000000"), -(BigInt(10) ^ 20)), equals(123456789L));
+    CHECK(divideRoundAwayFrom0(BigInt("-12345678999999999999999999999"), -(BigInt(10) ^ 20)), equals(123456790L));
+    CHECK(divideRoundAwayFrom0((BigInt(2) ^ 39) - 1, BigInt(2) ^ 22), equals(BigInt(2) ^ 17));
+    CHECK(divideRoundAwayFrom0(BigInt(2) ^ 39, BigInt(2) ^ 22), equals(BigInt(2) ^ 17));
+    CHECK(divideRoundAwayFrom0((BigInt(2) ^ 39) + 1, BigInt(2) ^ 22), equals((BigInt(2) ^ 17) + 1));
+    CHECK(divideRoundAwayFrom0(inf, three), equals(inf));
+    CHECK(divideRoundAwayFrom0(inf, negativeFive), equals(negInf));
+    CHECK(divideRoundAwayFrom0(negInf, three), equals(negInf));
+    CHECK(divideRoundAwayFrom0(negInf, negativeFive), equals(inf));
 
     // %
     CHECK(zero % negativeFive, equals(0));
