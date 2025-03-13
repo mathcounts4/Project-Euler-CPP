@@ -1,5 +1,6 @@
 #include "BigInt.hpp"
 #include "Class.hpp"
+#include "DigitParser.hpp"
 #include "ExitUtils.hpp"
 #include "TypeUtils.hpp"
 #include "Vec.hpp"
@@ -640,37 +641,6 @@ template<> std::ostream& Class<BigInt>::print(std::ostream& oss, BigInt const& b
     return oss << std::string(bi);
 }
 
-template<C Low, C High>
-static std::optional<UI> distFromBottomIfInRangeInclusive(C value) {
-    if (Low <= value && value <= High) {
-	return static_cast<UI>(value - Low);
-    } else {
-	return std::nullopt;
-    }
-}
-
-struct DigitParser {
-    function_pointer<std::optional<UI>, C> fCharToDigit;
-    UI fMultPerDigit;
-};
-
-static std::optional<UI> hexDigitParser(C value) {
-    if (auto decimal = distFromBottomIfInRangeInclusive<'0', '9'>(value)) {
-	return *decimal;
-    } else if (auto lowercaseHex = distFromBottomIfInRangeInclusive<'a', 'f'>(value)) {
-	return *lowercaseHex + 10u;
-    } else if (auto uppercaseHex = distFromBottomIfInRangeInclusive<'A', 'F'>(value)) {
-	return *uppercaseHex + 10u;
-    } else {
-	return std::nullopt;
-    }
-}
-
-constexpr DigitParser DecimalParser{&distFromBottomIfInRangeInclusive<'0', '9'>, 10};
-constexpr DigitParser BinaryParser{&distFromBottomIfInRangeInclusive<'0', '1'>, 2};
-constexpr DigitParser OctalParser{&distFromBottomIfInRangeInclusive<'0', '7'>, 8};
-constexpr DigitParser HexParser{&hexDigitParser, 16};
-
 template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is) {
     Resetter resetter{is};
     std::ws(is);
@@ -692,15 +662,9 @@ template<> Optional<BigInt> Class<BigInt>::parse(std::istream& is) {
     B init = false;
     DigitParser digitParser = DecimalParser;
     if (consume(is, '0')) {
-	if (consume(is, 'x') || consume(is, 'X')) {
-	    // 0x... -> hex
-	    digitParser = HexParser;
-	} else if (consume(is, 'o') || consume(is, 'O')) {
-	    // 0o... -> octal
-	    digitParser = OctalParser;
-	} else if (consume(is, 'b') || consume(is, 'B')) {
-	    // 0b... -> binary
-	    digitParser = BinaryParser;
+	if (auto parserFromPrefix = DigitParser::fromPrefixChar(is.peek())) {
+	    digitParser = *parserFromPrefix;
+	    is.get();
 	} else {
 	    init = true;
 	}
