@@ -18,6 +18,7 @@
 #include "tMod.hpp"
 #include "tOverload.hpp"
 #include "tPermutationMapping.hpp"
+#include "tPreciseRange.hpp"
 #include "tPrimeUtils.hpp"
 #include "tProjectEuler.hpp"
 #include "tPythagoreanTripleGenerator.hpp"
