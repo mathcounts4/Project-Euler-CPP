@@ -16,6 +16,11 @@ TEST(PreciseRange, ConstructionAndPrinting) {
     CHECK(PreciseRange("3.14159").toStringWithUncertaintyLog2AtMost(0), equals("[3.125 ± 0.125]"));
 }
 
+TEST(PreciseRange, ToString) {
+    CHECK(sqrt(-(3 * PreciseRange::pi()) + -4 / -PreciseRange(7) - PreciseRange("0.7") + PreciseRange("0xFF")).toStringExact(), equals("√(((-(3*π)+-4/-(7))-7/10)+255)"));
+    CHECK(distanceToNearestInteger(exp(sin(cos(sinh(cosh(PreciseRange(5))))))).toStringExact(), equals("distanceToNearestInteger(e^(sin(cos(sinh(cosh(5))))))"));
+}
+
 TEST(PreciseRange, Comparison) {
     // All combinations of positives / negatives
     CHECK(PreciseRange(3) < PreciseRange(4), isTrue());

@@ -41,7 +41,7 @@ struct PreciseRange {
 
     // Printing utilities
 
-    // Prints an expression representing the exact value, like "sqrt(3 * π + 4 / -7)
+    // Prints an expression representing the exact value, like "√(3 * π + 4 / -7)
     std::string toStringExact() const;
     
     // If maxUncertaintyLog2 is provided, produces a result whose uncertainty is ≤ 2^maxUncertaintyLog2.
