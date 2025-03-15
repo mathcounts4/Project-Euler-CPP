@@ -45,7 +45,7 @@ struct PreciseRange {
     std::string toStringExact() const;
     
     // If maxUncertaintyLog2 is provided, produces a result whose uncertainty is ≤ 2^maxUncertaintyLog2.
-    // Otherwise produces a result with uncertainty based on what the already completed computations have required.
+    // Otherwise produces a result with uncertainty based on what the already completed computations have required, or an estimate if no computation has been performed.
     std::string toStringWithUncertaintyLog2AtMost(std::optional<std::int64_t> maxUncertaintyLog2) const;
 
   private:

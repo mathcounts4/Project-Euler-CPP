@@ -2,7 +2,8 @@
 #include "harness.hpp"
 
 TEST(PreciseRange, ConstructionAndPrinting) {
-    CHECK(PreciseRange(3).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("[uncomputed]"));
+    CHECK(PreciseRange(3).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("3"));
+    CHECK(PreciseRange("3.14159").toStringWithUncertaintyLog2AtMost(std::nullopt), equals("[3.5 ± 0.5]"));
     CHECK(PreciseRange(0).toStringWithUncertaintyLog2AtMost(2), equals("0"));
     CHECK(PreciseRange(0).toStringWithUncertaintyLog2AtMost(-4), equals("0"));
     CHECK(PreciseRange(3).toStringWithUncertaintyLog2AtMost(-3), equals("3"));

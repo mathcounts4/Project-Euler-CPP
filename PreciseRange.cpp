@@ -511,7 +511,7 @@ struct BinaryShiftedIntRange {
 	}
     }
 
-    friend BinaryShiftedIntRange distanceToNearestInteger(BinaryShiftedIntRange x) {
+    friend BinaryShiftedIntRange distanceToNearestInteger(BinaryShiftedIntRange const& x) {
 	if (x.uncertaintyLog2() >= 1) {
 	    // Since uncertainty is in [1, 2), this range extends for at least 1, thus includes low (0) and high (0.5) values for the distance to an integer
 	    BinaryShiftedInt half(1, -1);
@@ -576,45 +576,45 @@ struct AdjustablePrecisionRange {
 	if (maxUncertaintyLog2) {
 	    return withUncertaintyLog2AtMost(*maxUncertaintyLog2).toString();
 	}
-	if (fCachedValue) {
-	    return fCachedValue->toString();
-	} else {
-	    return "[uncomputed]";
-	}
+	return estimate().toString();
     }
-    BinaryShiftedIntRange estimate() {
+    BinaryShiftedIntRange const& estimate() {
 	if (!fCachedValue) {
 	    fCachedValue = calculateEstimate();
 	}
 	return *fCachedValue;
     }
-    BinaryShiftedIntRange withUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) {
+    BinaryShiftedIntRange const& withUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) {
 	bool cachedValueOK = fCachedValue && fCachedValue->uncertaintyLog2() <= maxUncertaintyLog2;
 	if (!cachedValueOK) {
 	    fCachedValue = calculateUncertaintyLog2AtMost(maxUncertaintyLog2);
 	}
 	return *fCachedValue;
     }
-    std::pair<BinaryShiftedIntRange, Sign> refineUntilSignIsKnown() {
-	auto est = estimate();
+    struct RefinedWithSign {
+	BinaryShiftedIntRange const& fRange;
+	Sign fSign;
+    };
+    RefinedWithSign refineUntilSignIsKnown() {
+	auto const& est = estimate();
 	if (auto sign = est.signIfKnown()) {
-	    return {std::move(est), sign->fSign};
+	    return {est, sign->fSign};
 	}
 	// Dereference is safe: if there was no uncertainty, the sign would be known.
 	std::int64_t const estimateUncertaintyLog2 = *est.uncertaintyLog2().fValue;
 	auto uncertaintyLog2 = estimateUncertaintyLog2;
 	for (std::int64_t extraPrecision = 1; extraPrecision <= 1024; extraPrecision *= 2) {
 	    uncertaintyLog2 = estimateUncertaintyLog2 - extraPrecision;
-	    BinaryShiftedIntRange result = withUncertaintyLog2AtMost(uncertaintyLog2);
+	    BinaryShiftedIntRange const& result = withUncertaintyLog2AtMost(uncertaintyLog2);
 	    if (auto sign = result.signIfKnown()) {
-		return {std::move(result), sign->fSign};
+		return {result, sign->fSign};
 	    }
 	}
 	throw_exception<std::logic_error>("With uncertainty ≤ 2^(" + std::to_string(uncertaintyLog2) + "), could not determine " + toStringExact(nullptr));
     }
 
-    BinaryShiftedIntRange refineUntilSignIsKnownAndRangeInFactorOf2() {
-	auto range = std::move(refineUntilSignIsKnown().first);
+    BinaryShiftedIntRange const& refineUntilSignIsKnownAndRangeInFactorOf2() {
+	auto const& range = refineUntilSignIsKnown().fRange;
 	auto maximumLog2Uncertainty = *minFloorLog2Abs(range);
 	if (range.uncertaintyLog2() <= maximumLog2Uncertainty) {
 	    return range;
@@ -1006,8 +1006,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::MultiplicationDivision;
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    auto denominator = std::move(fRhs->refineUntilSignIsKnown().first);
-	    return fLhs->estimate() / denominator;
+	    return fLhs->estimate() / fRhs->refineUntilSignIsKnown().fRange;
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
 	    // [a,b] / [c,d] where C = |c| ≤ |d| = D, A = |a|, B = |b|
@@ -1110,8 +1109,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 
 bool operator<(PreciseRange const& x, PreciseRange const& y) {
     auto sub = x - y;
-    auto sign = sub.impl()->refineUntilSignIsKnown().second;
-    return sign == Sign::Negative;
+    return sub.impl()->refineUntilSignIsKnown().fSign == Sign::Negative;
 }
 
 bool operator>(PreciseRange const& x, PreciseRange const& y) {
