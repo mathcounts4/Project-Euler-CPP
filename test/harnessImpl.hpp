@@ -59,7 +59,7 @@ template<class T> auto isGeq(T const& y) {
 		disp_fail() << "incorrect value: " << value << std::endl; \
 	    }								\
 	} catch (std::exception const& ex) {				\
-	    disp_fail() << "exception: " << ex.what() << std::endl;	\
+	    disp_fail() << "std::exception: " << ex.what() << std::endl; \
 	} catch (...) {							\
 	    disp_fail() << "unknown exception" << std::endl;		\
 	}								\
@@ -80,3 +80,25 @@ template<class T> auto isGeq(T const& y) {
 	global_success = prev_success;					\
     } while (0)
 
+#define CHECK_THROWS_IMPL(EXPR,EXPECTED_EXCEPTION)			\
+    do {								\
+	auto disp_fail = []() -> decltype(auto) {			\
+	    global_success = false;					\
+	    return std::cout << "CHECK_THROWS failed in " <<		\
+		__FILE__ << ": " << __LINE__ << ": " <<			\
+		#EXPR << " " << #EXPECTED_EXCEPTION << " failed due to "; \
+	};								\
+	try {								\
+	    try {							\
+		(void)(EXPR);						\
+		disp_fail() << "no exception thrown" << std::endl;	\
+	    } catch (EXPECTED_EXCEPTION const&) {			\
+		/* success */						\
+	    }								\
+	} catch (std::exception const& ex) {				\
+	    /* Use a nested try-catch to avoid warning when EXPECTED_EXCEPTION = std::exception */ \
+	    disp_fail() << "std::exception: " << ex.what() << std::endl; \
+	} catch (...) {							\
+	    disp_fail() << "unknown exception" << std::endl;		\
+	}								\
+    } while (0)

@@ -15,6 +15,14 @@ TEST(PreciseRange, ConstructionAndPrinting) {
     CHECK(PreciseRange("-0o77.3").toStringWithUncertaintyLog2AtMost(0), equals("-63.375"));
     CHECK(PreciseRange("-.5").toStringWithUncertaintyLog2AtMost(0), equals("[-.5 ± 0.5]"));
     CHECK(PreciseRange("3.14159").toStringWithUncertaintyLog2AtMost(0), equals("[3.125 ± 0.125]"));
+
+    /* this makes the test too slow
+    CHECK_THROWS(PreciseRange("-0x."), std::invalid_argument);
+    CHECK_THROWS(PreciseRange("0b2"), std::invalid_argument);
+    CHECK_THROWS(PreciseRange("0o8"), std::invalid_argument);
+    CHECK_THROWS(PreciseRange("0xg"), std::invalid_argument);
+    CHECK_THROWS(PreciseRange("a"), std::invalid_argument);
+    */
 }
 
 TEST(PreciseRange, ToString) {
@@ -47,4 +55,15 @@ TEST(PreciseRange, HighPrecisionDivision) {
     CHECK(PreciseRange(9999) / 10000 < PreciseRange(10000) / 10001, isTrue());
     CHECK(PreciseRange(7) / 3 > PreciseRange("2.33333333333333333333333333333333333333"), isTrue());
     CHECK(PreciseRange(7) / 3 < PreciseRange("2.33333333333333333333333333333333333334"), isTrue());
+}
+
+TEST(PreciseRange, DivisionBy0) {
+    // doesn't throw on construction
+    CHECK((PreciseRange(1) / PreciseRange(0), true), isTrue());
+    CHECK((PreciseRange(1) / (PreciseRange("0.3") - PreciseRange("0.3")), true), isTrue());
+    // throws when division is evaluated
+    /* this makes the test too slow
+    CHECK_THROWS(PreciseRange(1) / PreciseRange(0) > 0, std::domain_error);
+    CHECK_THROWS(PreciseRange(1) / (PreciseRange("0.3") - PreciseRange("0.3")) > 0, std::domain_error);
+    */
 }

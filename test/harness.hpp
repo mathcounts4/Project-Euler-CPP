@@ -24,6 +24,8 @@ int main();
 // fails the test (printing info) and the test point stops
 #define ASSERT(VALUE,FUNCTOR) ASSERT_IMPL(VALUE,FUNCTOR)
 
+#define CHECK_THROWS(EXPR,EXPECTED_EXCEPTION) CHECK_THROWS_IMPL(EXPR,EXPECTED_EXCEPTION)
+
 TrueFunctor isTrue();
 FalseFunctor isFalse();
 template<class T> auto equals(T const& y);

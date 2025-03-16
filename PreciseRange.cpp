@@ -9,9 +9,20 @@
 #include <cstdint>
 #include <optional>
 
+class PreciseRangeImplLogicError : private std::string, public std::exception {
+  public:
+    template<class... T>
+    PreciseRangeImplLogicError(T&&... t)
+	: std::string(std::forward<T>(t)...) {}
+
+    char const* what() const noexcept override {
+	return c_str();
+    }
+};
+
 template<class... T>
 [[noreturn]] void unimpl(T&&...) {
-    throw_exception<std::logic_error>("unimplemented");
+    throw_exception<PreciseRangeImplLogicError>("unimplemented");
 }
 
 enum class Sign : int { Negative = -1, Zero = 0, Positive = 1 };
@@ -30,12 +41,18 @@ struct IntOrNegInf {
   public:
     std::int64_t operator*() const {
 	if (!fValue) {
-	    throw_exception<std::logic_error>("Value was -∞");
+	    throw_exception<PreciseRangeImplLogicError>("Value was -∞");
 	}
 	return *fValue;
     }
     
   public:
+    friend IntOrNegInf operator-(IntOrNegInf x, std::int64_t other) {
+	if (x.fValue) {
+	    *x.fValue -= other;
+	}
+	return x;
+    }
     friend bool operator<(IntOrNegInf const& x, IntOrNegInf const& y) {
 	if (!y.fValue) {
 	    return false;
@@ -81,7 +98,7 @@ struct BinaryShiftedInt {
 	: fIntValue(std::move(intValue))
 	, fExp2(exp2) {
 	if (fIntValue.inf()) {
-	    throw_exception<std::domain_error>("Cannot construct infinite value: " + to_string(fIntValue));
+	    throw_exception<PreciseRangeImplLogicError>("Cannot construct infinite value: " + to_string(fIntValue));
 	}
     }
 
@@ -320,7 +337,7 @@ struct BinaryShiftedIntRange {
 	BinaryShiftedInt const& fFurtherFromZero;
     };
 
-    std::optional<RelationToZero> signIfKnown() const {
+    Optional<RelationToZero> signIfKnown() const {
 	auto lowSign = fLow.sign();
 	auto highSign = fHigh.sign();
 	if (lowSign == highSign) {
@@ -331,7 +348,7 @@ struct BinaryShiftedIntRange {
 		return RelationToZero{sign, fHigh, fLow};
 	    }
 	} else {
-	    return std::nullopt;
+	    return Failure("Sign of range not yet known");
 	}
     }
 
@@ -480,7 +497,7 @@ struct BinaryShiftedIntRange {
 	auto result = productWithPossibleDesiredEstimate(x, y, std::nullopt);
 	auto successfulResult = std::get_if<BinaryShiftedIntRange>(&result);
 	if (!successfulResult) {
-	    throw_exception<std::logic_error>("Multiplication without necessary precision should always return a successful result");
+	    throw_exception<PreciseRangeImplLogicError>("Multiplication without necessary precision should always return a successful result");
 	}
 	return std::move(*successfulResult);
     }
@@ -491,7 +508,7 @@ struct BinaryShiftedIntRange {
     friend BinaryShiftedIntRange operator/(BinaryShiftedIntRange const& x, BinaryShiftedIntRange const& y) {
 	auto ySignIfKnown = y.signIfKnown();
 	if (!ySignIfKnown) {
-	    throw_exception<std::domain_error>("Division denominator includes 0: " + y.toString());
+	    throw_exception<PreciseRangeImplLogicError>("Division denominator includes 0: " + y.toString());
 	}
 	if (ySignIfKnown->fSign == Sign::Zero) {
 	    throw_exception<std::domain_error>("Division denominator = 0: " + y.toString());
@@ -610,7 +627,7 @@ struct AdjustablePrecisionRange {
 		return {result, sign->fSign};
 	    }
 	}
-	throw_exception<std::logic_error>("With uncertainty ≤ 2^(" + std::to_string(uncertaintyLog2) + "), could not determine " + toStringExact(nullptr));
+	throw_exception<std::domain_error>("With uncertainty ≤ 2^(" + std::to_string(uncertaintyLog2) + "), could not determine " + toStringExact(nullptr));
     }
 
     BinaryShiftedIntRange const& refineUntilSignIsKnownAndRangeInFactorOf2() {
@@ -624,7 +641,7 @@ struct AdjustablePrecisionRange {
 
     template<class... T>
     [[noreturn]] void unimpl(T&&...) const {
-	throw_exception<std::logic_error>("unimplemented: " + toStringExact());
+	throw_exception<PreciseRangeImplLogicError>("unimplemented: " + toStringExact());
     }
 
   private:
@@ -1026,82 +1043,88 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    // 3. shifting of numerator values before performing division calculations
 	    
 	    // First we refine the denominator to guarantee C ≤ D ≤ 2C
-	    auto denominator = fRhs->refineUntilSignIsKnownAndRangeInFactorOf2();
-	    auto log2LowerBoundDenom = *minFloorLog2Abs(denominator); // L = ⌊log2(C)⌋, and 2^L ≤ C
-	    // choose an uncertainty on a and b so (b-a)/C and b/C-a/D are both ≤ 2^(maxUncertaintyLog2-1)
-	    // (b-a)/C ≤ 2^numeratorUncertaintyLog2/2^L = 2^(numeratorUncertaintyLog2-L) ≤ 2^(maxUncertaintyLog2-1)
-	    // which is satisfied when numeratorUncertaintyLog2 ≤ L + maxUncertaintyLog2 - 1
-	    // For b/C-a/D, we refine the numerator so that either:
-	    // * b gets small enough that [0,b/C] has the desired uncertainty
-	    // * a gets big enough that b/C-a/D has the desired uncertainty: (bD-aC)/(CD)
-	    auto numerator = fLhs->estimate();
-	    auto result = numerator / denominator;
-	    if (result.uncertaintyLog2() <= maxUncertaintyLog2) {
+	    auto const& denominator = fRhs->refineUntilSignIsKnownAndRangeInFactorOf2();
+	    if (auto result = fLhs->estimate() / denominator; result.uncertaintyLog2() <= maxUncertaintyLog2) {
+		// result from estimate is good enough!
 		return result;
+	    } else if (auto resultSign = result.signIfKnown()) {
+		// Numerator and denominator both have known sign -> dispatch to this case
+		auto log2AbsResultUpperBound = ceilLog2Abs(resultSign->fFurtherFromZero);
+		return calculateUncertaintyLog2AtMostWhereBothOperandsSignsKnown(maxUncertaintyLog2, log2AbsResultUpperBound);
 	    }
-	    auto resultSign = result.signIfKnown();
-	    if (!resultSign) {
-		// We seek k so that, for Q,R,S,T satisfying A ≤ Q ≤ 0 ≤ R ≤ B, R-Q ≤ 2^k, C ≤ S ≤ T ≤ D,
-		// R/T-Q/T ≤ 2^(maxUncertaintyLog2-1)
-		// R/T-Q/T
-		//  = (R-Q)/T
-		//  ≤ 2^k/T
-		//  ≤ 2^k/C
-		//  ≤ 2^k/2^⌊log2(C)⌋
-		//  = 2^(k-⌊log2(C)⌋)
-		// We choose k = ⌊log2(C)⌋ + maxUncertaintyLog2 - 1
-		auto k = log2LowerBoundDenom + maxUncertaintyLog2 - 1;
-		numerator = fLhs->withUncertaintyLog2AtMost(k);
-		if (!numerator.signIfKnown()) {
-		    // Next we limit the uncertainty when performing rounding during division.
-		    // Specifically, the uncertainty is at most 2^(numeratorExp-denominatorExp)
-		    // We need this to be ≤ 2^(maxUncertaintyLog2-2) on each end, so the uncertainty from rounding both ends is ≤ 2^(maxUncertaintyLog2-1)
-		    // Thus we require numeratorExp-denominatorExp ≤ maxUncertaintyLog2-2, so:
-		    // numeratorExp ≤ maxUncertaintyLog2-2+denominatorExp
-		    numerator.shiftToHaveExponentsLeq(maxUncertaintyLog2-2+denominator.minExp());
-		    result = numerator / denominator;
-		    if (result.uncertaintyLog2() <= maxUncertaintyLog2) {
-			return result;
-		    } else {
-			throw_exception<std::logic_error>("Division for numerator without a sign failed to meet expected precision: " + numerator.toString() + " / " + denominator.toString() + " = " + result.toString() + " has uncertaintyLog2 = " + result.uncertaintyLog2().toString() + " >= " + std::to_string(maxUncertaintyLog2) + " (desired)");
-		    }
-		}
+	    
+	    // It seems like the numerator is close to 0 (since the result sign isn't known).
+	    // We determine a numerator refinement that either:
+	    // A. if the numerator remains on both sides of 0, produces a result satisfying the desired precision
+	    // B. refines the numerator to one side of 0, where we can dispatch to the "both known sign" case.
+	    // For (A), we seek k so that, for Q,R satisfying a ≤ Q ≤ 0 ≤ R ≤ b, R-Q ≤ 2^k,
+	    // R/C-Q/C ≤ 2^(maxUncertaintyLog2-1)
+	    // R/C-Q/C
+	    //  = (R-Q)/C
+	    //  ≤ 2^k/C
+	    //  ≤ 2^k/2^⌊log2(C)⌋
+	    //  = 2^(k-⌊log2(C)⌋)
+	    // We choose k = ⌊log2(C)⌋ + maxUncertaintyLog2 - 1
+	    auto k = *minFloorLog2Abs(denominator) + maxUncertaintyLog2 - 1;
+	    auto refinedNumerator = fLhs->withUncertaintyLog2AtMost(k);
+	    if (auto refinedNumeratorSign = refinedNumerator.signIfKnown()) {
+		// Case (B): numerator is on one side of 0
+		auto log2AbsResultUpperBound = ceilLog2Abs(refinedNumeratorSign->fFurtherFromZero) - *minFloorLog2Abs(denominator);
+		return calculateUncertaintyLog2AtMostWhereBothOperandsSignsKnown(maxUncertaintyLog2, log2AbsResultUpperBound);
 	    }
-	    // numerator and denominator each lay on a specific side of 0.
-	    // We seek k so that, for any Q,R,S,T satisfying A ≤ Q ≤ R ≤ B, R-Q ≤ 2^k, C ≤ S ≤ T ≤ D, T-S ≤ 2^k,
-	    // R/S-Q/T ≤ 2^(maxUncertaintyLog2-1)
-	    // R ≤ Q+2^k and S ≥ T-2^k
-	    // R/S-Q/T
-	    //  ≤ (Q+2^k)/(T-2^k)-Q/T
-	    //  = (T*(Q+2^k)-Q*(T-2^k))/(T*(T-2^k))
-	    //  = (T*2^k+Q*2^k)/(T*(T-2^k))
-	    //  ≤ (1+Q/T)/(T-2^k)*2^k
-	    //  ≤ (1+B/C)/(C-2^k)*2^k
-	    //  ≤ (1+upperBoundOfAbsEstimate)/(C-2^k)*2^k
-	    // We choose k ≤ log2(C)-1 so 2^k ≤ C/2, and C-2^k ≥ C/2, so...
-	    //  ≤ (1+upperBoundOfAbsEstimate)/C*2^(k+1)
-	    //  ≤ (1+2^log2AbsResultUpperBound)/(2^log2LowerBoundDenom)*2^(k+1)
-	    //  ≤ 2^(max(log2AbsResultUpperBound,0)+1)/(2^log2LowerBoundDenom)*2^(k+1)
-	    //  = 2^(max(log2AbsResultUpperBound,0)-log2LowerBoundDenom+k+2)
-	    // We choose k ≤ log2LowerBoundDenom-3-max(log2AbsResultUpperBound,0)+maxUncertaintyLog2
-	    //  ≤ 2^(maxUncertaintyLog2-1)
-	    // Thus we can select k = min(log2LowerBoundDenom-1, log2LowerBoundDenom-3-max(log2AbsResultUpperBound,0)+maxUncertaintyLog2)
-	    // k = log2LowerBoundDenom-1 + min(0, maxUncertaintyLog2-2-max(log2AbsResultUpperBound,0))
-	    auto log2AbsResultUpperBound = *ceilLog2Abs(resultSign->fFurtherFromZero);
-	    std::int64_t zero = 0;
-	    auto k = log2LowerBoundDenom - 1 + std::min(zero, maxUncertaintyLog2 - 2 - std::max(zero, log2AbsResultUpperBound));
-	    numerator = fLhs->withUncertaintyLog2AtMost(k);
-	    denominator = fRhs->withUncertaintyLog2AtMost(k);
+
+	    // Case (A): numerator is still close to 0.
 	    // Next we limit the uncertainty when performing rounding during division.
 	    // Specifically, the uncertainty is at most 2^(numeratorExp-denominatorExp)
 	    // We need this to be ≤ 2^(maxUncertaintyLog2-2) on each end, so the uncertainty from rounding both ends is ≤ 2^(maxUncertaintyLog2-1)
 	    // Thus we require numeratorExp-denominatorExp ≤ maxUncertaintyLog2-2, so:
 	    // numeratorExp ≤ maxUncertaintyLog2-2+denominatorExp
-	    numerator.shiftToHaveExponentsLeq(maxUncertaintyLog2-2+denominator.minExp());
+	    refinedNumerator.shiftToHaveExponentsLeq(maxUncertaintyLog2 - 2 + denominator.minExp());
+	    auto result = refinedNumerator / denominator;
+	    if (result.uncertaintyLog2() <= maxUncertaintyLog2) {
+		return result;
+	    } else {
+		throw_exception<PreciseRangeImplLogicError>("Division for numerator without a sign failed to meet expected precision: " + refinedNumerator.toString() + " / " + denominator.toString() + " = " + result.toString() + " has uncertaintyLog2 = " + result.uncertaintyLog2().toString() + " >= " + std::to_string(maxUncertaintyLog2) + " (desired)");
+	    }
+	}
+	BinaryShiftedIntRange calculateUncertaintyLog2AtMostWhereBothOperandsSignsKnown(std::int64_t maxUncertaintyLog2, IntOrNegInf log2AbsResultUpperBound) {
+	    // numerator and denominator each lay on a specific side of 0.
+	    // We seek k so that, for any Q,R,S,T satisfying A ≤ Q ≤ R ≤ B, R-Q ≤ 2^k, C ≤ S ≤ T ≤ D, T-S ≤ 2^k,
+	    // R/S-Q/T ≤ 2^(maxUncertaintyLog2-1)
+	    // Also let E = B/C = upper bound of abs(result)
+	    // R/S-Q/T
+	    //  ≤ (Q+2^k)/(T-2^k)-Q/T (since R ≤ Q+2^k and S ≥ T-2^k)
+	    //  = (T*(Q+2^k)-Q*(T-2^k))/(T*(T-2^k))
+	    //  = (T*2^k+Q*2^k)/(T*(T-2^k))
+	    //  ≤ (1+Q/T)/(T-2^k)*2^k
+	    //  ≤ (1+B/C)/(C-2^k)*2^k
+	    //  = (1+E)/(C-2^k)*2^k
+	    // We choose k ≤ log2(C)-1 so 2^k ≤ C/2, and C-2^k ≥ C/2, so...
+	    //  ≤ (1+E)/C*2^(k+1)
+	    //  ≤ (1+2^⌈log2(E)⌉)/(2^⌊log2(C)⌋)*2^(k+1)
+	    //  = (2^0+2^⌈log2(E)⌉)/(2^⌊log2(C)⌋)*2^(k+1)
+	    //  ≤ 2^(1+max(0,⌈log2(E)⌉))/(2^⌊log2(C)⌋)*2^(k+1)
+	    //  = 2^(max(0,⌈log2(E)⌉)-⌊log2(C)⌋+k+2)
+	    // We choose k ≤ ⌊log2(C)⌋-3-max(0,⌈log2(E)⌉)+maxUncertaintyLog2
+	    //  ≤ 2^(maxUncertaintyLog2-1)
+	    // Thus we can select
+	    // k = min(⌊log2(C)⌋-1, ⌊log2(C)⌋-3-max(0,⌈log2(E)⌉)+maxUncertaintyLog2)
+	    //   = ⌊log2(C)⌋-1 + min(0, maxUncertaintyLog2-2-max(0,⌈log2(E)⌉))
+	    std::int64_t zero = 0;
+	    auto k = *minFloorLog2Abs(fRhs->estimate()) - 1 + std::min(zero, maxUncertaintyLog2 - 2 - *std::max(IntOrNegInf(zero), log2AbsResultUpperBound));
+	    auto numerator = fLhs->withUncertaintyLog2AtMost(k);
+	    auto const& denominator = fRhs->withUncertaintyLog2AtMost(k);
+	    // Next we limit the uncertainty when performing rounding during division.
+	    // Specifically, the uncertainty is at most 2^(numeratorExp-denominatorExp)
+	    // We need this to be ≤ 2^(maxUncertaintyLog2-2) on each end, so the uncertainty from rounding both ends is ≤ 2^(maxUncertaintyLog2-1)
+	    // Thus we require numeratorExp-denominatorExp ≤ maxUncertaintyLog2-2, so:
+	    // numeratorExp ≤ maxUncertaintyLog2-2+denominatorExp
+	    numerator.shiftToHaveExponentsLeq(maxUncertaintyLog2 - 2 + denominator.minExp());
 	    // The uncertainty from the rounding on both ends combined is at most 2^(maxUncertaintyLog2-1)
 	    // The uncertainty in the resulting range is at most 2^(maxUncertaintyLog2-1)
 	    // Thus the total uncertainty is at most 2^maxUncertaintyLog2
 	    return numerator / denominator;
+	    
 	}
     };
     return PreciseRange::Impl{std::make_shared<Quotient>(x.impl(), y.impl())};
