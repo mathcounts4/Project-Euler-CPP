@@ -51,6 +51,28 @@ TEST(PreciseRange, Caching) {
     CHECK(frac.toStringWithUncertaintyLog2AtMost(0), equals("[2.3125 ± 0.0625]"));
 }
 
+TEST(PreciseRange, HighPrecisionAddition) {
+    CHECK(PreciseRange("1.2") + PreciseRange("1.4") > PreciseRange("2.5999999999999999999999999999"), isTrue());
+    CHECK(PreciseRange("1.2") + PreciseRange("1.4") < PreciseRange("2.6000000000000000000000000001"), isTrue());
+}
+
+TEST(PreciseRange, HighPrecisionSubtraction) {
+    CHECK(PreciseRange(4) - PreciseRange("1.4") > PreciseRange("2.5999999999999999999999999999"), isTrue());
+    CHECK(PreciseRange(4) - PreciseRange("1.4") < PreciseRange("2.6000000000000000000000000001"), isTrue());
+}
+
+TEST(PreciseRange, SubtractionAndPrinting) {
+    // Verifies we eliminate all 0 decimals and the decimal point when a result is x.00
+    CHECK((PreciseRange("0b1.1") - PreciseRange("0b0.1")).toStringWithUncertaintyLog2AtMost(0), equals("1"));
+    // Verifies we eliminate trailing 0s when a result is x.y0
+    CHECK((PreciseRange("0b1.11") - PreciseRange("0b0.01")).toStringWithUncertaintyLog2AtMost(0), equals("1.5"));
+}
+
+TEST(PreciseRange, HighPrecisionMultiplication) {
+    CHECK(PreciseRange(3) * PreciseRange("1.2") > PreciseRange("3.5999999999999999999999999999"), isTrue());
+    CHECK(PreciseRange(3) * PreciseRange("1.2") < PreciseRange("3.6000000000000000000000000001"), isTrue());
+}
+
 TEST(PreciseRange, HighPrecisionDivision) {
     CHECK(PreciseRange(9999) / 10000 < PreciseRange(10000) / 10001, isTrue());
     CHECK(PreciseRange(7) / 3 > PreciseRange("2.33333333333333333333333333333333333333"), isTrue());

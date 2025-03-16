@@ -200,6 +200,7 @@ struct BinaryShiftedInt {
 		    // We already have a result from an earlier bit (for example, 100).
 		    // Now we're just determining the upper bound on the distance.
 		    if (result.fResultIfDifferent->fFirstArgIsLess == xLess) {
+			// TODO: write a test that hits this branch
 			// 110 vs 001 -> dist ≤ 1000
 			++result.fResultIfDifferent->fMaxDistLog2;
 		    } else {
@@ -215,6 +216,7 @@ struct BinaryShiftedInt {
     }
 
     friend bool operator<(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
+	// TODO: write a test that hits this function (and other comparison operators)
 	auto res = comp(x, y);
 	if (!res.fResultIfDifferent) {
 	    return false;
@@ -268,6 +270,7 @@ struct BinaryShiftedInt {
     }
 
     friend BinaryShiftedInt operator<<(BinaryShiftedInt x, std::int64_t shift) {
+	// TODO: write a test that hits this function
 	x.fExp2 += shift;
 	return x;
     }
