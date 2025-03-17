@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <optional>
 
+// An exception of this type indicates a logic error in this file. Namely, this code should be unhittable.
 class PreciseRangeImplLogicError : private std::string, public std::exception {
   public:
     template<class... T>
@@ -26,6 +27,16 @@ template<class... T>
 }
 
 enum class Sign : int { Negative = -1, Zero = 0, Positive = 1 };
+static PreciseRange::Cmp signToCmp(Sign sign) {
+    switch (sign) {
+      case Sign::Negative:
+	return PreciseRange::Cmp::Less;
+      case Sign::Zero:
+	return PreciseRange::Cmp::ApproxEqual;
+      case Sign::Positive:
+	return PreciseRange::Cmp::Greater;
+    }
+}
 
 struct IntOrNegInf {
   public:
@@ -136,6 +147,14 @@ struct BinaryShiftedInt {
 	    fIntValue <<= fExp2 - maxExp;
 	    fExp2 = maxExp;
 	}
+    }
+
+    bool getBit(std::int64_t bit) const {
+	auto bitInInt = bit - fExp2;
+	if (bitInInt < 0) {
+	    return false;
+	}
+	return fIntValue.getBit(static_cast<std::size_t>(bitInInt));
     }
 
     friend IntOrNegInf floorLog2Abs(BinaryShiftedInt const& x) {
@@ -267,6 +286,22 @@ struct BinaryShiftedInt {
 	    ? divideRoundAwayFrom0(fIntValue, denominator.fIntValue)
 	    : fIntValue / denominator.fIntValue,
 	    fExp2 - denominator.fExp2};
+    }
+
+    friend BinaryShiftedInt distanceToNearestInteger(BinaryShiftedInt x) {
+	if (x.fExp2 >= 0) {
+	    // Already an int
+	    return BinaryShiftedInt(0);
+	} else {
+	    x.fIntValue.absMe();
+	    x.fIntValue %= BigInt(1) << -x.fExp2;
+	    BinaryShiftedInt half(1, -1);
+	    if (x <= half) {
+		return x;
+	    } else {
+		return BinaryShiftedInt(1) - x;
+	    }
+	}
     }
 
     friend BinaryShiftedInt operator<<(BinaryShiftedInt x, std::int64_t shift) {
@@ -514,7 +549,7 @@ struct BinaryShiftedIntRange {
 	    throw_exception<PreciseRangeImplLogicError>("Division denominator includes 0: " + y.toString());
 	}
 	if (ySignIfKnown->fSign == Sign::Zero) {
-	    throw_exception<std::domain_error>("Division denominator = 0: " + y.toString());
+	    throw_exception<PreciseRangeImplLogicError>("Division denominator = 0: " + y.toString());
 	}
 	if (auto xRelZero = x.relationToZeroIncludingZeroInBothSides()) {
 	    // both bounds of x have the same sign
@@ -532,29 +567,54 @@ struct BinaryShiftedIntRange {
     }
 
     friend BinaryShiftedIntRange distanceToNearestInteger(BinaryShiftedIntRange const& x) {
-	if (x.uncertaintyLog2() >= 1) {
-	    // Since uncertainty is in [1, 2), this range extends for at least 1, thus includes low (0) and high (0.5) values for the distance to an integer
-	    BinaryShiftedInt half(1, -1);
-	    return {BinaryShiftedInt(0), std::move(half)};
-	}
-	if (auto xRelZero = x.relationToZeroIncludingZeroInBothSides()) {
-	    // both bounds of x have the same sign
-	    auto low = std::move(x.fLow);
-	    auto high = std::move(x.fHigh);
-	    auto res = comp(low, high);
-	    if (!res.fResultIfDifferent) {
-		// exact value
+	auto const& low = x.fLow;
+	auto const& high = x.fHigh;
+	BinaryShiftedInt half(1, -1);
+	bool sameSign = low.sign() == high.sign();
+	bool containsInt;
+	bool containsIntPlusHalf;
+	if (sameSign) {
+	    containsInt = false;
+	    auto biggestBit = std::max(floorLog2Abs(low), floorLog2Abs(high));
+	    for (std::int64_t bit = 0; bit <= biggestBit; ++bit) {
+		if (low.getBit(bit) != high.getBit(bit)) {
+		    containsInt = true;
+		    break;
+		}
 	    }
-	    // TODO
-	    unimpl(res, low, high);
+	    containsIntPlusHalf = false;
+	    bool lowCarry = low.getBit(-1);
+	    bool highCarry = high.getBit(-1);
+	    for (std::int64_t bit = 0; bit-1 <= biggestBit; ++bit) {
+		auto rawLowBit = low.getBit(bit);
+		auto rawHighBit = high.getBit(bit);
+		auto computedLowBit = rawLowBit != lowCarry;
+		auto computedHighBit = rawHighBit != highCarry;
+		lowCarry = lowCarry && rawLowBit;
+		highCarry = highCarry && rawHighBit;
+		if (computedLowBit != computedHighBit) {
+		    containsIntPlusHalf = true;
+		    break;
+		}
+	    }
 	} else {
-	    // x is on both sides of 0
-	    auto v1 = std::move(x.fLow);
-	    auto v2 = std::move(x.fHigh);
-	    v1.negateMe(); // x.fLow < 0
-	    BinaryShiftedInt half(1, -1);
-	    return {BinaryShiftedInt(0), std::move(std::min(std::max(v1, v2), half))};
+	    BinaryShiftedInt negHalf(-1, -1);
+	    containsInt = true;
+	    containsIntPlusHalf = low < negHalf || high > half;
 	}
+	auto lowDist = distanceToNearestInteger(low);
+	auto highDist = distanceToNearestInteger(high);
+	if (highDist < lowDist) {
+	    // Possible when low=2.5, high=2.6, so lowDist=0.5, highDist=0.4 (must swap)
+	    swap(lowDist, highDist);
+	}
+	if (containsInt) {
+	    lowDist = BinaryShiftedInt(0);
+	}
+	if (containsIntPlusHalf) {
+	    highDist = BinaryShiftedInt(1, -1); // 0.5
+	}
+	return {std::move(lowDist), std::move(highDist)};
     }
 
     std::string toString() const {
@@ -615,9 +675,12 @@ struct AdjustablePrecisionRange {
 	BinaryShiftedIntRange const& fRange;
 	Sign fSign;
     };
-    RefinedWithSign refineUntilSignIsKnown() {
+    RefinedWithSign refineForDivisionUntilSignIsPositiveOrNegative() {
 	auto const& est = estimate();
 	if (auto sign = est.signIfKnown()) {
+	    if (sign->fSign == Sign::Zero) {
+		throw_exception<std::domain_error>("Division by 0: " + toStringExact());
+	    }
 	    return {est, sign->fSign};
 	}
 	// Dereference is safe: if there was no uncertainty, the sign would be known.
@@ -627,14 +690,17 @@ struct AdjustablePrecisionRange {
 	    uncertaintyLog2 = estimateUncertaintyLog2 - extraPrecision;
 	    BinaryShiftedIntRange const& result = withUncertaintyLog2AtMost(uncertaintyLog2);
 	    if (auto sign = result.signIfKnown()) {
+		if (sign->fSign == Sign::Zero) {
+		    throw_exception<std::domain_error>("Division by 0: " + toStringExact());
+		}
 		return {result, sign->fSign};
 	    }
 	}
-	throw_exception<std::domain_error>("With uncertainty ≤ 2^(" + std::to_string(uncertaintyLog2) + "), could not determine " + toStringExact(nullptr));
+	throw_exception<std::domain_error>("With uncertainty ≤ 2^(" + std::to_string(uncertaintyLog2) + "), could not determine sign of " + toStringExact());
     }
 
-    BinaryShiftedIntRange const& refineUntilSignIsKnownAndRangeInFactorOf2() {
-	auto const& range = refineUntilSignIsKnown().fRange;
+    BinaryShiftedIntRange const& refineForDivisionUntilSignIsPositiveOrNegativeAndRangeInFactorOf2() {
+	auto const& range = refineForDivisionUntilSignIsPositiveOrNegative().fRange;
 	auto maximumLog2Uncertainty = *minFloorLog2Abs(range);
 	if (range.uncertaintyLog2() <= maximumLog2Uncertainty) {
 	    return range;
@@ -1026,7 +1092,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::MultiplicationDivision;
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    return fLhs->estimate() / fRhs->refineUntilSignIsKnown().fRange;
+	    return fLhs->estimate() / fRhs->refineForDivisionUntilSignIsPositiveOrNegative().fRange;
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
 	    // [a,b] / [c,d] where C = |c| ≤ |d| = D, A = |a|, B = |b|
@@ -1046,7 +1112,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    // 3. shifting of numerator values before performing division calculations
 	    
 	    // First we refine the denominator to guarantee C ≤ D ≤ 2C
-	    auto const& denominator = fRhs->refineUntilSignIsKnownAndRangeInFactorOf2();
+	    auto const& denominator = fRhs->refineForDivisionUntilSignIsPositiveOrNegativeAndRangeInFactorOf2();
 	    if (auto result = fLhs->estimate() / denominator; result.uncertaintyLog2() <= maxUncertaintyLog2) {
 		// result from estimate is good enough!
 		return result;
@@ -1133,13 +1199,34 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
     return PreciseRange::Impl{std::make_shared<Quotient>(x.impl(), y.impl())};
 }
 
-bool operator<(PreciseRange const& x, PreciseRange const& y) {
-    auto sub = x - y;
-    return sub.impl()->refineUntilSignIsKnown().fSign == Sign::Negative;
+PreciseRange::Cmp cmp(PreciseRange const& x, PreciseRange const& y, std::int64_t maxUncertaintyLog2) {
+    auto sub = (x - y).impl();
+    auto estimate = sub->estimate();
+    if (auto sign = estimate.signIfKnown()) {
+	return signToCmp(sign->fSign);
+    }
+    auto estimateUncertaintyLog2 = *estimate.uncertaintyLog2(); // deref is safe: if no uncertainty, sign would be known
+    if (estimateUncertaintyLog2 <= maxUncertaintyLog2) {
+	return PreciseRange::Cmp::ApproxEqual;
+    }
+    // Try with exponentially more accurate results.
+    // Say we estimated with precision ≤ 2^5, but we need precision ≤ 2^(-20).
+    // Try with precision ≤ 2^(5-1), 2^(5-2), 2^(5-4), 2^(5-8), 2^(5-16), and finally 2^(-20)
+    auto neededUncertaintyReductionLog2 = estimateUncertaintyLog2 - maxUncertaintyLog2;
+    for (std::int64_t uncertaintyReductionLog2 = 1; uncertaintyReductionLog2 < neededUncertaintyReductionLog2; uncertaintyReductionLog2 *= 2) {
+	if (auto sign = sub->withUncertaintyLog2AtMost(estimateUncertaintyLog2 - uncertaintyReductionLog2).signIfKnown()) {
+	    return signToCmp(sign->fSign);
+	}
+    }
+    // last try
+    if (auto sign = sub->withUncertaintyLog2AtMost(maxUncertaintyLog2).signIfKnown()) {
+	return signToCmp(sign->fSign);
+    }
+    return PreciseRange::Cmp::ApproxEqual;
 }
 
-bool operator>(PreciseRange const& x, PreciseRange const& y) {
-    return y < x;
+bool eq(PreciseRange const& x, PreciseRange const& y, std::int64_t maxUncertaintyLog2) {
+    return cmp(x, y, maxUncertaintyLog2) == PreciseRange::Cmp::ApproxEqual;
 }
 
 std::string PreciseRange::toStringExact() const {

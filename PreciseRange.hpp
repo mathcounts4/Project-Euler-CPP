@@ -32,16 +32,23 @@ struct PreciseRange {
     friend PreciseRange operator+(PreciseRange const& x, PreciseRange const& y);
     friend PreciseRange operator-(PreciseRange const& x, PreciseRange const& y);
     friend PreciseRange operator*(PreciseRange const& x, PreciseRange const& y);
+    // Note: when evaluating the result of operator/, if, after refining y to high precision, we cannot prove that y ≠ 0, this throws std::domain_error
     friend PreciseRange operator/(PreciseRange const& x, PreciseRange const& y);
 
     // Binary operators that produce a usable result
-    // Note: if input values are equal, may run forever or throw an exception
-    friend bool operator<(PreciseRange const& x, PreciseRange const& y);
-    friend bool operator>(PreciseRange const& x, PreciseRange const& y);
+    enum class Cmp { Less, ApproxEqual, Greater };
+    // If x = y, returns ApproxEqual.
+    // If |x-y| > 2^maxUncertaintyLog2, returns (x < y -> LESS, x > y -> Greater)
+    // Else, returns EITHER ApproxEqual OR (x < y -> LESS, x > y -> Greater)
+    friend Cmp cmp(PreciseRange const& x, PreciseRange const& y, std::int64_t maxUncertaintyLog2);
+    // If x = y, returns true.
+    // If |x-y| > 2^maxUncertaintyLog2, returns false
+    // Otherwise may return true or false.
+    friend bool eq(PreciseRange const& x, PreciseRange const& y, std::int64_t maxUncertaintyLog2);
 
     // Printing utilities
 
-    // Prints an expression representing the exact value, like "√(3 * π + 4 / -7)
+    // Prints an expression representing the exact value, like "√(3*π+4/-7)
     std::string toStringExact() const;
     
     // If maxUncertaintyLog2 is provided, produces a result whose uncertainty is ≤ 2^maxUncertaintyLog2.
