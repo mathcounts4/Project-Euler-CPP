@@ -927,91 +927,72 @@ PreciseRange distanceToNearestInteger(PreciseRange const& x) {
     return PreciseRange::Impl{std::make_shared<DistanceToNearestInteger>(x.impl())};
 }
 
+// Provide the derivatives at 0: f(0), f'(0) f''(0), ...
+// These are assumed to repeat, and must only be -1, 0, and 1.
+// For example:
+// e^x has f(0) = f'(0) = f''(0) = ... = 1, so it corresponds to <1>
+// sin(x) has f(0) = 0, f'(0) = 1, f''(0) = 0, f'''(0) = -1, ..., so it corresponds to <0, 1, 0, -1>
+template<std::int64_t... Derivatives>
+struct PowerSeriesOp : public PreciseUnaryOp {
+    using PreciseUnaryOp::PreciseUnaryOp;
+
+    static_assert(((-1 <= Derivatives && Derivatives <= 1) && ...), "Power series only supports repeated derivatives of -1, 0, and 1");
+
+    BinaryShiftedIntRange calculateEstimate() final {
+	// TODO
+	unimpl(fArg);
+    }
+    BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
+	// TODO
+	unimpl(fArg, maxUncertaintyLog2);
+    }
+};
+
 PreciseRange exp(PreciseRange const& x) {
-    struct Exp : public PreciseUnaryOp {
-	using PreciseUnaryOp::PreciseUnaryOp;
+    struct Exp : public PowerSeriesOp<1> {
+	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "e^";
-	}
-	BinaryShiftedIntRange calculateEstimate() final {
-	    // TODO
-	    unimpl(fArg);
-	}
-	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    // TODO
-	    unimpl(fArg, maxUncertaintyLog2);
 	}
     };
     return PreciseRange::Impl{std::make_shared<Exp>(x.impl())};
 }
 
 PreciseRange sin(PreciseRange const& x) {
-    struct Sin : public PreciseUnaryOp {
-	using PreciseUnaryOp::PreciseUnaryOp;
+    struct Sin : public PowerSeriesOp<0, 1, 0, -1> {
+	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "sin";
-	}
-	BinaryShiftedIntRange calculateEstimate() final {
-	    // TODO
-	    unimpl(fArg);
-	}
-	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    // TODO
-	    unimpl(fArg, maxUncertaintyLog2);
 	}
     };
     return PreciseRange::Impl{std::make_shared<Sin>(x.impl())};
 }
 
 PreciseRange cos(PreciseRange const& x) {
-    struct Cos : public PreciseUnaryOp {
-	using PreciseUnaryOp::PreciseUnaryOp;
+    struct Cos : public PowerSeriesOp<1, 0, -1, 0> {
+	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "cos";
-	}
-	BinaryShiftedIntRange calculateEstimate() final {
-	    // TODO
-	    unimpl(fArg);
-	}
-	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    // TODO
-	    unimpl(fArg, maxUncertaintyLog2);
 	}
     };
     return PreciseRange::Impl{std::make_shared<Cos>(x.impl())};
 }
 
 PreciseRange sinh(PreciseRange const& x) {
-    struct Sinh : public PreciseUnaryOp {
-	using PreciseUnaryOp::PreciseUnaryOp;
+    struct Sinh : public PowerSeriesOp<0, 1> {
+	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "sinh";
-	}
-	BinaryShiftedIntRange calculateEstimate() final {
-	    // TODO
-	    unimpl(fArg);
-	}
-	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    // TODO
-	    unimpl(fArg, maxUncertaintyLog2);
 	}
     };
     return PreciseRange::Impl{std::make_shared<Sinh>(x.impl())};
 }
 
 PreciseRange cosh(PreciseRange const& x) {
-    struct Cosh : public PreciseUnaryOp {
-	using PreciseUnaryOp::PreciseUnaryOp;
+    struct Cosh : public PowerSeriesOp<1, 0> {
+	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "cosh";
-	}
-	BinaryShiftedIntRange calculateEstimate() final {
-	    // TODO
-	    unimpl(fArg);
-	}
-	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    // TODO
-	    unimpl(fArg, maxUncertaintyLog2);
 	}
     };
     return PreciseRange::Impl{std::make_shared<Cosh>(x.impl())};
