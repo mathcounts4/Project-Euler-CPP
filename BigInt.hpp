@@ -94,8 +94,13 @@ class BigInt {
     // returns if this is +- a power of 2
     bool isPowerOf2() const;
 
-    // returns floor(log2(abs(this)))
+    // returns floor(log2(abs(this))) = ⌊log2(|this|)⌋
+    // throws if this == 0
     std::size_t log2() const;
+
+    // returns ceil(log2(abs(this))) = ⌈log2(|this|)⌉
+    // throws if this == 0
+    std::size_t ceilLog2() const;
 
     // returns floor(abs(this)/2^n) % 2
     bool getBit(SZ n) const;
