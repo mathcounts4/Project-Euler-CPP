@@ -274,21 +274,27 @@ B BigInt::getBit(SZ n) const {
 BigInt BigInt::sqrt() const {
     // f(x) = this-x^2
     // f'(x) = -2x
-    if (!*this)
+    if (!*this) {
 	return *this;
-    if (neg())
+    }
+    if (neg()) {
 	throw_exception<std::domain_error>("BigInt sqrt called on " + to_string(*this));
-    if (inf())
+    }
+    if (inf()) {
 	return *this;
-    SZ const digits = log2()/2 + 1;
-    BigInt rt = BigInt(1) << static_cast<SL>(digits-1);
-    if (rt*rt > *this)
-	throw_exception<std::runtime_error>("Unexpected runtime error when calculating BigInt.sqrt on " + to_string(*this) + ": initial guess (" + to_string(rt) + ") too high with square " + to_string(rt*rt));
-    for (SZ i = digits-1; i--; ) {
-	small_t const bit = small_t(1) << i%shift_sz;
-	rt.data[i/shift_sz] += bit;
-	if (rt*rt > *this)
-	    rt.data[i/shift_sz] -= bit;
+    }
+    // this is a lower bound on the square root, and 2*this is a strict upper bound on the square root.
+    BigInt rt = BigInt(1) << static_cast<SL>(log2() / 2);
+    // (rt + bit)^2 = rt^2 + 2*rt*bit + bit*bit
+    // store x-rt*rt and compare with 2*rt*bit + bit*bit
+    auto remaining = *this - rt * rt;
+    for (SZ i = log2() / 2; i--; ) {
+	auto additional = (rt << static_cast<SL>(i+1)) + (BigInt(1) << static_cast<SL>(i*2));
+	if (remaining >= additional) {
+	    remaining -= additional;
+	    small_t const bit = small_t(1) << i%shift_sz;
+	    rt.data[i/shift_sz] += bit;
+	}
     }
     return rt;
 }

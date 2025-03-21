@@ -189,6 +189,23 @@ TEST(BigInt,Arithmetic) {
     CHECK(negInf >> -345876, equals(negInf));
 }
 
+TEST(BigInt, Sqrt) {
+    CHECK(BigInt(0).sqrt(), equals(0));
+    CHECK(BigInt(1).sqrt(), equals(1));
+    CHECK(BigInt(2).sqrt(), equals(1));
+    CHECK(BigInt(3).sqrt(), equals(1));
+    CHECK(BigInt(4).sqrt(), equals(2));
+    CHECK(BigInt(8).sqrt(), equals(2));
+    CHECK(BigInt(9).sqrt(), equals(3));
+    CHECK(BigInt(9999).sqrt(), equals(99));
+    CHECK(BigInt(10000).sqrt(), equals(100));
+    CHECK(((BigInt("12345678901234567891") ^ 2) - 1).sqrt(), equals(BigInt("12345678901234567890")));
+    CHECK((BigInt("12345678901234567891") ^ 2).sqrt(), equals(BigInt("12345678901234567891")));
+    CHECK(((BigInt("12345678901234567891") ^ 2) + 1).sqrt(), equals(BigInt("12345678901234567891")));
+    CHECK((BigInt(9) ^ 372).sqrt(), equals(BigInt(3) ^ 372));
+    CHECK(((BigInt(9) ^ 372) - 1).sqrt(), equals((BigInt(3) ^ 372) - 1));
+}
+
 TEST(BigInt,ModifyingArithmeticArgSelf) {
     // +=
     BigInt addPos(3);
