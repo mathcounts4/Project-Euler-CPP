@@ -98,6 +98,26 @@ TEST(PreciseRange, DivisionBy0) {
     // */
 }
 
+TEST(PreciseRange, Sqrt) {
+    // critical + exact:
+    CHECK(eq(sqrt(PreciseRange(0)), PreciseRange(0)), isTrue());
+
+    // non-critical + exact:
+    CHECK(eq(sqrt(PreciseRange("0b10.01")), PreciseRange("0b1.1")), isTrue());
+
+    // critical + inexact:
+    CHECK(eq(sqrt(PreciseRange("5.1") - PreciseRange("5.1")), PreciseRange(0)), isTrue());
+
+    // non-critical + inexact:
+    CHECK(eq(sqrt(PreciseRange("2.1") + PreciseRange("0.15")), PreciseRange("1.5")), isTrue());
+
+    // At least enough precision + exact input:
+    CHECK(sqrt(PreciseRange(2)).toStringWithUncertaintyLog2AtMost(-333), matches(std::regex(regexEscape("[1.414213562373095048801688724209698078569671875376948073176679737990732478462107038850387534327641572") + ".*")));
+
+    // At least enough precision + inexact input:
+    CHECK(sqrt(PreciseRange("2.1") - PreciseRange("0.1")).toStringWithUncertaintyLog2AtMost(-333), matches(std::regex(regexEscape("[1.414213562373095048801688724209698078569671875376948073176679737990732478462107038850387534327641572") + ".*")));
+}
+
 TEST(PreciseRange, DistanceToNearestInteger) {
     // critical + exact:
     CHECK(eq(distanceToNearestInteger(PreciseRange(0)), PreciseRange(0)), isTrue());

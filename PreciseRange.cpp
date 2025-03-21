@@ -168,7 +168,7 @@ struct BinaryShiftedInt {
 	if (!x.fIntValue) {
 	    return IntOrNegInf{std::nullopt};
 	}
-	return IntOrNegInf{static_cast<std::int64_t>(x.fIntValue.log2()) + (x.fIntValue.isPowerOf2() ? 0 : 1) + x.fExp2};
+	return IntOrNegInf{static_cast<std::int64_t>(x.fIntValue.ceilLog2()) + x.fExp2};
     }
 
     struct ComparisonResult {
@@ -286,6 +286,20 @@ struct BinaryShiftedInt {
 	    ? divideRoundAwayFrom0(fIntValue, denominator.fIntValue)
 	    : fIntValue / denominator.fIntValue,
 	    fExp2 - denominator.fExp2};
+    }
+
+    template<Round round>
+    BinaryShiftedInt sqrt() {
+        if (sign() == Sign::Negative) {
+	    throw_exception<PreciseRangeImplLogicError>("sqrt of a negative");
+	}
+	// ensure exp is even
+	if (fExp2 % 2) {
+	    --fExp2;
+	    fIntValue <<= 1;
+	}
+	auto intRt = round == Round::TowardsZero ? fIntValue.sqrt() : fIntValue.ceilSqrt();
+	return {std::move(intRt), fExp2 / 2};
     }
 
     friend BinaryShiftedInt distanceToNearestInteger(BinaryShiftedInt x) {
@@ -563,6 +577,14 @@ struct BinaryShiftedIntRange {
 		x.fLow.divide<BinaryShiftedInt::Round::AwayFromZero>(ySignIfKnown->fCloserToZero),
 		x.fHigh.divide<BinaryShiftedInt::Round::AwayFromZero>(ySignIfKnown->fCloserToZero)
 	    };
+	}
+    }
+
+    friend BinaryShiftedIntRange sqrt(BinaryShiftedIntRange x) {
+	if (x.fLow.sign() != Sign::Positive) {
+	    return {BinaryShiftedInt(0), x.fHigh.sqrt<BinaryShiftedInt::Round::AwayFromZero>()};
+	} else {
+	    return {x.fLow.sqrt<BinaryShiftedInt::Round::TowardsZero>(), x.fHigh.sqrt<BinaryShiftedInt::Round::AwayFromZero>()};
 	}
     }
 
@@ -891,21 +913,75 @@ PreciseRange PreciseRange::operator-() const {
 }
 
 PreciseRange sqrt(PreciseRange const& x) {
+    // For math competitions:
+    // √(n) ≈ (n + nearest_square) / (2  * √nearest_square)
+    // since, squaring both sides,
+    // n ≈ (n + nearest_square)^2 / (4 * nearest_square)
+    //   = (n^2 + 2*n*nearest_square + nearest_square^2) / (4 * nearest_square)
+    //   = n + (n^2 - 2*n*nearest_square + nearest_square^2) / (4 * nearest_square)
+    //   = n + (n - nearest_square)^2 / (4 * nearest_square)
+    // which is close to n as n/nearest_square is close to 1
+    // https://en.wikipedia.org/wiki/Integer_square_root
+    // https://stackoverflow.com/questions/10725522/arbitrary-precision-of-square-roots
     struct Sqrt : public PreciseUnaryOp {
 	using PreciseUnaryOp::PreciseUnaryOp;
 	std::string op() const final {
 	    return "√";
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    // √(n) ≈ (n + nearest_square) / (2  * √nearest_square)
-	    // TODO
-	    unimpl(fArg);
+	    auto argEst = fArg->estimate();
+	    if (auto sign = argEst.signIfKnown(); sign && sign->fSign == Sign::Negative) {
+		throw_exception<std::domain_error>("sqrt of a negative: " + toStringExact());
+	    }
+	    return sqrt(argEst);
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    // TODO
-	    // https://en.wikipedia.org/wiki/Integer_square_root
-	    // https://stackoverflow.com/questions/10725522/arbitrary-precision-of-square-roots
-	    unimpl(fArg, maxUncertaintyLog2);
+	    auto argEst = fArg->estimate();
+	    if (auto sign = argEst.signIfKnown(); sign && sign->fSign == Sign::Positive) {
+		// We seek k so that, for any X,Y satisfying
+		// 0 < A ≤ X ≤ Y ≤ B, Y-X ≤ 2^k,
+		// √Y-√X ≤ 2^(maxUncertaintyLog2-1)
+		// √Y-√X
+		//  = (Y-X)/(√Y+√X)
+		//  ≤ (Y-X)/(2√A)
+		//  ≤ (Y-X)/2^(1+⌊log2(A)⌋/2)
+		//  ≤ (Y-X)/2^(1+⌊⌊log2(A)⌋/2⌋)
+		//  ≤ 2^k/2^(1+⌊⌊log2(A)⌋/2⌋)
+		//  = 2^(k-1-⌊⌊log2(A)⌋/2⌋)
+		// We choose k ≤ maxUncertaintyLog2 + ⌊⌊log2(A)⌋/2⌋ so...
+		//  ≤ 2^(maxUncertaintyLog2-1)
+		// However, note that 2*(maxUncertaintyLog2-1) is also sufficient (see below),
+		//   so we choose k = max(maxUncertaintyLog2 + ⌊⌊log2(A)⌋/2⌋, 2*(maxUncertaintyLog2-1))
+		auto floorLog2LowerBound = *minFloorLog2Abs(argEst);
+		if (floorLog2LowerBound % 2) {
+		    // so we always round down when dividing by 2
+		    --floorLog2LowerBound;
+		}
+		auto k = std::max(maxUncertaintyLog2 + floorLog2LowerBound / 2, 2 * (maxUncertaintyLog2 - 1));
+		argEst = fArg->withUncertaintyLog2AtMost(k);
+	    } else {
+		// We seek k so that, for any X,Y satisfying
+		// 0 ≤ X ≤ Y, Y-X ≤ 2^k,
+		// √Y-√X ≤ 2^(maxUncertaintyLog2-1)
+		// √Y-√X
+		//  = √(Y-2√(XY)+X)
+		//  ≤ √(Y-2√(XX)+X)
+		//  = √(Y-X)
+		//  ≤ √(2^k)
+		//  = 2^(k/2)
+		// We choose k ≤ 2*(maxUncertaintyLog2-1) so...
+		//  ≤ 2^(maxUncertaintyLog2-1)
+		argEst = fArg->withUncertaintyLog2AtMost(2 * (maxUncertaintyLog2 - 1));
+	    }
+	    if (auto sign = argEst.signIfKnown(); sign && sign->fSign == Sign::Negative) {
+		throw_exception<std::domain_error>("sqrt of a negative: " + toStringExact());
+	    }
+	    // lowRoundErr ≤ 2^(lowExp/2) ≤ 2^(maxUncertaintyLog2 - 2)
+	    // highRoundErr ≤ 2^(highExp/2) ≤ 2^(maxUncertaintyLog2 - 2)
+	    // totalRoundErr = lowRoundErr + highRoundErr ≤ 2^(maxUncertaintyLog2 - 1)
+	    // totalErr = totalRoundErr + exactErr ≤ 2^maxUncertaintyLog2
+	    argEst.shiftToHaveExponentsLeq(2 * (maxUncertaintyLog2 - 2));
+	    return sqrt(argEst);
 	}
     };
     return PreciseRange::Impl{std::make_shared<Sqrt>(x.impl())};
