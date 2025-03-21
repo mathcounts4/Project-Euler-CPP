@@ -189,6 +189,31 @@ TEST(BigInt,Arithmetic) {
     CHECK(negInf >> -345876, equals(negInf));
 }
 
+TEST(BigInt, Log2) {
+    CHECK(BigInt(1).log2(), equals(0u));
+    CHECK(BigInt(2).log2(), equals(1u));
+    CHECK(BigInt(3).log2(), equals(1u));
+    CHECK(BigInt(4).log2(), equals(2u));
+    CHECK(BigInt(5).log2(), equals(2u));
+    CHECK(BigInt(7).log2(), equals(2u));
+    CHECK(BigInt(8).log2(), equals(3u));
+    CHECK((BigInt(1) << 12345).log2(), equals(12345u));
+    CHECK(((BigInt(1) << 12345) - 1).log2(), equals(12344u));
+    CHECK((BigInt(3) ^ 157).log2(), equals(248u));
+
+    CHECK(BigInt(1).ceilLog2(), equals(0u));
+    CHECK(BigInt(2).ceilLog2(), equals(1u));
+    CHECK(BigInt(3).ceilLog2(), equals(2u));
+    CHECK(BigInt(4).ceilLog2(), equals(2u));
+    CHECK(BigInt(5).ceilLog2(), equals(3u));
+    CHECK(BigInt(7).ceilLog2(), equals(3u));
+    CHECK(BigInt(8).ceilLog2(), equals(3u));
+    CHECK((BigInt(1) << 12345).ceilLog2(), equals(12345u));
+    CHECK(((BigInt(1) << 12345) - 1).ceilLog2(), equals(12345u));
+    CHECK(((BigInt(1) << 12345) + 1).ceilLog2(), equals(12346u));
+    CHECK((BigInt(3) ^ 157).ceilLog2(), equals(249u));
+}
+
 TEST(BigInt, Sqrt) {
     CHECK(BigInt(0).sqrt(), equals(0));
     CHECK(BigInt(1).sqrt(), equals(1));

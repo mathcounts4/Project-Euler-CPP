@@ -256,9 +256,18 @@ B BigInt::isPowerOf2() const {
 
 // floor(log2(abs(this)))
 SZ BigInt::log2() const {
-    if (data.size())
+    if (data.size()) {
 	return static_cast<SZ>(std::log2(data.back())) + shift_sz * (data.size() - 1);
+    }
     throw_exception<std::domain_error>("BigInt log2 called on " + to_string(*this));
+}
+
+SZ BigInt::ceilLog2() const {
+    auto result = log2();
+    if (!isPowerOf2()) {
+	++result;
+    }
+    return result;
 }
 
 // floor(abs(this)/2^n) % 2
@@ -283,17 +292,41 @@ BigInt BigInt::sqrt() const {
     if (inf()) {
 	return *this;
     }
+    SZ log2rt = log2() / 2;
     // this is a lower bound on the square root, and 2*this is a strict upper bound on the square root.
-    BigInt rt = BigInt(1) << static_cast<SL>(log2() / 2);
+    BigInt rt = BigInt(1) << static_cast<SL>(log2rt);
+    // Now we see which smaller bits should be flipped to 1 in the result.
+
+    // Iterate from largest to smallest bit, checking if (rt + bit)^2 ≤ *this
     // (rt + bit)^2 = rt^2 + 2*rt*bit + bit*bit
-    // store x-rt*rt and compare with 2*rt*bit + bit*bit
-    auto remaining = *this - rt * rt;
-    for (SZ i = log2() / 2; i--; ) {
-	auto additional = (rt << static_cast<SL>(i+1)) + (BigInt(1) << static_cast<SL>(i*2));
-	if (remaining >= additional) {
-	    remaining -= additional;
-	    small_t const bit = small_t(1) << i%shift_sz;
-	    rt.data[i/shift_sz] += bit;
+    // store this-rt*rt and compare with 2*rt*bit + bit*bit
+    BigInt remaining = *this - rt * rt;
+    SZ log2LastBit = log2rt;
+    while (log2LastBit && remaining) {
+	// Jump down bits by calculating an upper bound on the next possible bit:
+	// 2*rt*bit < remaining (since bit*bit > 0)
+	// bit < remaining / (2 * rt)
+	//     ≤ 2^(⌈log2(remaining)⌉) / (2 * 2^(⌊log2(rt)⌋))
+	//     = 2^(⌈log2(remaining)⌉ - 1 - ⌊log2(rt)⌋)
+	auto pc = remaining.ceilLog2();
+	auto nc = log2rt + 1;
+	if (pc <= nc) {
+	    break;
+	}
+	bool success = false;
+	for (SZ bitLog2 = std::min(pc - nc, log2LastBit); bitLog2--; ) {
+	    auto additional = (rt << static_cast<SL>(bitLog2+1)) + (BigInt(1) << static_cast<SL>(bitLog2*2));
+	    if (remaining >= additional) {
+		remaining -= additional;
+		small_t const bit = small_t(1) << bitLog2%shift_sz;
+		rt.data[bitLog2/shift_sz] += bit;
+		log2LastBit = bitLog2;
+		success = true;
+		break;
+	    }
+	}
+	if (!success) {
+	    break;
 	}
     }
     return rt;
