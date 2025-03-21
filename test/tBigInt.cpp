@@ -224,11 +224,30 @@ TEST(BigInt, Sqrt) {
     CHECK(BigInt(9).sqrt(), equals(3));
     CHECK(BigInt(9999).sqrt(), equals(99));
     CHECK(BigInt(10000).sqrt(), equals(100));
+    CHECK(BigInt(10001).sqrt(), equals(100));
     CHECK(((BigInt("12345678901234567891") ^ 2) - 1).sqrt(), equals(BigInt("12345678901234567890")));
     CHECK((BigInt("12345678901234567891") ^ 2).sqrt(), equals(BigInt("12345678901234567891")));
     CHECK(((BigInt("12345678901234567891") ^ 2) + 1).sqrt(), equals(BigInt("12345678901234567891")));
     CHECK((BigInt(9) ^ 372).sqrt(), equals(BigInt(3) ^ 372));
     CHECK(((BigInt(9) ^ 372) - 1).sqrt(), equals((BigInt(3) ^ 372) - 1));
+    CHECK(((BigInt(9) ^ 372) + 1).sqrt(), equals(BigInt(3) ^ 372));
+
+    CHECK(BigInt(0).ceilSqrt(), equals(0));
+    CHECK(BigInt(1).ceilSqrt(), equals(1));
+    CHECK(BigInt(2).ceilSqrt(), equals(2));
+    CHECK(BigInt(3).ceilSqrt(), equals(2));
+    CHECK(BigInt(4).ceilSqrt(), equals(2));
+    CHECK(BigInt(8).ceilSqrt(), equals(3));
+    CHECK(BigInt(9).ceilSqrt(), equals(3));
+    CHECK(BigInt(9999).ceilSqrt(), equals(100));
+    CHECK(BigInt(10000).ceilSqrt(), equals(100));
+    CHECK(BigInt(10001).ceilSqrt(), equals(101));
+    CHECK(((BigInt("12345678901234567891") ^ 2) - 1).ceilSqrt(), equals(BigInt("12345678901234567891")));
+    CHECK((BigInt("12345678901234567891") ^ 2).ceilSqrt(), equals(BigInt("12345678901234567891")));
+    CHECK(((BigInt("12345678901234567891") ^ 2) + 1).ceilSqrt(), equals(BigInt("12345678901234567892")));
+    CHECK((BigInt(9) ^ 372).ceilSqrt(), equals(BigInt(3) ^ 372));
+    CHECK(((BigInt(9) ^ 372) - 1).ceilSqrt(), equals(BigInt(3) ^ 372));
+    CHECK(((BigInt(9) ^ 372) + 1).ceilSqrt(), equals((BigInt(3) ^ 372) + 1));
 }
 
 TEST(BigInt,ModifyingArithmeticArgSelf) {

@@ -232,6 +232,60 @@ class BigInt::Impl {
 	    }
 	}
     }
+
+    enum class RtRound { Floor, Ceil };
+    template<RtRound round>
+    static BigInt sqrtBigInt(BigInt const& x) {
+	if (!x) {
+	    return x;
+	}
+	if (x.neg()) {
+	    throw_exception<std::domain_error>("BigInt sqrt called on " + to_string(x));
+	}
+	if (x.inf()) {
+	    return x;
+	}
+	SZ log2rt = x.log2() / 2;
+	// 2^log2rt is a lower bound on the square root, and 2^(log2rt+1) is a strict upper bound on the square root.
+	BigInt rt = BigInt(1) << static_cast<SL>(log2rt);
+	// Now we see which smaller bits should be flipped to 1 in the result.
+
+	// Iterate from largest to smallest bit, checking if (rt + bit)^2 ≤ x
+	// (rt + bit)^2 = rt^2 + 2*rt*bit + bit*bit
+	// store x-rt*rt and compare with 2*rt*bit + bit*bit
+	BigInt remaining = x - rt * rt;
+	SZ log2LastBit = log2rt;
+	while (log2LastBit && remaining) {
+	    // Jump down bits by calculating an upper bound on the next possible bit:
+	    // 2*rt*bit < remaining (since bit*bit > 0)
+	    // bit < remaining / (2 * rt)
+	    //     ≤ 2^(⌈log2(remaining)⌉) / (2 * 2^(⌊log2(rt)⌋))
+	    //     = 2^(⌈log2(remaining)⌉ - 1 - ⌊log2(rt)⌋)
+	    auto pc = remaining.ceilLog2();
+	    auto nc = log2rt + 1;
+	    if (pc <= nc) {
+		break;
+	    }
+	    bool success = false;
+	    for (SZ bitLog2 = std::min(pc - nc, log2LastBit); bitLog2--; ) {
+		auto additional = (rt << static_cast<SL>(bitLog2+1)) + (BigInt(1) << static_cast<SL>(bitLog2*2));
+		if (remaining >= additional) {
+		    remaining -= additional;
+		    rt.data[bitLog2/shift_sz] += small_t(1) << bitLog2%shift_sz;
+		    log2LastBit = bitLog2;
+		    success = true;
+		    break;
+		}
+	    }
+	    if (!success) {
+		break;
+	    }
+	}
+	if (round == RtRound::Ceil && remaining) {
+	    ++rt;
+	}
+	return rt;
+    }
 };
 
 // deletes extra 0's from the data
@@ -281,57 +335,13 @@ B BigInt::getBit(SZ n) const {
 
 // floor(sqrt(this))
 BigInt BigInt::sqrt() const {
-    // f(x) = this-x^2
-    // f'(x) = -2x
-    if (!*this) {
-	return *this;
-    }
-    if (neg()) {
-	throw_exception<std::domain_error>("BigInt sqrt called on " + to_string(*this));
-    }
-    if (inf()) {
-	return *this;
-    }
-    SZ log2rt = log2() / 2;
-    // this is a lower bound on the square root, and 2*this is a strict upper bound on the square root.
-    BigInt rt = BigInt(1) << static_cast<SL>(log2rt);
-    // Now we see which smaller bits should be flipped to 1 in the result.
-
-    // Iterate from largest to smallest bit, checking if (rt + bit)^2 ≤ *this
-    // (rt + bit)^2 = rt^2 + 2*rt*bit + bit*bit
-    // store this-rt*rt and compare with 2*rt*bit + bit*bit
-    BigInt remaining = *this - rt * rt;
-    SZ log2LastBit = log2rt;
-    while (log2LastBit && remaining) {
-	// Jump down bits by calculating an upper bound on the next possible bit:
-	// 2*rt*bit < remaining (since bit*bit > 0)
-	// bit < remaining / (2 * rt)
-	//     ≤ 2^(⌈log2(remaining)⌉) / (2 * 2^(⌊log2(rt)⌋))
-	//     = 2^(⌈log2(remaining)⌉ - 1 - ⌊log2(rt)⌋)
-	auto pc = remaining.ceilLog2();
-	auto nc = log2rt + 1;
-	if (pc <= nc) {
-	    break;
-	}
-	bool success = false;
-	for (SZ bitLog2 = std::min(pc - nc, log2LastBit); bitLog2--; ) {
-	    auto additional = (rt << static_cast<SL>(bitLog2+1)) + (BigInt(1) << static_cast<SL>(bitLog2*2));
-	    if (remaining >= additional) {
-		remaining -= additional;
-		small_t const bit = small_t(1) << bitLog2%shift_sz;
-		rt.data[bitLog2/shift_sz] += bit;
-		log2LastBit = bitLog2;
-		success = true;
-		break;
-	    }
-	}
-	if (!success) {
-	    break;
-	}
-    }
-    return rt;
+    return BigInt::Impl::sqrtBigInt<BigInt::Impl::RtRound::Floor>(*this);
 }
 
+// ceil(sqrt(this))
+BigInt BigInt::ceilSqrt() const {
+    return BigInt::Impl::sqrtBigInt<BigInt::Impl::RtRound::Ceil>(*this);
+}
 
 // constructors
 BigInt::BigInt()

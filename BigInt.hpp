@@ -105,8 +105,11 @@ class BigInt {
     // returns floor(abs(this)/2^n) % 2
     bool getBit(SZ n) const;
 
-    // returns floor(sqrt(this))
+    // returns floor(sqrt(this)) = ⌊√(this)⌋
     BigInt sqrt() const;
+
+    // returns ceil(sqrt(this)) = ⌈√(this)⌉
+    BigInt ceilSqrt() const;
 
     // type conversion operators
     explicit operator bool() const;
