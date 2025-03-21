@@ -26,7 +26,7 @@ TEST(PreciseRange, ConstructionAndPrinting) {
     CHECK(PreciseRange("0d783").toStringWithUncertaintyLog2AtMost(0), equals("783"));
     CHECK(PreciseRange("-0o77.3").toStringWithUncertaintyLog2AtMost(0), equals("-63.375"));
     CHECK(PreciseRange("-.5").toStringWithUncertaintyLog2AtMost(0), equals("[-.5 ± 0.5]"));
-    CHECK(PreciseRange("3.14159").toStringWithUncertaintyLog2AtMost(0), equals("[3.125 ± 0.125]"));
+    CHECK(PreciseRange("3.14159").toStringWithUncertaintyLog2AtMost(0), equals("[3.5 ± 0.5]"));
 
     /* this makes the test too slow
     CHECK_THROWS(PreciseRange("-0x."), std::invalid_argument);

@@ -174,7 +174,7 @@ struct BinaryShiftedInt {
     struct ComparisonResult {
 	struct Different {
 	    bool fFirstArgIsLess;
-	    std::int64_t fMaxDistLog2;
+	    std::int64_t fCeilDistLog2;
 	};
 	std::optional<Different> fResultIfDifferent;
 
@@ -204,31 +204,72 @@ struct BinaryShiftedInt {
 	auto highestBit = std::max(highestBitX, highestBitY);
 	auto lowestBit = std::min(lowestBitX, lowestBitY);
 	if (xNeg != yNeg) {
-	    // Why +2? 111 - -11 > 1000 so we conservatively say 10000 via +2 from highest bit in either number.
-	    auto ceilLog2Diff = highestBit + 2;
 	    auto xLess = xNeg;
-	    return {ComparisonResult::Different{xLess, ceilLog2Diff}};
+	    // All the bits < bit x total to < bit x in each number, for a sum of < 2 * bit x.
+	    // Possible outputs are highestBit+1 or highestBit+2.
+	    // The output cannot be highestBit since this requires one number to be 0, which was handled above.
+	    // If we sum to ≤ 2*2^highestBit, we return highestBit+1, otherwise return highestBit+2.
+	    // We track the maximum amount of the current bit that we can accomodate and still return highestBit+1.
+	    int maxAccomodate = 2;
+	    for (auto bit = highestBit; bit >= lowestBit; --bit) {
+		auto xBit = bit >= x.fExp2 ? x.fIntValue.getBit(static_cast<std::size_t>(bit - x.fExp2)) : false;
+		auto yBit = bit >= y.fExp2 ? y.fIntValue.getBit(static_cast<std::size_t>(bit - y.fExp2)) : false;
+		if (xBit) {
+		    --maxAccomodate;
+		}
+		if (yBit) {
+		    --maxAccomodate;
+		}
+		if (maxAccomodate < 0) {
+		    return {ComparisonResult::Different{xLess, highestBit + 2}};
+		}
+		if (maxAccomodate >= 2) {
+		    // All the remaining bits in both numbers can't sum to 2 of the current bit
+		    return {ComparisonResult::Different{xLess, highestBit + 1}};
+		}
+		maxAccomodate *= 2;
+	    }
+	    return {ComparisonResult::Different{xLess, highestBit + 1}};
 	}
 	ComparisonResult result{ComparisonResult::Same};
+	bool finalizedBiggestDiffBit = false;
 	for (auto bit = highestBit; bit >= lowestBit; --bit) {
 	    auto xBit = bit >= x.fExp2 ? x.fIntValue.getBit(static_cast<std::size_t>(bit - x.fExp2)) : false;
 	    auto yBit = bit >= y.fExp2 ? y.fIntValue.getBit(static_cast<std::size_t>(bit - y.fExp2)) : false;
-	    if (xBit != yBit) {
-		auto xLess = xBit == xNeg;
-		if (result.fResultIfDifferent) {
-		    // We already have a result from an earlier bit (for example, 100).
-		    // Now we're just determining the upper bound on the distance.
-		    if (result.fResultIfDifferent->fFirstArgIsLess == xLess) {
-			// TODO: write a test that hits this branch
-			// 110 vs 001 -> dist ≤ 1000
-			++result.fResultIfDifferent->fMaxDistLog2;
+	    if (result.fResultIfDifferent) {
+		if (xBit == yBit) {
+		    // 10... vs 00... keep comparing bits to see if we use the bit from 10... or one larger
+		    finalizedBiggestDiffBit = true; // 10... or 100...
+		} else {
+		    auto xLess = xBit == xNeg;
+		    if (finalizedBiggestDiffBit) {
+			if (result.fResultIfDifferent->fFirstArgIsLess == xLess) {
+			    // 111... vs 010... -> since we got 2 bits contributing to the same side, increment and return
+			    ++result.fResultIfDifferent->fCeilDistLog2;
+			    return result; // 101... rounds up to 1000...
+			} else {
+			    // 110... vs 011... -> since we got 2 bits contributing to opposite sides, return existing bit
+			    return result; // 100... - 001... -> rounds up to 100...
+			}
 		    } else {
-			// 101 vs 010 -> dist ≤ 100
+			if (result.fResultIfDifferent->fFirstArgIsLess == xLess) {
+			    // 11... vs 00... -> since we got 2 bits contributing to the same side, increment and return
+			    ++result.fResultIfDifferent->fCeilDistLog2;
+			    return result; // 11... rounds up to 100...
+			} else {
+			    // 10... vs 01... -> treat as 1... vs 0... and keep comparing bits (but first bit isn't finalized)
+			    --result.fResultIfDifferent->fCeilDistLog2; // 10... - 01... -> 01... and continue
+			}
 		    }
-		    return result;
 		}
-		// 1?? vs 0?? -> tentatively mark distance as 100
-		result.fResultIfDifferent = ComparisonResult::Different{xLess, bit};
+	    } else {
+		// no bit diff yet
+		if (xBit != yBit) {
+		    auto xLess = xBit == xNeg;
+		    // 1... vs 0...
+		    // We can't just stop at the first (or second) difference, since we must compare 0b101100001 vs 0b101011111 as only 10 apart.
+		    result.fResultIfDifferent = ComparisonResult::Different{xLess, bit};
+		}
 	    }
 	}
 	return result;
@@ -367,7 +408,7 @@ struct BinaryShiftedIntRange {
 	    if (!resultIfDifferent->fFirstArgIsLess) {
 		swap(fLow, fHigh);
 	    }
-	    fUncertaintyLog2 = resultIfDifferent->fMaxDistLog2;
+	    fUncertaintyLog2 = resultIfDifferent->fCeilDistLog2;
 	} else {
 	    // same value - leave uncertainty unset
 	}
@@ -690,6 +731,12 @@ struct AdjustablePrecisionRange {
 	bool cachedValueOK = fCachedValue && fCachedValue->uncertaintyLog2() <= maxUncertaintyLog2;
 	if (!cachedValueOK) {
 	    fCachedValue = calculateUncertaintyLog2AtMost(maxUncertaintyLog2);
+	    if (fCachedValue->uncertaintyLog2() > maxUncertaintyLog2) {
+		// break on the following line to debug calculateUncertaintyLog2AtMost if you hit this branch/exception (indicating a bug in the derived class)
+		fCachedValue = calculateUncertaintyLog2AtMost(maxUncertaintyLog2);
+		throw_exception<PreciseRangeImplLogicError>("calculateUncertaintyLog2AtMost did not produce requested maxUncertaintyLog2 = " +
+							    std::to_string(maxUncertaintyLog2) + " for: " + toStringExact() + " with value " + fCachedValue->toString());
+	    }
 	}
 	return *fCachedValue;
     }
