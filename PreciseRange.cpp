@@ -149,6 +149,26 @@ struct BinaryShiftedInt {
 	}
     }
 
+    void roundTowardsZero(std::int64_t granularityLog2) {
+	if (fExp2 < granularityLog2) {
+	    fIntValue >>= granularityLog2 - fExp2;
+	    fExp2 = granularityLog2;
+	}
+    }
+
+    void roundAwayFromZero(std::int64_t granularityLog2) {
+	if (fExp2 < granularityLog2) {
+	    auto isNeg = fIntValue.neg();
+	    fIntValue >>= granularityLog2 - fExp2;
+	    if (isNeg) {
+		--fIntValue;
+	    } else {
+		++fIntValue;
+	    }
+	    fExp2 = granularityLog2;
+	}
+    }
+
     bool getBit(std::int64_t bit) const {
 	auto bitInInt = bit - fExp2;
 	if (bitInInt < 0) {
@@ -174,14 +194,18 @@ struct BinaryShiftedInt {
     struct ComparisonResult {
 	struct Different {
 	    bool fFirstArgIsLess;
-	    std::int64_t fCeilDistLog2;
+	    std::int64_t fCeilLog2Dist;
 	};
 	std::optional<Different> fResultIfDifferent;
 
 	static constexpr std::optional<Different> Same = std::nullopt;
     };
-    
-    friend ComparisonResult comp(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
+
+    template<B Truncate>
+    using NonConstIf = Cond<Truncate, BinaryShiftedInt, BinaryShiftedInt const>;
+
+    template<B Truncate>
+    static ComparisonResult compMaybeTruncate(NonConstIf<Truncate>& x, NonConstIf<Truncate>& y) {
 	bool xZero = !x.fIntValue;
 	bool yZero = !y.fIntValue;
 	auto xNeg = x.fIntValue.neg();
@@ -191,11 +215,19 @@ struct BinaryShiftedInt {
 	}
 	if (xZero) {
 	    auto xLess = !yNeg;
-	    return {ComparisonResult::Different{xLess, *ceilLog2Abs(y)}};
+	    auto ceilLog2Dist = *ceilLog2Abs(y);
+	    if constexpr (Truncate) {
+		y = BinaryShiftedInt(yNeg ? -1 : 1, ceilLog2Dist);
+	    }
+	    return {ComparisonResult::Different{xLess, ceilLog2Dist}};
 	}
 	if (yZero) {
 	    auto xLess = xNeg;
-	    return {ComparisonResult::Different{xLess, *ceilLog2Abs(x)}};
+	    auto ceilLog2Dist = *ceilLog2Abs(x);
+	    if constexpr (Truncate) {
+		x = BinaryShiftedInt(xNeg ? -1 : 1, ceilLog2Dist);
+	    }
+	    return {ComparisonResult::Different{xLess, ceilLog2Dist}};
 	}
 	auto highestBitX = static_cast<std::int64_t>(x.fIntValue.log2()) + x.fExp2;
 	auto highestBitY = static_cast<std::int64_t>(y.fIntValue.log2()) + y.fExp2;
@@ -211,7 +243,7 @@ struct BinaryShiftedInt {
 	    // If we sum to ≤ 2*2^highestBit, we return highestBit+1, otherwise return highestBit+2.
 	    // We track the maximum amount of the current bit that we can accomodate and still return highestBit+1.
 	    int maxAccomodate = 2;
-	    for (auto bit = highestBit; bit >= lowestBit; --bit) {
+	    for (auto bit = highestBit; bit >= lowestBit; --bit, maxAccomodate *= 2) {
 		auto xBit = bit >= x.fExp2 ? x.fIntValue.getBit(static_cast<std::size_t>(bit - x.fExp2)) : false;
 		auto yBit = bit >= y.fExp2 ? y.fIntValue.getBit(static_cast<std::size_t>(bit - y.fExp2)) : false;
 		if (xBit) {
@@ -221,14 +253,30 @@ struct BinaryShiftedInt {
 		    --maxAccomodate;
 		}
 		if (maxAccomodate < 0) {
+		    // Difference > 2^(highestBit+1) -> ceilLog2Dist = 2^(highestBit+2)
+		    // -1011... vs 0110...
+		    if constexpr (Truncate) {
+			// Round both away from zero to ±2^(highestBit+1) -> -10000 vs 10000
+			// This has total difference highestBit+2 (the result).
+			x = BinaryShiftedInt(xNeg ? -1 : 1, highestBit + 1);
+			y = BinaryShiftedInt(yNeg ? -1 : 1, highestBit + 1);
+		    }
 		    return {ComparisonResult::Different{xLess, highestBit + 2}};
 		}
 		if (maxAccomodate >= 2) {
-		    // All the remaining bits in both numbers can't sum to 2 of the current bit
+		    // All the remaining bits in both numbers can't sum to 2 of the current bit.
+		    // -1010... vs 0100...
+		    if constexpr (Truncate) {
+			// Truncate by rounding both away from zero at this bit -> -1011 and 0101
+			x.roundAwayFromZero(bit);
+			y.roundAwayFromZero(bit);
+		    }
 		    return {ComparisonResult::Different{xLess, highestBit + 1}};
 		}
-		maxAccomodate *= 2;
 	    }
+	    // -101 vs 010 (maxAccomodate=2) OR -1010 vs 0110 (maxAccomodate=0)
+	    // Could only round if maxAccomodate=2, but this is likely not worth it.
+	    // Could trim trailing 0's, but this is likely not worth it.
 	    return {ComparisonResult::Different{xLess, highestBit + 1}};
 	}
 	ComparisonResult result{ComparisonResult::Same};
@@ -242,23 +290,64 @@ struct BinaryShiftedInt {
 		    finalizedBiggestDiffBit = true; // 10... or 100...
 		} else {
 		    auto xLess = xBit == xNeg;
-		    if (finalizedBiggestDiffBit) {
-			if (result.fResultIfDifferent->fFirstArgIsLess == xLess) {
-			    // 111... vs 010... -> since we got 2 bits contributing to the same side, increment and return
-			    ++result.fResultIfDifferent->fCeilDistLog2;
-			    return result; // 101... rounds up to 1000...
-			} else {
-			    // 110... vs 011... -> since we got 2 bits contributing to opposite sides, return existing bit
-			    return result; // 100... - 001... -> rounds up to 100...
+		    if (result.fResultIfDifferent->fFirstArgIsLess == xLess) {
+			// 11... vs 00... -> since we got 2 bits contributing to the same side, increment and return
+			// 111... vs 010... -> since we got 2 bits contributing to the same side, increment and return.
+			++result.fResultIfDifferent->fCeilLog2Dist;
+			if constexpr (Truncate) {
+			    // 11... -> 100, 00... -> 00... (rounded down)
+			    // 111 -> 1000, 010 -> 000
+			    // round the number with the '1' bits away from 0 to the result-1 bit
+			    // round the number with the '0' bits towards 0 to the result-1 bit
+			    // Note that this may not be setting a bit in the number with the '1' bits,
+			    //   but incrementing at that bit.
+			    // For example, 1111 and 1001 -> dist = 11_ -> 1000, and
+			    //   1111 -> (⌊1111/100⌋+1)*100 = 10000
+			    //   1001 -> (⌊1001/100⌋)*100 = 1000
+			    // Similarly, 1111 and 1010 -> dist = 101 -> 1000, and
+			    //   1111 -> (⌊1111/100⌋+1)*100 = 10000
+			    //   1010 -> (⌊1010/100⌋)*100 = 1000
+			    // More interesting case: 0111100 vs 1000001
+			    //   dist = 1000000 -> 100000 -> 10000 -> 1000 -> 100 then we process the final "1" and round the dist up to 1000.
+			    //   This is similar to 101 vs 000, where we round 101 -> 1000, 000 -> 000, but the round up is from a 0 bit instead of a 1 bit, and the round down is from a 1 bit instead of a 0 bit.
+			    // Round 0111100 down to 0111100
+			    // Round 1000001   up to 1000100
+			    // WOLOG let 0 < x < y.
+			    // ⌊y/2^(resultBit-1)⌋ - ⌊x/2^(resultBit-1)⌋ = 1
+			    // We round x down -> X = ⌊x/2^(resultBit-1)⌋*2^(resultBit-1)
+			    // We round y   up -> Y = (⌊y/2^(resultBit-1)⌋+1)*2^(resultBit-1)
+			    // Y-X
+			    //   = (⌊y/2^(resultBit-1)⌋-⌊x/2^(resultBit-1)⌋+1)*2^(resultBit-1)
+			    //   = (1+1)*2^(resultBit-1)
+			    //   = 2^resultBit
+			    // TODO: split this file into multiple in order to write tests for the pieces.
+			    auto resultBit = result.fResultIfDifferent->fCeilLog2Dist;
+			    if (xBit) {
+				x.roundAwayFromZero(resultBit - 1);
+				y.roundTowardsZero(resultBit - 1);
+			    } else {
+				x.roundTowardsZero(resultBit - 1);
+				y.roundAwayFromZero(resultBit - 1);
+			    }
 			}
+			return result; // 101... rounds up to 1000...
 		    } else {
-			if (result.fResultIfDifferent->fFirstArgIsLess == xLess) {
-			    // 11... vs 00... -> since we got 2 bits contributing to the same side, increment and return
-			    ++result.fResultIfDifferent->fCeilDistLog2;
-			    return result; // 11... rounds up to 100...
+			if (finalizedBiggestDiffBit) {
+			    // 110... vs 011... -> since we got 2 bits contributing to opposite sides, return existing bit
+			    if constexpr (Truncate) {
+				// Round 110... up to 111 and 011... down to 011 for exact difference 2^resultBit
+				if (xBit) {
+				    x.roundTowardsZero(bit);
+				    y.roundAwayFromZero(bit);
+				} else {
+				    x.roundAwayFromZero(bit);
+				    y.roundTowardsZero(bit);
+				}
+			    }
+			    return result; // 100... - 001... -> rounds up to 100...
 			} else {
 			    // 10... vs 01... -> treat as 1... vs 0... and keep comparing bits (but first bit isn't finalized)
-			    --result.fResultIfDifferent->fCeilDistLog2; // 10... - 01... -> 01... and continue
+			    result.fResultIfDifferent->fCeilLog2Dist = bit; // 10... - 01... -> 01... and continue
 			}
 		    }
 		}
@@ -272,7 +361,20 @@ struct BinaryShiftedInt {
 		}
 	    }
 	}
+	if (result.fResultIfDifferent) {
+	    // 110 vs 010
+	    // Could trim trailing 0's, but this is likely not worth it.
+	} else {
+	    // 110 vs 110 - same value
+	    // Could trim trailing 0's, but this is likely not worth it.
+	}
 	return result;
+    }
+    friend ComparisonResult comp(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
+	return compMaybeTruncate<false>(x, y);
+    }
+    friend ComparisonResult compTruncate(BinaryShiftedInt& x, BinaryShiftedInt& y) {
+	return compMaybeTruncate<true>(x, y);
     }
 
     friend bool operator<(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
@@ -403,12 +505,13 @@ struct BinaryShiftedIntRange {
 	: fLow(std::move(upperOrLowerBound))
 	, fHigh(std::move(otherBound))
 	, fUncertaintyLog2{std::nullopt} {
-        auto cmp = comp(fLow, fHigh);
+	// Use compTruncate to shorten the result bounds to avoid storing many bits beyond necessary
+        auto cmp = compTruncate(fLow, fHigh);
 	if (auto resultIfDifferent = cmp.fResultIfDifferent) {
 	    if (!resultIfDifferent->fFirstArgIsLess) {
 		swap(fLow, fHigh);
 	    }
-	    fUncertaintyLog2 = resultIfDifferent->fCeilDistLog2;
+	    fUncertaintyLog2 = resultIfDifferent->fCeilLog2Dist;
 	} else {
 	    // same value - leave uncertainty unset
 	}
@@ -479,8 +582,6 @@ struct BinaryShiftedIntRange {
     }
 
     friend BinaryShiftedIntRange operator+(BinaryShiftedIntRange const& x, BinaryShiftedIntRange const& y) {
-	// TODO: consider shortening result if we're storing many bits beyond our uncertainty
-	//   (for this and other arithmetic operators)
 	return {x.fLow + y.fLow, x.fHigh + y.fHigh};
     }
 

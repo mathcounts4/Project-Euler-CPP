@@ -79,6 +79,18 @@ TEST(PreciseRange, HighPrecisionMultiplication) {
     CHECK(eq(PreciseRange(3) * PreciseRange("1.2"), PreciseRange("3.6")), isTrue());
 }
 
+TEST(PreciseRange, DropUnnecessaryExtraBits) {
+    // This test verifies we drop extra unnecessary bits after performing a calculation.
+    // For example, [1,2] * [4, 4.5] = [4, 9].
+    // [4, 9] has uncertainty 5, and ⌈log2(uncertainty)⌉ = 3.
+    // We might as well round to produce [4, 12], which has the same uncertainty,
+    //   but requires storage of fewer bits, which corresponds to a cheaper cost of
+    //   downstream operations.
+    CHECK(sqrt(PreciseRange("10") * PreciseRange("0.1")).toStringWithUncertaintyLog2AtMost(1), equals("[1 ± 0.25]"));
+
+    CHECK((PreciseRange(1) / 9 * 5).toStringWithUncertaintyLog2AtMost(1), equals("[0.5625 ± 0.125]"));
+}
+
 TEST(PreciseRange, HighPrecisionDivision) {
     CHECK(lt(PreciseRange(9999) / 10000, PreciseRange(10000) / 10001), isTrue());
     // Note: decimal must be at least 2^(-100) ≈ 10^(-30) away from real value,
