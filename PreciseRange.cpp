@@ -21,11 +21,6 @@ class PreciseRangeImplLogicError : private std::string, public std::exception {
     }
 };
 
-template<class... T>
-[[noreturn]] void unimpl(T&&...) {
-    throw_exception<PreciseRangeImplLogicError>("unimplemented");
-}
-
 enum class Sign : int { Negative = -1, Zero = 0, Positive = 1 };
 static PreciseRange::Cmp signToCmp(Sign sign) {
     switch (sign) {
