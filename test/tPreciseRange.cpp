@@ -60,6 +60,10 @@ TEST(PreciseRange, Comparison) {
     CHECK(lt(PreciseRange(-3), PreciseRange(4)), isTrue());
 }
 
+TEST(PreciseRange, Pi) {
+    CHECK(PreciseRange::pi().toStringWithUncertaintyLog2AtMost(std::nullopt), equals("[3.125 ± 0.125]"));
+}
+
 TEST(PreciseRange, HighPrecisionAddition) {
     CHECK(eq(PreciseRange("1.2") + PreciseRange("1.4"), PreciseRange("2.6")), isTrue());
 }

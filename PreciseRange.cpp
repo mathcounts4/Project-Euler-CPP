@@ -1021,8 +1021,8 @@ PreciseRange PreciseRange::pi() {
 	    return "π";
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    // TODO
-	    unimpl();
+	    // 3.25 = 13/4
+	    return {BinaryShiftedInt(3), BinaryShiftedInt(13, -2)};
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
 	    // TODO
