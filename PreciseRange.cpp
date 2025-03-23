@@ -461,15 +461,8 @@ struct BinaryShiftedInt {
 	}
     }
 
-    friend BinaryShiftedInt operator<<(BinaryShiftedInt x, std::int64_t shift) {
-	// TODO: write a test that hits this function
-	x.fExp2 += shift;
-	return x;
-    }
-
-    friend BinaryShiftedInt operator>>(BinaryShiftedInt x, std::int64_t shift) {
-	x.fExp2 -= shift;
-	return x;
+    void divBy2() {
+	--fExp2;
     }
     
     std::string toString() const {
@@ -782,7 +775,8 @@ struct BinaryShiftedIntRange {
     }
 
     std::string toString() const {
-	auto diffToMidpoint = (fHigh - fLow) >> 1;
+	auto diffToMidpoint = fHigh - fLow;
+	diffToMidpoint.divBy2();
 	if (!diffToMidpoint) {
 	    return fLow.toString();
 	}
