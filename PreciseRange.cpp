@@ -164,6 +164,15 @@ struct BinaryShiftedInt {
 	}
     }
 
+    BigInt const& upperBoundAbs() {
+	roundAwayFromZero(0);
+	shiftToHaveExponentLeq(0);
+	if (sign() == Sign::Negative) {
+	    negateMe();
+	}
+	return fIntValue;
+    }
+
     bool getBit(std::int64_t bit) const {
 	auto bitInInt = bit - fExp2;
 	if (bitInInt < 0) {
@@ -569,8 +578,35 @@ struct BinaryShiftedIntRange {
 	return std::min(floorLog2Abs(x.fLow), floorLog2Abs(x.fHigh));
     }
 
+    // As this mutates the value, require an rvalue so the callsite won't reuse *this
+    Optional<std::size_t> maxUpperBoundAbs() && {
+	auto low = fLow.upperBoundAbs().convert<std::size_t>();
+	if (!low) {
+	    // failure
+	    return low;
+	}
+	auto high = fHigh.upperBoundAbs().convert<std::size_t>();
+	if (!high) {
+	    // failure
+	    return high;
+	}
+	return std::max(*low, *high);
+    }
+
     friend BinaryShiftedIntRange operator+(BinaryShiftedIntRange const& x, BinaryShiftedIntRange const& y) {
 	return {x.fLow + y.fLow, x.fHigh + y.fHigh};
+    }
+
+    template<class Range, class F>
+    static BinaryShiftedIntRange sum(Range&& range, F&& f) {
+	BinaryShiftedInt low(0);
+	BinaryShiftedInt high(0);
+	for (auto&& x : range) {
+	    BinaryShiftedIntRange term = f(x);
+	    low = low + term.fLow;
+	    high = high + term.fHigh;
+	}
+	return {low, high};
     }
 
     friend BinaryShiftedIntRange operator-(BinaryShiftedIntRange const& x, BinaryShiftedIntRange const& y) {
@@ -782,9 +818,10 @@ struct BinaryShiftedIntRange {
 
 enum class OperatorPriority : std::uint8_t {
     AdditionSubtraction = 0,    // inside any other expression, requires being shown in ()
-    MultiplicationDivision = 1, // inside another * or / or unary fcn, requires being shown in ()
-    ExactValue = 2,             // inside a unary fcn, requires being shown in ()
-    UnaryOperator = 3,          // force any sub-expression to be shown in ()
+    MultiplicationDivision = 1, // inside another * or / or unary fcn or power base, requires being shown in ()
+    Power = 2,                  // inside a unary fcn, requires being shown in ()
+    ExactValue = 3,             // inside a unary fcn, requires being shown in ()
+    UnaryOperator = 4,          // force any sub-expression to be shown in ()
 };
 
 struct AdjustablePrecisionRange {
@@ -796,10 +833,19 @@ struct AdjustablePrecisionRange {
     virtual std::string toStringExact() const = 0;
     virtual BinaryShiftedIntRange calculateEstimate() = 0;
     virtual BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) = 0;
+    virtual OperatorPriority operatorPriorityVsParent() const {
+	// Some operators behave with one priority to their children, but a different one to their parent.
+	// For example, the unary negation operator -x acts like a UnaryOperator to its child
+	//   (so the child is always placed in parentheses), -> -(2)
+	//   but it acts like MultiplicationDivision to its parent
+	//   (so it is usually placed in parentheses) -> (-(2))*3 but 4+-(2)
+	// Otherwise
+	return operatorPriority();
+    }
 
   public:
     std::string toStringExact(AdjustablePrecisionRange const* parent) const {
-	if (parent && parent->operatorPriority() >= operatorPriority()) {
+	if (parent && parent->operatorPriority() >= operatorPriorityVsParent()) {
 	    return "(" + toStringExact() + ")";
 	} else {
 	    return toStringExact();
@@ -906,6 +952,9 @@ using SharedPreciseRange = std::shared_ptr<AdjustablePrecisionRange>;
 
 struct PreciseRange::Impl : public SharedPreciseRange {
     using SharedPreciseRange::SharedPreciseRange;
+
+    Impl(SharedPreciseRange const& range)
+	: SharedPreciseRange(range) {}
     
     static Impl fromNumeric(std::string_view numericLiteral) {
 	B negative = false;
@@ -1016,6 +1065,7 @@ PreciseRange PreciseRange::pi() {
 	    return "π";
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
+	    // TODO: this should just return calculateUncertaintyLog2AtMost(-2)
 	    // 3.25 = 13/4
 	    return {BinaryShiftedInt(3), BinaryShiftedInt(13, -2)};
 	}
@@ -1032,6 +1082,9 @@ PreciseRange PreciseRange::pi() {
 PreciseRange PreciseRange::operator-() const {
     struct Negative : public PreciseUnaryOp {
 	using PreciseUnaryOp::PreciseUnaryOp;
+	OperatorPriority operatorPriorityVsParent() const final {
+	    return OperatorPriority::MultiplicationDivision;
+	}
 	std::string op() const final {
 	    return "-";
 	}
@@ -1145,25 +1198,102 @@ PreciseRange distanceToNearestInteger(PreciseRange const& x) {
 // For example:
 // e^x has f(0) = f'(0) = f''(0) = ... = 1, so it corresponds to <1>
 // sin(x) has f(0) = 0, f'(0) = 1, f''(0) = 0, f'''(0) = -1, ..., so it corresponds to <0, 1, 0, -1>
+// As one might expect, this is expensive for large inputs, and can blow out the stack based on the input value.
+// Try to compute a power series with a smaller input, and perform additional operations to reach the final result.
+// For example, e^x can be computed as (e^(x/2^k))^(2^k) for any chosen value of k, where ^(2^k) can be performed via multiplication.
 template<std::int64_t... Derivatives>
 struct PowerSeriesOp : public PreciseUnaryOp {
     using PreciseUnaryOp::PreciseUnaryOp;
 
     static_assert(((-1 <= Derivatives && Derivatives <= 1) && ...), "Power series only supports repeated derivatives of -1, 0, and 1");
+    static_assert(((Derivatives != 0) || ...), "Power series must have at least one nonzero term");
+
+    static constexpr std::array DerivativesArray = {Derivatives...};
+
+    void addTerm() {
+	auto exp = fTermsWithoutCoefficients.size();
+	PreciseRange::Impl arg(fArg);
+	// TODO: try swapping multiplication order -> faster or slower?
+	auto newTermWithoutCoefficients = fTermsWithoutCoefficients.back() * arg / static_cast<std::int64_t>(exp);
+	fTermsWithoutCoefficients.push_back(newTermWithoutCoefficients);
+	if (auto d = DerivativesArray[exp % DerivativesArray.size()]) {
+	    fTermsToSum.push_back(fFinalTermToSum);
+	    if (d == 1) {
+		fFinalTermToSum = newTermWithoutCoefficients;
+	    } else if (d == -1) {
+		fFinalTermToSum = -newTermWithoutCoefficients;
+	    } else {
+		throw_exception<PreciseRangeImplLogicError>("Power series derivatives should only be -1, 0, or 1, but encountered " + std::to_string(d) + " in '" + op() + "'");
+	    }
+	}
+    }
+
+    void ensureInit() {
+	if (fTermsToSum.empty()) {
+	    // get input within a range of size 2^0 = 1 to get an accurate upper bound
+	    auto optBound = BinaryShiftedIntRange(fArg->withUncertaintyLog2AtMost(0)).maxUpperBoundAbs();
+	    if (!optBound) {
+		throw_exception<std::domain_error>("Power series is too large (more than " + std::to_string(std::numeric_limits<std::size_t>::max()) + " elements) for " + toStringExact());
+	    }
+	    auto bound = *optBound;
+	    auto minExpNeeded = 2u * bound;
+	    while (fTermsWithoutCoefficients.size() < minExpNeeded) {
+		addTerm();
+	    }
+	    // get a nonzero term whose exponent guarantees later terms will be less in absolute value by at least a factor of 2
+	    // This guarantees that the sum of all remaining terms is at most 2 * finalTerm,
+	    //   which allows us to bound the uncertainty in the result.
+	    auto numSummedTerms = fTermsToSum.size();
+	    while (fTermsToSum.size() == numSummedTerms) {
+		addTerm();
+	    }
+	}
+    }
+
+    BinaryShiftedIntRange calculate(std::optional<std::int64_t> maxUncertaintyLog2) {
+	ensureInit();
+	if (maxUncertaintyLog2) {
+	    auto uncertaintyLog2ForTermsSum = *maxUncertaintyLog2 - 1;
+	    auto uncertaintyLog2ForRemainingTerms = *maxUncertaintyLog2 - 1;
+	    // finalTerm * [0,2] will have uncertainty ≤ 4*2^(maxCeilLog2Abs(finalTerm)) which we want ≤ 2^uncertaintyLog2ForRemainingTerms
+	    auto upperBoundLog2ForFinalTerm = uncertaintyLog2ForRemainingTerms - 2;
+	    auto calculateFinalTerm = [&, this]() { return fFinalTermToSum.impl()->withUncertaintyLog2AtMost(upperBoundLog2ForFinalTerm - 1); };
+	    while (maxCeilLog2Abs(calculateFinalTerm()) > upperBoundLog2ForFinalTerm) {
+		addTerm();
+	    }
+	    // If we're summing 5 terms and need their sum to be accurate within 2^k, compute each term to be accurate within
+	    //   2^(k-⌈log2(5)⌉) = 2^(k-3)
+	    auto ceilLog2NumTermsInSum = static_cast<std::int64_t>(std::ceil(std::log2(fTermsToSum.size())));
+	    auto uncertaintyLog2PerTermInSum = uncertaintyLog2ForTermsSum - ceilLog2NumTermsInSum;
+	    // Use BinaryShiftedIntRange::sum instead of BinaryShiftedIntRange::operator+ to avoid intermediate rounding
+	    return BinaryShiftedIntRange::sum(fTermsToSum, [&](PreciseRange& r) { return r.impl()->withUncertaintyLog2AtMost(uncertaintyLog2PerTermInSum); }) + calculateFinalTerm() * BinaryShiftedIntRange(BinaryShiftedInt(0), BinaryShiftedInt(2));
+	} else {
+	    // Use BinaryShiftedIntRange::sum instead of BinaryShiftedIntRange::operator+ to avoid intermediate rounding
+	    return BinaryShiftedIntRange::sum(fTermsToSum, [](PreciseRange& r) { return r.impl()->estimate(); }) + fFinalTermToSum.impl()->estimate() * BinaryShiftedIntRange(BinaryShiftedInt(0), BinaryShiftedInt(2));
+	}
+    }
 
     BinaryShiftedIntRange calculateEstimate() final {
-	// TODO
-	unimpl(fArg);
+	return calculate(std::nullopt);
     }
     BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	// TODO
-	unimpl(fArg, maxUncertaintyLog2);
+	return calculate(maxUncertaintyLog2);
     }
+
+  private:
+    std::vector<PreciseRange> fTermsWithoutCoefficients{1}; // [i] = x^i/i!
+    std::vector<PreciseRange> fTermsToSum;
+    PreciseRange fFinalTermToSum{DerivativesArray[0]};
 };
 
 PreciseRange exp(PreciseRange const& x) {
+    // TODO: should this divide the input by 2^k to get a value < 1, then raise the result to the 2^k'th power?
+    // Will this be more efficient than a direct power series computation?
     struct Exp : public PowerSeriesOp<1> {
 	using PowerSeriesOp::PowerSeriesOp;
+	OperatorPriority operatorPriorityVsParent() const final {
+	    return OperatorPriority::Power;
+	}
 	std::string op() const final {
 	    return "e^";
 	}
@@ -1172,6 +1302,8 @@ PreciseRange exp(PreciseRange const& x) {
 }
 
 PreciseRange sin(PreciseRange const& x) {
+    // TODO: should this compute the argument mod 2π before performing the power series calculation?
+    // Will this be more efficient than a direct power series computation?
     struct Sin : public PowerSeriesOp<0, 1, 0, -1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
@@ -1182,6 +1314,8 @@ PreciseRange sin(PreciseRange const& x) {
 }
 
 PreciseRange cos(PreciseRange const& x) {
+    // TODO: should this compute the argument mod 2π before performing the power series calculation?
+    // Will this be more efficient than a direct power series computation?
     struct Cos : public PowerSeriesOp<1, 0, -1, 0> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
@@ -1192,6 +1326,8 @@ PreciseRange cos(PreciseRange const& x) {
 }
 
 PreciseRange sinh(PreciseRange const& x) {
+    // TODO: should this just compute (e^x - e^(-x))/2?
+    // Will this be more efficient than a direct power series computation?
     struct Sinh : public PowerSeriesOp<0, 1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
@@ -1202,6 +1338,8 @@ PreciseRange sinh(PreciseRange const& x) {
 }
 
 PreciseRange cosh(PreciseRange const& x) {
+    // TODO: should this just compute (e^x + e^(-x))/2?
+    // Will this be more efficient than a direct power series computation?
     struct Cosh : public PowerSeriesOp<1, 0> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
@@ -1391,6 +1529,62 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	}
     };
     return PreciseRange::Impl{std::make_shared<Quotient>(x.impl(), y.impl())};
+}
+
+PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
+    // TODO: accept BigInt?
+    struct Power : public AdjustablePrecisionRange {
+      public:
+	Power(SharedPreciseRange base, std::int64_t exponent)
+	    : fBase(base)
+	    , fExponent(exponent)
+	    , fComputationImpl(powerRange(PreciseRange::Impl(fBase), fExponent).impl()) {}
+
+      private:
+	static PreciseRange powerRange(PreciseRange base, std::int64_t exponent) {
+	    PreciseRange basePow = base;
+	    std::optional<PreciseRange> result;
+	    for (auto e = my_abs(exponent); e; e /= 2, basePow = basePow * basePow) {
+		if (e % 2) {
+		    if (!result) {
+			result = basePow;
+		    } else {
+			// TODO: try swapping multiplication order -> faster or slower?
+			result = basePow * *result;
+		    }
+		}
+	    }
+	    if (result) {
+		if (exponent < 0) {
+		    return 1 / *result;
+		} else {
+		    return *result;
+		}
+	    } else {
+		return 1;
+	    }
+	}
+
+      private:
+	OperatorPriority operatorPriority() const final {
+	    return OperatorPriority::Power;
+	}
+	std::string toStringExact() const final {
+	    return fBase->toStringExact(this) + "^" + std::to_string(fExponent);
+	}
+	BinaryShiftedIntRange calculateEstimate() final {
+	    return fComputationImpl->estimate();
+	}
+	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
+	    return fComputationImpl->withUncertaintyLog2AtMost(maxUncertaintyLog2);
+	}
+
+      private:
+	SharedPreciseRange fBase;
+	std::int64_t fExponent;
+	SharedPreciseRange fComputationImpl;
+    };
+    return PreciseRange::Impl{std::make_shared<Power>(x.impl(), exponent)};
 }
 
 PreciseRange::Cmp cmp(PreciseRange const& x, PreciseRange const& y, std::int64_t maxUncertaintyLog2) {

@@ -9,6 +9,9 @@ struct PreciseRange {
     // Constructors
     PreciseRange(std::int64_t value);
     PreciseRange(std::string_view numericLiteral /* hex, binary, octal, or decimal, decimal point and negative sign allowed */);
+    template<std::size_t n>
+    PreciseRange(char const (&stringLiteral)[n])
+	: PreciseRange(std::string_view(stringLiteral)) {}
     PreciseRange(PreciseRange const&);
     ~PreciseRange();
     PreciseRange& operator=(PreciseRange const&);
@@ -34,6 +37,8 @@ struct PreciseRange {
     friend PreciseRange operator*(PreciseRange const& x, PreciseRange const& y);
     // Note: when evaluating the result of operator/, if, after refining y to high precision, we cannot prove that y ≠ 0, this throws std::domain_error
     friend PreciseRange operator/(PreciseRange const& x, PreciseRange const& y);
+    // x^exponent = power(x, exponent)
+    friend PreciseRange operator^(PreciseRange const& x, std::int64_t exponent);
 
     // Binary operators that produce a usable result
     enum class Cmp { Less, ApproxEqual, Greater };
@@ -56,6 +61,8 @@ struct PreciseRange {
     std::string toStringWithUncertaintyLog2AtMost(std::optional<std::int64_t> maxUncertaintyLog2) const;
 
   private:
+    template<std::int64_t... Derivatives>
+    friend struct PowerSeriesOp;
     struct Impl;
     friend struct Impl;
     UniqueOwnedReference<Impl> fImpl;
