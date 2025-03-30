@@ -1213,8 +1213,8 @@ struct PowerSeriesOp : public PreciseUnaryOp {
     void addTerm() {
 	auto exp = fTermsWithoutCoefficients.size();
 	PreciseRange::Impl arg(fArg);
-	// TODO: try swapping multiplication order -> faster or slower?
-	auto newTermWithoutCoefficients = fTermsWithoutCoefficients.back() * arg / static_cast<std::int64_t>(exp);
+	// Emperical evidence for large power series (x=300) shows this multiplication + division order produces faster code than other orders
+	auto newTermWithoutCoefficients = arg / static_cast<std::int64_t>(exp) * fTermsWithoutCoefficients.back();
 	fTermsWithoutCoefficients.push_back(newTermWithoutCoefficients);
 	if (auto d = DerivativesArray[exp % DerivativesArray.size()]) {
 	    fTermsToSum.push_back(fFinalTermToSum);
@@ -1549,7 +1549,7 @@ PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
 		    if (!result) {
 			result = basePow;
 		    } else {
-			// TODO: try swapping multiplication order -> faster or slower?
+			// Emperical evidence for large power series (x=2000) shows either multiplication order has around the same performance
 			result = basePow * *result;
 		    }
 		}

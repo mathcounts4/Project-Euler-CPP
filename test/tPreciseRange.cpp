@@ -219,7 +219,7 @@ TEST(PreciseRange, ExpLarge) {
 
     // e^2000 = 3.88118019...e+868
     // TODO: make e^x more efficient (and avoid overflowing the stack) for large values of x
-    //CHECK(strictRange("3.88118019", exp(PreciseRange(2000)) / (PreciseRange(10) ^ 868), "3.88118020"), isTrue());
+    CHECK(strictRange("3.88118019", exp(PreciseRange(2000)) / (PreciseRange(10) ^ 868), "3.88118020"), isTrue());
 }
 
 TEST(PreciseRange, SinCos) {
@@ -266,6 +266,10 @@ TEST(PreciseRange, SinCosLarge) {
     // cos(300) = -0.0220966...
     CHECK(strictRange("-0.0220967", cos(PreciseRange(300)), "-0.0220966"), isTrue());
 
+    // sin(-1000) = -0.82687954...
+    CHECK(strictRange("-0.82687955", sin(PreciseRange(-1000)), "-0.82687954"), isTrue());
+    // cos(-1000) = 0.56237907...
+    CHECK(strictRange("0.56237907", cos(PreciseRange(-1000)), "0.56237908"), isTrue());
     // TODO: make sin/cos more efficient (and avoid overflowing the stack) for large values of x
 }
 
@@ -290,5 +294,9 @@ TEST(PreciseRange, SinhCoshLarge) {
     // cosh(-200) = 3.61298688...e+86
     CHECK(strictRange("3.61298688", cosh(PreciseRange(-200)) / (PreciseRange(10) ^ 86), "3.61298689"), isTrue());
 
+    // sinh(-2000) = -1.94059009...e868
+    CHECK(strictRange("-1.94059010", sinh(PreciseRange(-2000)) / (PreciseRange(10) ^ 868), "-1.94059009"), isTrue());
+    // cosh(-2000) = 1.94059009...e868
+    CHECK(strictRange("1.94059009", cosh(PreciseRange(-2000)) / (PreciseRange(10) ^ 868), "1.94059010"), isTrue());
     // TODO: make sinh/cosh more efficient (and avoid overflowing the stack) for large values of x
 }
