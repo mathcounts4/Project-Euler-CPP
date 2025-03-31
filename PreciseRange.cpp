@@ -1629,18 +1629,16 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 
 PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
     // TODO: accept BigInt?
-    struct Power : public AdjustablePrecisionRange {
+    struct Power : public ImplAsAnotherRangeWithBase<Power, AdjustablePrecisionRange> {
       public:
 	Power(SharedPreciseRange base, std::int64_t exponent)
 	    : fBase(base)
-	    , fExponent(exponent)
-	    , fComputationImpl(powerRange(PreciseRange::Impl(fBase), fExponent).impl()) {}
+	    , fExponent(exponent) {}
 
-      private:
-	static PreciseRange powerRange(PreciseRange base, std::int64_t exponent) {
-	    PreciseRange basePow = base;
+	SharedPreciseRange calculateImpl() {
+	    PreciseRange basePow{PreciseRange::Impl{fBase}};
 	    std::optional<PreciseRange> result;
-	    for (auto e = my_abs(exponent); e; e /= 2, basePow = basePow * basePow) {
+	    for (auto e = my_abs(fExponent); e; e /= 2, basePow = basePow * basePow) {
 		if (e % 2) {
 		    if (!result) {
 			result = basePow;
@@ -1651,13 +1649,13 @@ PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
 		}
 	    }
 	    if (result) {
-		if (exponent < 0) {
-		    return 1 / *result;
+		if (fExponent < 0) {
+		    return (1 / *result).impl();
 		} else {
-		    return *result;
+		    return (*result).impl();
 		}
 	    } else {
-		return 1;
+		return PreciseRange(1).impl();
 	    }
 	}
 
@@ -1668,17 +1666,10 @@ PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
 	std::string toStringExact() const final {
 	    return fBase->toStringExact(this) + "^" + std::to_string(fExponent);
 	}
-	BinaryShiftedIntRange calculateEstimate() final {
-	    return fComputationImpl->estimate();
-	}
-	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    return fComputationImpl->withUncertaintyLog2AtMost(maxUncertaintyLog2);
-	}
 
       private:
 	SharedPreciseRange fBase;
 	std::int64_t fExponent;
-	SharedPreciseRange fComputationImpl;
     };
     return PreciseRange::Impl{std::make_shared<Power>(x.impl(), exponent)};
 }
