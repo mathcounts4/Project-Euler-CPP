@@ -1008,6 +1008,43 @@ struct PreciseRange::Impl : public SharedPreciseRange {
     }
 };
 
+/* Usage example: SquarePlusOne
+struct SquarePlusOne : public ImplAsAnotherRangeWithBase<SquarePlusOne, PreciseUnaryOp>
+    using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+    SharedPreciseRange calculateImpl() {
+        PreciseRange x(PreciseRange::Impl(fArg));
+        return (x * x + 1).impl();
+    }
+};
+*/
+// The derived class MUST implement a calculateImpl() method that returns SharedPreciseRange.
+// It will only be called once, the first time estimate() or withUncertaintyLog2AtMost() is called.
+template<class Self, class Base>
+struct ImplAsAnotherRangeWithBase : public Base {
+    static_assert(std::is_base_of_v<AdjustablePrecisionRange, Base>, "Base class should be AdjustablePrecisionRange or something inheriting from it");
+  public:
+    using Base::Base;
+
+  private:
+    AdjustablePrecisionRange& impl() {
+	if (!fImpl) {
+	    fImpl = static_cast<Self&>(*this).calculateImpl();
+	}
+	return *fImpl;
+    }
+
+    BinaryShiftedIntRange calculateEstimate() final {
+	return impl().estimate();
+    }
+
+    BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
+	return impl().withUncertaintyLog2AtMost(maxUncertaintyLog2);
+    }
+
+  private:
+    SharedPreciseRange fImpl;
+};
+
 struct PreciseUnaryOp : public AdjustablePrecisionRange {
     SharedPreciseRange fArg;
 
@@ -1276,6 +1313,7 @@ struct PowerSeriesOp : public PreciseUnaryOp {
     BinaryShiftedIntRange calculateEstimate() final {
 	return calculate(std::nullopt);
     }
+
     BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
 	return calculate(maxUncertaintyLog2);
     }
@@ -1287,9 +1325,7 @@ struct PowerSeriesOp : public PreciseUnaryOp {
 };
 
 PreciseRange exp(PreciseRange const& x) {
-    // TODO: should this divide the input by 2^k to get a value < 1, then raise the result to the 2^k'th power?
-    // Will this be more efficient than a direct power series computation?
-    struct Exp : public PowerSeriesOp<1> {
+    struct RawExp : public PowerSeriesOp<1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	OperatorPriority operatorPriorityVsParent() const final {
 	    return OperatorPriority::Power;
@@ -1298,7 +1334,38 @@ PreciseRange exp(PreciseRange const& x) {
 	    return "e^";
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Exp>(x.impl())};
+
+    struct ExpWithPreScaling : public ImplAsAnotherRangeWithBase<ExpWithPreScaling, PreciseUnaryOp> {
+	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+
+        SharedPreciseRange calculateImpl() {
+	    // Choose k so |x| ≤ 2^k, 0 ≤ k
+	    // Choose k = max(⌈log2(|x|)⌉, 0) + 3 so each term of the power series will be reduced by at least a factor of 8, for extra-fast convergence.
+	    // However, even larger values of k can cost (with the final k squarings) more than they gain in power series convergence.
+	    auto k = *std::max(maxCeilLog2Abs(fArg->withUncertaintyLog2AtMost(0)), IntOrNegInf(0)) + 3;
+	    // y = x / 2^k, so |y| ≤ 1. This makes the power series of y converge quickly.
+	    auto y = PreciseRange(PreciseRange::Impl(fArg)) * PreciseRange::Impl{std::make_shared<ExactValue>(BinaryShiftedInt(1, -k))};
+	    // e^x = e^(x / 2^k * 2*k) = (e^(x / 2^k))^(2^k) = (e^y)^(2^k)
+	    // e^y:
+	    PreciseRange expY = PreciseRange::Impl{std::make_shared<RawExp>(y.impl())};
+	    PreciseRange result = expY;
+	    // (e^y)^(2^k)
+	    for (auto i = k; i--; ) {
+		result = result * result;
+	    }
+	    return result.impl();
+	}
+	OperatorPriority operatorPriorityVsParent() const final {
+	    return OperatorPriority::Power;
+	}
+	std::string op() const final {
+	    return "e^";
+	}
+    };
+    // This divides the input by 2^k to get a value < 1, then raises the result to the 2^k'th power.
+    // This is much more efficient than the direct power series computation:
+    // return PreciseRange::Impl{std::make_shared<RawExp>(x.impl())};
+    return PreciseRange::Impl{std::make_shared<ExpWithPreScaling>(x.impl())};
 }
 
 PreciseRange sin(PreciseRange const& x) {

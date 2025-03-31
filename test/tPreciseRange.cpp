@@ -218,8 +218,12 @@ TEST(PreciseRange, ExpLarge) {
     CHECK(strictRange("7.22597", exp(PreciseRange(200)) / (PreciseRange(10) ^ 86), "7.22598"), isTrue());
 
     // e^2000 = 3.88118019...e+868
-    // TODO: make e^x more efficient (and avoid overflowing the stack) for large values of x
     CHECK(strictRange("3.88118019", exp(PreciseRange(2000)) / (PreciseRange(10) ^ 868), "3.88118020"), isTrue());
+
+    // e^10000 = 8.80681822...e+4342
+    CHECK((exp(PreciseRange(10000)) / (PreciseRange(10) ^ 4342)).toStringWithUncertaintyLog2AtMost(-200), matches(std::regex(regexEscape("[8.806818225662921587261496007644561003520004085591508936424570") + ".*")));
+
+    // TODO: see why e^1000000 is slow
 }
 
 TEST(PreciseRange, SinCos) {
