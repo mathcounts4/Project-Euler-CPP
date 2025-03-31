@@ -302,5 +302,10 @@ TEST(PreciseRange, SinhCoshLarge) {
     CHECK(strictRange("-1.94059010", sinh(PreciseRange(-2000)) / (PreciseRange(10) ^ 868), "-1.94059009"), isTrue());
     // cosh(-2000) = 1.94059009...e868
     CHECK(strictRange("1.94059009", cosh(PreciseRange(-2000)) / (PreciseRange(10) ^ 868), "1.94059010"), isTrue());
-    // TODO: make sinh/cosh more efficient (and avoid overflowing the stack) for large values of x
+
+    // TODO: see why sinh/cosh of 10000 are slow
+    // sinh(10000) = 4.40340911...e4342
+    //CHECK(strictRange("4.40340911", sinh(PreciseRange(10000)) / (PreciseRange(10) ^ 4342), "4.40340912"), isTrue());
+    // cosh(10000) = 4.40340911...e4342
+    //CHECK(strictRange("4.40340911", cosh(PreciseRange(10000)) / (PreciseRange(10) ^ 4342), "4.40340912"), isTrue());
 }

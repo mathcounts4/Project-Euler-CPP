@@ -1012,8 +1012,11 @@ struct PreciseRange::Impl : public SharedPreciseRange {
 struct SquarePlusOne : public ImplAsAnotherRangeWithBase<SquarePlusOne, PreciseUnaryOp>
     using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
     SharedPreciseRange calculateImpl() {
-        PreciseRange x(PreciseRange::Impl(fArg));
+        PreciseRange x{PreciseRange::Impl{fArg}};
         return (x * x + 1).impl();
+    }
+    std::string op() const final {
+        return "squarePlusOne";
     }
 };
 */
@@ -1393,26 +1396,52 @@ PreciseRange cos(PreciseRange const& x) {
 }
 
 PreciseRange sinh(PreciseRange const& x) {
-    // TODO: should this just compute (e^x - e^(-x))/2?
-    // Will this be more efficient than a direct power series computation?
+    struct Sinh : public ImplAsAnotherRangeWithBase<Sinh, PreciseUnaryOp> {
+	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+
+        SharedPreciseRange calculateImpl() {
+	    PreciseRange x{PreciseRange::Impl{fArg}};
+	    // This is much more efficient than a direct power series computation.
+	    return ((exp(x) - exp(-x)) / 2).impl();
+	}
+
+	std::string op() const final {
+	    return "sinh";
+	}
+    };
+    /*
     struct Sinh : public PowerSeriesOp<0, 1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "sinh";
 	}
     };
+    */
     return PreciseRange::Impl{std::make_shared<Sinh>(x.impl())};
 }
 
 PreciseRange cosh(PreciseRange const& x) {
-    // TODO: should this just compute (e^x + e^(-x))/2?
-    // Will this be more efficient than a direct power series computation?
+    struct Cosh : public ImplAsAnotherRangeWithBase<Cosh, PreciseUnaryOp> {
+	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+
+        SharedPreciseRange calculateImpl() {
+	    PreciseRange x{PreciseRange::Impl{fArg}};
+	    // This is much more efficient than a direct power series computation.
+	    return ((exp(x) + exp(-x)) / 2).impl();
+	}
+
+	std::string op() const final {
+	    return "cosh";
+	}
+    };
+    /*
     struct Cosh : public PowerSeriesOp<1, 0> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "cosh";
 	}
     };
+    */
     return PreciseRange::Impl{std::make_shared<Cosh>(x.impl())};
 }
 
