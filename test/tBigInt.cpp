@@ -114,6 +114,8 @@ TEST(BigInt,Arithmetic) {
     CHECK(negInf * three, equals(negInf));
     CHECK(negInf * negativeFive, equals(inf));
     CHECK(inf * negativeFive, equals(negInf));
+    CHECK(((BigInt(1) << 1024) - 1) * ((BigInt(1) << 1024) - 1), equals((BigInt(1) << 2048) - (BigInt(2) << 1024) + 1));
+    CHECK(((BigInt(25) << 239) - 1) * ((BigInt(25) << 240) - 1), equals((BigInt(625) << 479) - (BigInt(25) << 240) - (BigInt(25) << 239) + 1));
 
     // /
     CHECK(three / negativeFive, equals(0));

@@ -546,7 +546,12 @@ BigInt& BigInt::operator*=(BigInt const& other) {
 	current = carry;
 	carry = 0;
 	for (SZ i = 0; i < size && i <= new_d; ++i) {
+	    auto oldCur = current;
 	    current += big_t(data[i]) * big_t(odata[new_d-i]);
+	    if (current < oldCur) {
+		// overflowed current
+		carry += big_t(1) << (8 * (sizeof(big_t) - sizeof(small_t)));
+	    }
 	    carry += current >> shift_sz;
 	    current &= low_digits;
 	}
@@ -556,7 +561,12 @@ BigInt& BigInt::operator*=(BigInt const& other) {
 	current = carry;
 	carry = 0;
 	for (SZ i = new_d - osize + 1; i < size && i <= new_d; ++i) {
+	    auto oldCur = current;
 	    current += big_t(data[i]) * big_t(odata[new_d-i]);
+	    if (current < oldCur) {
+		// overflowed current
+		carry += big_t(1) << (8 * (sizeof(big_t) - sizeof(small_t)));
+	    }
 	    carry += current >> shift_sz;
 	    current &= low_digits;
 	}
