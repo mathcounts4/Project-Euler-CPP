@@ -543,30 +543,22 @@ BigInt& BigInt::operator*=(BigInt const& other) {
     big_t current = 0;
     big_t carry = 0;
     for (SZ new_d = 0; new_d < osize; ++new_d) {
-	current = carry;
-	carry = 0;
+	current = carry & low_digits;
+	carry >>= shift_sz;
 	for (SZ i = 0; i < size && i <= new_d; ++i) {
-	    auto oldCur = current;
+	    // This cannot overflow, as current + x * y ≤ max_small_t + max_small_t * max_small_t
 	    current += big_t(data[i]) * big_t(odata[new_d-i]);
-	    if (current < oldCur) {
-		// overflowed current
-		carry += big_t(1) << (8 * (sizeof(big_t) - sizeof(small_t)));
-	    }
 	    carry += current >> shift_sz;
 	    current &= low_digits;
 	}
 	rdata[new_d] = static_cast<small_t>(current);
     }
     for (SZ new_d = osize; new_d + 1 < size + osize; ++new_d) {
-	current = carry;
-	carry = 0;
+	current = carry & low_digits;
+	carry >>= shift_sz;
 	for (SZ i = new_d - osize + 1; i < size && i <= new_d; ++i) {
-	    auto oldCur = current;
+	    // This cannot overflow, as current + x * y ≤ max_small_t + max_small_t * max_small_t
 	    current += big_t(data[i]) * big_t(odata[new_d-i]);
-	    if (current < oldCur) {
-		// overflowed current
-		carry += big_t(1) << (8 * (sizeof(big_t) - sizeof(small_t)));
-	    }
 	    carry += current >> shift_sz;
 	    current &= low_digits;
 	}
