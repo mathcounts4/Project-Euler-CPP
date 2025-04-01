@@ -199,23 +199,29 @@ TEST(PreciseRange, DistanceToNearestInteger) {
 
 TEST(PreciseRange, Exp) {
     CHECK(exp(PreciseRange(0)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("1"));
+    CHECK(eq(exp(PreciseRange("0.1") - PreciseRange("0.1")), PreciseRange(1)), isTrue());
 
     // e = 2.718281...
     CHECK(strictRange("2.718281", exp(PreciseRange(1)), "2.718282"), isTrue());
+    CHECK(strictRange("2.718281", exp(PreciseRange("1.1") - PreciseRange("0.1")), "2.718282"), isTrue());
 
     // e^-1 = 0.367879...
     CHECK(strictRange("0.367879", exp(PreciseRange(-1)), "0.367880"), isTrue());
+    CHECK(strictRange("0.367879", exp(PreciseRange("0.1") - PreciseRange("1.1")), "0.367880"), isTrue());
 
     // e^5 = 148.413159...
     CHECK(strictRange("148.413159", exp(PreciseRange(5)), "148.413160"), isTrue());
+    CHECK(strictRange("148.413159", exp(PreciseRange("5.1") - PreciseRange("0.1")), "148.413160"), isTrue());
 
     // e^-5 = 0.006737946...
     CHECK(strictRange("0.006737946", exp(PreciseRange(-5)), "0.006737947"), isTrue());
+    CHECK(strictRange("0.006737946", exp(PreciseRange("0.1") - PreciseRange("5.1")), "0.006737947"), isTrue());
 }
 
 TEST(PreciseRange, ExpLarge) {
     // e^200 = 7.2259738...e+86
     CHECK(strictRange("7.22597", exp(PreciseRange(200)) / (PreciseRange(10) ^ 86), "7.22598"), isTrue());
+    CHECK(strictRange("7.22597", exp((PreciseRange("200.1") - PreciseRange("0.1"))) / (PreciseRange(10) ^ 86), "7.22598"), isTrue());
 
     // e^2000 = 3.88118019...e+868
     CHECK(strictRange("3.88118019", exp(PreciseRange(2000)) / (PreciseRange(10) ^ 868), "3.88118020"), isTrue());
@@ -229,6 +235,8 @@ TEST(PreciseRange, ExpLarge) {
 TEST(PreciseRange, SinCos) {
     CHECK(sin(PreciseRange(0)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("0"));
     CHECK(cos(PreciseRange(0)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("1"));
+    CHECK(eq(sin(PreciseRange("0.1") - PreciseRange("0.1")), PreciseRange(0)), isTrue());
+    CHECK(eq(cos(PreciseRange("0.1") - PreciseRange("0.1")), PreciseRange(1)), isTrue());
 
     // sin(0.3) = 0.295520...
     CHECK(strictRange("0.295520", sin(PreciseRange("0.3")), "0.295521"), isTrue());
@@ -280,6 +288,8 @@ TEST(PreciseRange, SinCosLarge) {
 TEST(PreciseRange, SinhCosh) {
     CHECK(sinh(PreciseRange(0)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("0"));
     CHECK(cosh(PreciseRange(0)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("1"));
+    CHECK(eq(sinh(PreciseRange("0.1") - PreciseRange("0.1")), PreciseRange(0)), isTrue());
+    CHECK(eq(cosh(PreciseRange("0.1") - PreciseRange("0.1")), PreciseRange(1)), isTrue());
 
     // sinh(0.3) = 0.3045202...
     CHECK(strictRange("0.3045202", sinh(PreciseRange("0.3")), "0.3045203"), isTrue());
