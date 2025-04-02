@@ -1679,7 +1679,7 @@ PreciseRange mod(PreciseRange const& x, PreciseRange const& y) {
 }
 
 PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
-    // TODO: accept BigInt?
+    // TODO: add similar << and >>
     struct Power : public ImplAsAnotherRangeWithBase<Power, AdjustablePrecisionRange> {
       public:
 	Power(SharedPreciseRange base, std::int64_t exponent)
