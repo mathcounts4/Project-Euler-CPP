@@ -57,6 +57,7 @@ TEST(PreciseRange, Caching) {
 TEST(PreciseRange, ToStringExact) {
     CHECK(sqrt(-(3 * PreciseRange::pi()) + -4 / -PreciseRange(7) - PreciseRange("0.7") + PreciseRange("0xFF")).toStringExact(), equals("√(((-(3*π)+-4/(-(7)))-7/10)+255)"));
     CHECK(distanceToNearestInteger(exp(sin(cos(sinh(cosh(PreciseRange(5))))))).toStringExact(), equals("distanceToNearestInteger(e^(sin(cos(sinh(cosh(5))))))"));
+    CHECK((2 * mod(PreciseRange(44), PreciseRange(5)) - 3).toStringExact(), equals("2*(44) mod (5)-3"));
     CHECK((((PreciseRange(2) * 3) * (PreciseRange(4) * 5)) ^ -6).toStringExact(), equals("((2*3)*(4*5))^-6"));
     CHECK(((PreciseRange(2) * 3) ^ -6).toStringExact(), equals("(2*3)^-6"));
     CHECK(((PreciseRange(2) + 3) ^ -6).toStringExact(), equals("(2+3)^-6"));
@@ -124,6 +125,29 @@ TEST(PreciseRange, DivisionBy0) {
     CHECK_THROWS(gt(PreciseRange(1) / PreciseRange(0), PreciseRange(0)), std::domain_error);
     CHECK_THROWS(gt(PreciseRange(1) / (PreciseRange("0.3") - PreciseRange("0.3")), PreciseRange(0)), std::domain_error);
     // */
+}
+
+TEST(PreciseRange, Mod) {
+    CHECK(mod(PreciseRange(77), PreciseRange(7)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("0"));
+    CHECK(mod(PreciseRange(78), PreciseRange(7)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-6"));
+    CHECK(mod(PreciseRange(-77), PreciseRange(7)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("0"));
+    CHECK(mod(PreciseRange(-78), PreciseRange(7)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-1"));
+
+    auto eqOneOf = [](auto const& x, auto const& a, auto const& b) {
+	return eq(x, a) || eq(x, b);
+    };
+
+    // 387/14 mod 4/7 = 3/14, so mod should converge to 3/14 or -5/14
+    CHECK(eqOneOf(mod(PreciseRange(387) / 14, PreciseRange(4) / 7), PreciseRange(3) / 14, PreciseRange(-5) / 14), isTrue());
+
+    // 387/14 mod -4/7 = 3/14, so mod should converge to 3/14 or -5/14
+    CHECK(eqOneOf(mod(PreciseRange(387) / 14, PreciseRange(-4) / 7), PreciseRange(3) / 14, PreciseRange(-5) / 14), isTrue());
+
+    // -387/14 mod 4/7 = -3/14, so mod should converge to -3/14 or 5/14
+    CHECK(eqOneOf(mod(PreciseRange(-387) / 14, PreciseRange(4) / 7), PreciseRange(-3) / 14, PreciseRange(5) / 14), isTrue());
+
+    // -387/14 mod -4/7 = -3/14, so mod should converge to -3/14 or 5/14
+    CHECK(eqOneOf(mod(PreciseRange(-387) / 14, PreciseRange(-4) / 7), PreciseRange(-3) / 14, PreciseRange(5) / 14), isTrue());
 }
 
 TEST(PreciseRange, Power) {

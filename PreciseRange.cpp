@@ -151,9 +151,12 @@ struct BinaryShiftedInt {
 	}
     }
 
+    // Note: this intentionally always adds/removes 1, even if there was no decmial to cause rounding.
+    // For example, (6*2^-1).roundAwayFromZero(0) will shift to 3*2^0 and then increment to 4*2^0.
+    // This is desirable for the callsites in BinaryShiftedInt that seek to truncate results.
     void roundAwayFromZero(std::int64_t granularityLog2) {
 	if (fExp2 < granularityLog2) {
-	    auto isNeg = fIntValue.neg();
+	    auto isNeg = fIntValue.neg(); // compute before shifting (which may change negative to 0)
 	    fIntValue >>= granularityLog2 - fExp2;
 	    if (isNeg) {
 		--fIntValue;
@@ -171,6 +174,25 @@ struct BinaryShiftedInt {
 	    negateMe();
 	}
 	return fIntValue;
+    }
+
+    void makeFloor() {
+	if (fExp2 < 0) {
+	    bool decrementAfterShifting = false;
+	    if (fIntValue.neg()) {
+		for (SZ i = 0, numBits = static_cast<SZ>(-fExp2); i < numBits; ++i) {
+		    if (fIntValue.getBit(i)) {
+			decrementAfterShifting = true;
+			break;
+		    }
+		}
+	    }
+	    fIntValue <<= fExp2;
+	    fExp2 = 0;
+	    if (decrementAfterShifting) {
+		--fIntValue;
+	    }
+	}
     }
 
     bool getBit(std::int64_t bit) const {
@@ -578,14 +600,20 @@ struct BinaryShiftedIntRange {
 	return std::min(floorLog2Abs(x.fLow), floorLog2Abs(x.fHigh));
     }
 
-    // As this mutates the value, require an rvalue so the callsite won't reuse *this
-    Optional<std::size_t> maxUpperBoundAbs() && {
-	auto low = fLow.upperBoundAbs().convert<std::size_t>();
+    BinaryShiftedInt floorOfUpperBound() const {
+	BinaryShiftedInt highCopy(fHigh);
+	highCopy.makeFloor();
+	return highCopy;
+    }
+
+    Optional<std::size_t> maxUpperBoundAbs() const {
+	BinaryShiftedIntRange copy(*this);
+	auto low = copy.fLow.upperBoundAbs().convert<std::size_t>();
 	if (!low) {
 	    // failure
 	    return low;
 	}
-	auto high = fHigh.upperBoundAbs().convert<std::size_t>();
+	auto high = copy.fHigh.upperBoundAbs().convert<std::size_t>();
 	if (!high) {
 	    // failure
 	    return high;
@@ -821,7 +849,7 @@ enum class OperatorPriority : std::uint8_t {
     MultiplicationDivision = 1, // inside another * or / or unary fcn or power base, requires being shown in ()
     Power = 2,                  // inside a unary fcn, requires being shown in ()
     ExactValue = 3,             // inside a unary fcn, requires being shown in ()
-    UnaryOperator = 4,          // force any sub-expression to be shown in ()
+    RequireParensOnChild = 4,   // force any sub-expression to be shown in ()
 };
 
 struct AdjustablePrecisionRange {
@@ -835,7 +863,7 @@ struct AdjustablePrecisionRange {
     virtual BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) = 0;
     virtual OperatorPriority operatorPriorityVsParent() const {
 	// Some operators behave with one priority to their children, but a different one to their parent.
-	// For example, the unary negation operator -x acts like a UnaryOperator to its child
+	// For example, the unary negation operator -x acts like a RequireParensOnChild to its child
 	//   (so the child is always placed in parentheses), -> -(2)
 	//   but it acts like MultiplicationDivision to its parent
 	//   (so it is usually placed in parentheses) -> (-(2))*3 but 4+-(2)
@@ -1057,7 +1085,7 @@ struct PreciseUnaryOp : public AdjustablePrecisionRange {
     
     virtual std::string op() const = 0;
     OperatorPriority operatorPriority() const final {
-	return OperatorPriority::UnaryOperator;
+	return OperatorPriority::RequireParensOnChild;
     }
     std::string toStringExact() const final {
 	return op() + fArg->toStringExact(this);
@@ -1271,7 +1299,7 @@ struct PowerSeriesOp : public PreciseUnaryOp {
     void ensureInit() {
 	if (fTermsToSum.empty()) {
 	    // get input within a range of size 2^0 = 1 to get an accurate upper bound
-	    auto optBound = BinaryShiftedIntRange(fArg->withUncertaintyLog2AtMost(0)).maxUpperBoundAbs();
+	    auto optBound = fArg->withUncertaintyLog2AtMost(0).maxUpperBoundAbs();
 	    if (!optBound) {
 		throw_exception<std::domain_error>("Power series is too large (more than " + std::to_string(std::numeric_limits<std::size_t>::max()) + " elements) for " + toStringExact());
 	    }
@@ -1625,6 +1653,29 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	}
     };
     return PreciseRange::Impl{std::make_shared<Quotient>(x.impl(), y.impl())};
+}
+
+PreciseRange mod(PreciseRange const& x, PreciseRange const& y) {
+    struct Mod : public ImplAsAnotherRangeWithBase<Mod, PreciseBinaryOp> {
+	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+
+	SharedPreciseRange calculateImpl() {
+	    PreciseRange x{PreciseRange::Impl{fLhs}};
+	    PreciseRange y{PreciseRange::Impl{fRhs}};
+	    PreciseRange div = x / y;
+	    PreciseRange multiplier{PreciseRange::Impl{std::make_shared<ExactValue>(div.impl()->withUncertaintyLog2AtMost(0).floorOfUpperBound())}};
+	    return (x - y * multiplier).impl();
+	}
+
+	std::string op() const final {
+	    return " mod ";
+	}
+
+	OperatorPriority operatorPriority() const final {
+	    return OperatorPriority::RequireParensOnChild;
+	}
+    };
+    return PreciseRange::Impl{std::make_shared<Mod>(x.impl(), y.impl())};
 }
 
 PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {

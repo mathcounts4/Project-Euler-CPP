@@ -35,8 +35,13 @@ struct PreciseRange {
     friend PreciseRange operator+(PreciseRange const& x, PreciseRange const& y);
     friend PreciseRange operator-(PreciseRange const& x, PreciseRange const& y);
     friend PreciseRange operator*(PreciseRange const& x, PreciseRange const& y);
-    // Note: when evaluating the result of operator/, if, after refining y to high precision, we cannot prove that y ≠ 0, this throws std::domain_error
+    // Note: when evaluating the result of operator/, if, after refining y to high precision, we cannot prove that y ≠ 0, this throws std::domain_error.
     friend PreciseRange operator/(PreciseRange const& x, PreciseRange const& y);
+    // Note: when evaluating the result of mod, if, after refining y to high precision, we cannot prove that y ≠ 0, this throws std::domain_error.
+    // mod(x, y) returns a range contained in [-|y|, |y|], and refinement will always produce a sub-range of a previous range.
+    // For example, mod(7, 5) may converge on 2 or -3.
+    // Useful for evaluating periodic functions like sin and cos.
+    friend PreciseRange mod(PreciseRange const& x, PreciseRange const& y);
     // x^exponent = power(x, exponent)
     friend PreciseRange operator^(PreciseRange const& x, std::int64_t exponent);
 
