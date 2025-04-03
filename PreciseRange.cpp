@@ -53,6 +53,12 @@ struct IntOrNegInf {
     }
     
   public:
+    friend IntOrNegInf operator+(IntOrNegInf x, std::int64_t other) {
+	if (x.fValue) {
+	    *x.fValue += other;
+	}
+	return x;
+    }
     friend IntOrNegInf operator-(IntOrNegInf x, std::int64_t other) {
 	if (x.fValue) {
 	    *x.fValue -= other;
@@ -457,6 +463,14 @@ struct BinaryShiftedInt {
 	    fExp2 - denominator.fExp2};
     }
 
+    void operator<<=(std::int64_t shift) {
+	fExp2 += shift;
+    }
+
+    void operator>>=(std::int64_t shift) {
+	fExp2 -= shift;
+    }
+
     template<Round round>
     BinaryShiftedInt sqrt() {
         if (sign() == Sign::Negative) {
@@ -486,28 +500,28 @@ struct BinaryShiftedInt {
 	    }
 	}
     }
-
-    void divBy2() {
-	--fExp2;
-    }
     
     std::string toString() const {
 	if (fExp2 >= 0) {
 	    return static_cast<std::string>(fIntValue << fExp2);
 	} else {
 	    auto negExp = static_cast<std::size_t>(-fExp2);
-	    auto result = static_cast<std::string>(fIntValue * (BigInt(5) ^ negExp));
-	    if (result.size() <= negExp) {
-		result = std::string(negExp + 1 - result.size(), '0') + result;
+	    auto absResult = static_cast<std::string>(fIntValue.abs() * (BigInt(5) ^ negExp));
+	    if (absResult.size() <= negExp) {
+		absResult = std::string(negExp + 1 - absResult.size(), '0') + absResult;
 	    }
-	    result.insert(result.length() - negExp, ".");
-	    while (result.back() == '0') {
-		result.pop_back();
+	    absResult.insert(absResult.length() - negExp, ".");
+	    while (absResult.back() == '0') {
+		absResult.pop_back();
 	    }
-	    if (result.back() == '.') {
-		result.pop_back();
+	    if (absResult.back() == '.') {
+		absResult.pop_back();
 	    }
-	    return result;
+	    if (fIntValue.neg()) {
+		return "-" + absResult;
+	    } else {
+		return absResult;
+	    }
 	}
     }
 };
@@ -774,6 +788,18 @@ struct BinaryShiftedIntRange {
 	}
     }
 
+    void operator<<=(std::int64_t shift) {
+	fLow <<= shift;
+	fHigh <<= shift;
+	fUncertaintyLog2 = fUncertaintyLog2 + shift;
+    }
+
+    void operator>>=(std::int64_t shift) {
+	fLow >>= shift;
+	fHigh >>= shift;
+	fUncertaintyLog2 = fUncertaintyLog2 - shift;
+    }
+
     friend BinaryShiftedIntRange sqrt(BinaryShiftedIntRange x) {
 	if (x.fLow.sign() != Sign::Positive) {
 	    return {BinaryShiftedInt(0), x.fHigh.sqrt<BinaryShiftedInt::Round::AwayFromZero>()};
@@ -835,7 +861,7 @@ struct BinaryShiftedIntRange {
 
     std::string toString() const {
 	auto diffToMidpoint = fHigh - fLow;
-	diffToMidpoint.divBy2();
+	diffToMidpoint >>= 1;
 	if (!diffToMidpoint) {
 	    return fLow.toString();
 	}
@@ -1672,14 +1698,19 @@ PreciseRange mod(PreciseRange const& x, PreciseRange const& y) {
 	}
 
 	OperatorPriority operatorPriority() const final {
+	    // Always display children in ()
 	    return OperatorPriority::RequireParensOnChild;
+	}
+
+	OperatorPriority operatorPriorityVsParent() const final {
+	    // Always display this in ()
+	    return OperatorPriority::AdditionSubtraction;
 	}
     };
     return PreciseRange::Impl{std::make_shared<Mod>(x.impl(), y.impl())};
 }
 
 PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
-    // TODO: add similar << and >>
     struct Power : public ImplAsAnotherRangeWithBase<Power, AdjustablePrecisionRange> {
       public:
 	Power(SharedPreciseRange base, std::int64_t exponent)
@@ -1723,6 +1754,72 @@ PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
 	std::int64_t fExponent;
     };
     return PreciseRange::Impl{std::make_shared<Power>(x.impl(), exponent)};
+}
+
+PreciseRange operator<<(PreciseRange const& x, std::int64_t shift) {
+    struct LeftShift : public AdjustablePrecisionRange {
+      public:
+	LeftShift(SharedPreciseRange value, std::int64_t shift)
+	    : fValue(value)
+	    , fShift(shift) {}
+
+      private:
+	OperatorPriority operatorPriority() const final {
+	    // Always display this in ()
+	    return OperatorPriority::AdditionSubtraction;
+	}
+	std::string toStringExact() const final {
+	    return fValue->toStringExact(this) + "<<" + std::to_string(fShift);
+	}
+	BinaryShiftedIntRange calculateEstimate() final {
+	    auto est = fValue->estimate();
+	    est <<= fShift;
+	    return est;
+	}
+	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
+	    auto val = fValue->withUncertaintyLog2AtMost(maxUncertaintyLog2 - fShift);
+	    val <<= fShift;
+	    return val;
+	}
+
+      private:
+	SharedPreciseRange fValue;
+	std::int64_t fShift;
+    };
+    return PreciseRange::Impl{std::make_shared<LeftShift>(x.impl(), shift)};
+}
+
+PreciseRange operator>>(PreciseRange const& x, std::int64_t shift) {
+    struct RightShift : public AdjustablePrecisionRange {
+      public:
+	RightShift(SharedPreciseRange value, std::int64_t shift)
+	    : fValue(value)
+	    , fShift(shift) {}
+
+      private:
+	OperatorPriority operatorPriority() const final {
+	    // Always display this in ()
+	    return OperatorPriority::AdditionSubtraction;
+	}
+	std::string toStringExact() const final {
+	    return fValue->toStringExact(this) + ">>" + std::to_string(fShift);
+	}
+	BinaryShiftedIntRange calculateEstimate() final {
+	    auto est = fValue->estimate();
+	    est >>= fShift;
+	    return est;
+	}
+	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
+	    auto val = fValue->withUncertaintyLog2AtMost(maxUncertaintyLog2 + fShift);
+	    val >>= fShift;
+	    return val;
+	}
+
+      private:
+	SharedPreciseRange fValue;
+	std::int64_t fShift;
+    };
+    return PreciseRange::Impl{std::make_shared<RightShift>(x.impl(), shift)};
 }
 
 PreciseRange::Cmp cmp(PreciseRange const& x, PreciseRange const& y, std::int64_t maxUncertaintyLog2) {

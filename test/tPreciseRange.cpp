@@ -32,7 +32,7 @@ TEST(PreciseRange, ConstructionAndPrinting) {
     CHECK(PreciseRange("-0B0110.11").toStringWithUncertaintyLog2AtMost(0), equals("-6.75"));
     CHECK(PreciseRange("0d783").toStringWithUncertaintyLog2AtMost(0), equals("783"));
     CHECK(PreciseRange("-0o77.3").toStringWithUncertaintyLog2AtMost(0), equals("-63.375"));
-    CHECK(PreciseRange("-.5").toStringWithUncertaintyLog2AtMost(0), equals("[-.5 ± 0.5]"));
+    CHECK(PreciseRange("-.5").toStringWithUncertaintyLog2AtMost(0), equals("[-0.5 ± 0.5]"));
     CHECK(PreciseRange("3.14159").toStringWithUncertaintyLog2AtMost(0), equals("[3.5 ± 0.5]"));
 
     /* this makes the test too slow
@@ -57,8 +57,10 @@ TEST(PreciseRange, Caching) {
 TEST(PreciseRange, ToStringExact) {
     CHECK(sqrt(-(3 * PreciseRange::pi()) + -4 / -PreciseRange(7) - PreciseRange("0.7") + PreciseRange("0xFF")).toStringExact(), equals("√(((-(3*π)+-4/(-(7)))-7/10)+255)"));
     CHECK(distanceToNearestInteger(exp(sin(cos(sinh(cosh(PreciseRange(5))))))).toStringExact(), equals("distanceToNearestInteger(e^(sin(cos(sinh(cosh(5))))))"));
-    CHECK((2 * mod(PreciseRange(44), PreciseRange(5)) - 3).toStringExact(), equals("2*(44) mod (5)-3"));
+    CHECK((2 * mod(PreciseRange(44) * PreciseRange(7), PreciseRange(5) - PreciseRange(2)) - 3).toStringExact(), equals("2*((44*7) mod (5-2))-3"));
     CHECK((((PreciseRange(2) * 3) * (PreciseRange(4) * 5)) ^ -6).toStringExact(), equals("((2*3)*(4*5))^-6"));
+    CHECK((((PreciseRange(2) + 3) >> 4 << 5) + 6).toStringExact(), equals("(((2+3)>>4)<<5)+6"));
+    CHECK((((PreciseRange(2) * 3) << 4) * 5).toStringExact(), equals("(2*3<<4)*5"));
     CHECK(((PreciseRange(2) * 3) ^ -6).toStringExact(), equals("(2*3)^-6"));
     CHECK(((PreciseRange(2) + 3) ^ -6).toStringExact(), equals("(2+3)^-6"));
     CHECK((PreciseRange(-2) ^ -6).toStringExact(), equals("-2^-6"));
@@ -156,6 +158,27 @@ TEST(PreciseRange, Power) {
     CHECK(eq(PreciseRange("1.1") ^ 3, "1.331"), isTrue());
     CHECK(eq((PreciseRange(2) / 3) ^ -2, "2.25"), isTrue());
     CHECK(eq(PreciseRange("-1.003") ^ 22222, PreciseRange("1.006009") ^ 11111), isTrue());
+}
+
+TEST(PreciseRange, Shift) {
+    CHECK((PreciseRange(3) << 2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("12"));
+    CHECK((PreciseRange(-3) << 2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-12"));
+    CHECK((PreciseRange(12) << -2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("3"));
+    CHECK((PreciseRange(-12) << -2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-3"));
+    CHECK((PreciseRange(3) << -2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("0.75"));
+    CHECK((PreciseRange(-3) << -2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-0.75"));
+
+    CHECK((PreciseRange(3) >> -2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("12"));
+    CHECK((PreciseRange(-3) >> -2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-12"));
+    CHECK((PreciseRange(12) >> 2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("3"));
+    CHECK((PreciseRange(-12) >> 2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-3"));
+    CHECK((PreciseRange(3) >> 2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("0.75"));
+    CHECK((PreciseRange(-3) >> 2).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-0.75"));
+    CHECK((PreciseRange(-3) >> 20).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("-0.00000286102294921875"));
+
+    CHECK(eq(PreciseRange("0.1") << 3, "0.8"), isTrue());
+    CHECK(eq(PreciseRange("-0.1") << 3, "-0.8"), isTrue());
+    CHECK(eq(PreciseRange("0.125") >> -5, 4), isTrue());
 }
 
 TEST(PreciseRange, Sqrt) {

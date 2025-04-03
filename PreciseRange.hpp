@@ -44,6 +44,8 @@ struct PreciseRange {
     friend PreciseRange mod(PreciseRange const& x, PreciseRange const& y);
     // x^exponent = power(x, exponent)
     friend PreciseRange operator^(PreciseRange const& x, std::int64_t exponent);
+    friend PreciseRange operator<<(PreciseRange const& x, std::int64_t shift);
+    friend PreciseRange operator>>(PreciseRange const& x, std::int64_t shift);
 
     // Binary operators that produce a usable result
     enum class Cmp { Less, ApproxEqual, Greater };
