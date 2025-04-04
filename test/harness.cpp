@@ -5,6 +5,7 @@
 #include "../TypeUtils.hpp"
 #include "../Vec.hpp"
 
+#include <cstdlib>
 #include <iostream>
 
 B global_success = false;
@@ -60,6 +61,20 @@ static auto runTestWithTiming(Test const& test) noexcept {
     auto result = runTest(test);
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(now() - start).count() / 1e9 * 1e3; // -> ms
     return std::make_pair(result, duration);
+}
+
+bool shouldRunSlowTests() {
+    static const bool runSlowTests = []() {
+	char* value = std::getenv("RUN_SLOW_TESTS");
+	if (!value) {
+	    return false;
+	}
+	if (std::string_view(value) == "" || std::string_view(value) == "0") {
+	    return false;
+	}
+	return true;
+    }();
+    return runSlowTests;
 }
 
 TrueFunctor isTrue() {

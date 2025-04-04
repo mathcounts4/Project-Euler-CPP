@@ -934,11 +934,11 @@ struct AdjustablePrecisionRange {
 	BinaryShiftedIntRange const& fRange;
 	Sign fSign;
     };
-    RefinedWithSign refineForDivisionUntilSignIsPositiveOrNegative() {
+    RefinedWithSign refineUntilSignIsPositiveOrNegative(char const* purpose) {
 	auto const& est = estimate();
 	if (auto sign = est.signIfKnown()) {
 	    if (sign->fSign == Sign::Zero) {
-		throw_exception<std::domain_error>("Division by 0: " + toStringExact());
+		throw_exception<std::domain_error>(std::string("Invalid value of 0 for ") + purpose + ": " + toStringExact());
 	    }
 	    return {est, sign->fSign};
 	}
@@ -950,21 +950,21 @@ struct AdjustablePrecisionRange {
 	    BinaryShiftedIntRange const& result = withUncertaintyLog2AtMost(uncertaintyLog2);
 	    if (auto sign = result.signIfKnown()) {
 		if (sign->fSign == Sign::Zero) {
-		    throw_exception<std::domain_error>("Division by 0: " + toStringExact());
+		    throw_exception<std::domain_error>(std::string("Invalid value of 0 for ") + purpose + ": " + toStringExact());
 		}
 		return {result, sign->fSign};
 	    }
 	}
-	throw_exception<std::domain_error>("With uncertainty ≤ 2^(" + std::to_string(uncertaintyLog2) + "), could not determine sign of " + toStringExact());
+	throw_exception<std::domain_error>(std::string("For ") + purpose + ", with uncertainty ≤ 2^(" + std::to_string(uncertaintyLog2) + "), could not determine sign of " + toStringExact());
     }
 
-    BinaryShiftedIntRange const& refineForDivisionUntilSignIsPositiveOrNegativeAndRangeInFactorOf2() {
-	auto const& range = refineForDivisionUntilSignIsPositiveOrNegative().fRange;
-	auto maximumLog2Uncertainty = *minFloorLog2Abs(range);
-	if (range.uncertaintyLog2() <= maximumLog2Uncertainty) {
-	    return range;
+    RefinedWithSign refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2(char const* purpose) {
+        RefinedWithSign refinedWithSign = refineUntilSignIsPositiveOrNegative(purpose);
+	auto maximumLog2Uncertainty = *minFloorLog2Abs(refinedWithSign.fRange);
+	if (refinedWithSign.fRange.uncertaintyLog2() <= maximumLog2Uncertainty) {
+	    return refinedWithSign;
 	}
-	return withUncertaintyLog2AtMost(maximumLog2Uncertainty);
+	return {withUncertaintyLog2AtMost(maximumLog2Uncertainty), refinedWithSign.fSign};
     }
 
     template<class... T>
@@ -1295,7 +1295,7 @@ PreciseRange distanceToNearestInteger(PreciseRange const& x) {
 // As one might expect, this is expensive for large inputs, and can blow out the stack based on the input value.
 // Try to compute a power series with a smaller input, and perform additional operations to reach the final result.
 // For example, e^x can be computed as (e^(x/2^k))^(2^k) for any chosen value of k, where ^(2^k) can be performed via multiplication.
-template<std::int64_t... Derivatives>
+template<PowerSeriesCoefficients CoefficientsKind, std::int64_t... Derivatives>
 struct PowerSeriesOp : public PreciseUnaryOp {
     using PreciseUnaryOp::PreciseUnaryOp;
 
@@ -1304,18 +1304,38 @@ struct PowerSeriesOp : public PreciseUnaryOp {
 
     static constexpr std::array DerivativesArray = {Derivatives...};
 
+    PreciseRange computeNewTermWithoutCoefficient(std::int64_t exp) const {
+	PreciseRange::Impl arg(fArg);
+	if constexpr (CoefficientsKind == PowerSeriesCoefficients::InvExpFactorial) {
+	    // Emperical evidence for large power series (x=300) shows this multiplication + division order produces faster code than other orders
+	    return arg / exp * fTermsWithoutCoefficients.back();
+	} else {
+	    (void)exp;
+	    return arg * fTermsWithoutCoefficients.back();
+	}
+    }
+
+    PreciseRange computeNewTermToSumEithoutDerivativeMultiplier(PreciseRange newTermWithoutCoefficient, std::int64_t exp) const {
+	if constexpr (CoefficientsKind == PowerSeriesCoefficients::InvExpFactorial) {
+	    (void)exp;
+	    return newTermWithoutCoefficient;
+	} else {
+	    return newTermWithoutCoefficient / exp;
+	}
+    }
+
     void addTerm() {
 	auto exp = fTermsWithoutCoefficients.size();
-	PreciseRange::Impl arg(fArg);
 	// Emperical evidence for large power series (x=300) shows this multiplication + division order produces faster code than other orders
-	auto newTermWithoutCoefficients = arg / static_cast<std::int64_t>(exp) * fTermsWithoutCoefficients.back();
-	fTermsWithoutCoefficients.push_back(newTermWithoutCoefficients);
+	auto newTermWithoutCoefficient = computeNewTermWithoutCoefficient(static_cast<std::int64_t>(exp));
+	fTermsWithoutCoefficients.push_back(newTermWithoutCoefficient);
 	if (auto d = DerivativesArray[exp % DerivativesArray.size()]) {
 	    fTermsToSum.push_back(fFinalTermToSum);
+	    auto termToSumWithoutDerivativeMultiplier = computeNewTermToSumEithoutDerivativeMultiplier(newTermWithoutCoefficient, static_cast<std::int64_t>(exp));
 	    if (d == 1) {
-		fFinalTermToSum = newTermWithoutCoefficients;
+		fFinalTermToSum = termToSumWithoutDerivativeMultiplier;
 	    } else if (d == -1) {
-		fFinalTermToSum = -newTermWithoutCoefficients;
+		fFinalTermToSum = -termToSumWithoutDerivativeMultiplier;
 	    } else {
 		throw_exception<PreciseRangeImplLogicError>("Power series derivatives should only be -1, 0, or 1, but encountered " + std::to_string(d) + " in '" + op() + "'");
 	    }
@@ -1378,11 +1398,11 @@ struct PowerSeriesOp : public PreciseUnaryOp {
   private:
     std::vector<PreciseRange> fTermsWithoutCoefficients{1}; // [i] = x^i/i!
     std::vector<PreciseRange> fTermsToSum;
-    PreciseRange fFinalTermToSum{DerivativesArray[0]};
+    PreciseRange fFinalTermToSum{CoefficientsKind == PowerSeriesCoefficients::InvExpFactorial ? DerivativesArray[0] : std::int64_t(0)};
 };
 
 PreciseRange exp(PreciseRange const& x) {
-    struct RawExp : public PowerSeriesOp<1> {
+    struct RawExp : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	OperatorPriority operatorPriorityVsParent() const final {
 	    return OperatorPriority::Power;
@@ -1425,10 +1445,48 @@ PreciseRange exp(PreciseRange const& x) {
     return PreciseRange::Impl{std::make_shared<ExpWithPreScaling>(x.impl())};
 }
 
+PreciseRange ln(PreciseRange const& x) {
+    // Construct a power series for -∑_{i=1}^{∞} x^i/i
+    struct LnHelper : public PowerSeriesOp<PowerSeriesCoefficients::InvExp, -1> {
+	using PowerSeriesOp::PowerSeriesOp;
+	std::string op() const final {
+	    return "neg_shift_ln_impl";
+	}
+    };
+
+    struct LnWithPreScaling : public ImplAsAnotherRangeWithBase<LnWithPreScaling, PreciseUnaryOp> {
+	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+
+	static PreciseRange ln(PreciseRange arg) {
+	    // ln(x) = -∑_{i=1}^{∞} (1-x)^i/i when 0 < x ≤ 2
+	    return PreciseRange{PreciseRange::Impl{std::make_shared<LnHelper>((1 - arg).impl())}};
+	}
+
+        SharedPreciseRange calculateImpl() {
+	    // ln(x * 2^y) = ln(x) - y*ln(1/2)
+	    // First refine x within a factor of 2.
+	    // Then select y = ⌈log2(x)⌉ to shift x into [1/4, 1].
+	    auto const& [argVal, sign] = fArg->refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2("ln");
+	    if (sign != Sign::Positive) {
+		throw_exception<std::domain_error>("ln of a non-positive number: " + toStringExact());
+	    }
+	    auto y = *maxCeilLog2Abs(argVal);
+	    auto x = PreciseRange{PreciseRange::Impl{fArg}} >> y;
+	    PreciseRange half{PreciseRange::Impl{std::make_shared<ExactValue>(BinaryShiftedInt(1, -1))}};
+	    auto result = ln(x) - y * ln(half);
+	    return result.impl();
+	}
+	std::string op() const final {
+	    return "ln";
+	}
+    };
+    return PreciseRange::Impl{std::make_shared<LnWithPreScaling>(x.impl())};
+}
+
 PreciseRange sin(PreciseRange const& x) {
     // TODO: should this compute the argument mod 2π before performing the power series calculation?
     // Will this be more efficient than a direct power series computation?
-    struct Sin : public PowerSeriesOp<0, 1, 0, -1> {
+    struct Sin : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 0, 1, 0, -1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "sin";
@@ -1440,7 +1498,7 @@ PreciseRange sin(PreciseRange const& x) {
 PreciseRange cos(PreciseRange const& x) {
     // TODO: should this compute the argument mod 2π before performing the power series calculation?
     // Will this be more efficient than a direct power series computation?
-    struct Cos : public PowerSeriesOp<1, 0, -1, 0> {
+    struct Cos : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 1, 0, -1, 0> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "cos";
@@ -1464,7 +1522,7 @@ PreciseRange sinh(PreciseRange const& x) {
 	}
     };
     /*
-    struct Sinh : public PowerSeriesOp<0, 1> {
+    struct Sinh : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 0, 1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "sinh";
@@ -1489,7 +1547,7 @@ PreciseRange cosh(PreciseRange const& x) {
 	}
     };
     /*
-    struct Cosh : public PowerSeriesOp<1, 0> {
+    struct Cosh : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 1, 0> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "cosh";
@@ -1574,7 +1632,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::MultiplicationDivision;
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    return fLhs->estimate() / fRhs->refineForDivisionUntilSignIsPositiveOrNegative().fRange;
+	    return fLhs->estimate() / fRhs->refineUntilSignIsPositiveOrNegative("division").fRange;
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
 	    // [a,b] / [c,d] where C = |c| ≤ |d| = D, A = |a|, B = |b|
@@ -1594,7 +1652,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    // 3. shifting of numerator values before performing division calculations
 	    
 	    // First we refine the denominator to guarantee C ≤ D ≤ 2C
-	    auto const& denominator = fRhs->refineForDivisionUntilSignIsPositiveOrNegativeAndRangeInFactorOf2();
+	    auto const& denominator = fRhs->refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2("division").fRange;
 	    if (auto result = fLhs->estimate() / denominator; result.uncertaintyLog2() <= maxUncertaintyLog2) {
 		// result from estimate is good enough!
 		return result;

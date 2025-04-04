@@ -25,6 +25,7 @@ int main();
 #define ASSERT(VALUE,FUNCTOR) ASSERT_IMPL(VALUE,FUNCTOR)
 
 #define CHECK_THROWS(EXPR,EXPECTED_EXCEPTION) CHECK_THROWS_IMPL(EXPR,EXPECTED_EXCEPTION)
+bool shouldRunSlowTests();
 
 TrueFunctor isTrue();
 FalseFunctor isFalse();

@@ -4,6 +4,8 @@
 #include <optional>
 #include <string_view>
 
+enum class PowerSeriesCoefficients { InvExpFactorial /* 1/n! */, InvExp /* 1/n */ };
+
 struct PreciseRange {
   public:
     // Constructors
@@ -25,6 +27,7 @@ struct PreciseRange {
     friend PreciseRange sqrt(PreciseRange const& x);
     friend PreciseRange distanceToNearestInteger(PreciseRange const& x);
     friend PreciseRange exp(PreciseRange const& x);
+    friend PreciseRange ln(PreciseRange const& x);
     friend PreciseRange sin(PreciseRange const& x);
     friend PreciseRange cos(PreciseRange const& x);
     friend PreciseRange sinh(PreciseRange const& x);
@@ -68,7 +71,7 @@ struct PreciseRange {
     std::string toStringWithUncertaintyLog2AtMost(std::optional<std::int64_t> maxUncertaintyLog2) const;
 
   private:
-    template<std::int64_t... Derivatives>
+    template<PowerSeriesCoefficients CoefficientsKind, std::int64_t... Derivatives>
     friend struct PowerSeriesOp;
     struct Impl;
     friend struct Impl;

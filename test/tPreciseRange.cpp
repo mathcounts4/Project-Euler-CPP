@@ -34,14 +34,16 @@ TEST(PreciseRange, ConstructionAndPrinting) {
     CHECK(PreciseRange("-0o77.3").toStringWithUncertaintyLog2AtMost(0), equals("-63.375"));
     CHECK(PreciseRange("-.5").toStringWithUncertaintyLog2AtMost(0), equals("[-0.5 ± 0.5]"));
     CHECK(PreciseRange("3.14159").toStringWithUncertaintyLog2AtMost(0), equals("[3.5 ± 0.5]"));
+}
 
-    /* this makes the test too slow
-    CHECK_THROWS(PreciseRange("-0x."), std::invalid_argument);
-    CHECK_THROWS(PreciseRange("0b2"), std::invalid_argument);
-    CHECK_THROWS(PreciseRange("0o8"), std::invalid_argument);
-    CHECK_THROWS(PreciseRange("0xg"), std::invalid_argument);
-    CHECK_THROWS(PreciseRange("a"), std::invalid_argument);
-    // */
+TEST(PreciseRange, ConstructionInvalid) {
+    if (shouldRunSlowTests()) {
+	CHECK_THROWS(PreciseRange("-0x."), std::invalid_argument);
+	CHECK_THROWS(PreciseRange("0b2"), std::invalid_argument);
+	CHECK_THROWS(PreciseRange("0o8"), std::invalid_argument);
+	CHECK_THROWS(PreciseRange("0xg"), std::invalid_argument);
+	CHECK_THROWS(PreciseRange("a"), std::invalid_argument);
+    }
 }
 
 TEST(PreciseRange, Caching) {
@@ -56,7 +58,7 @@ TEST(PreciseRange, Caching) {
 
 TEST(PreciseRange, ToStringExact) {
     CHECK(sqrt(-(3 * PreciseRange::pi()) + -4 / -PreciseRange(7) - PreciseRange("0.7") + PreciseRange("0xFF")).toStringExact(), equals("√(((-(3*π)+-4/(-(7)))-7/10)+255)"));
-    CHECK(distanceToNearestInteger(exp(sin(cos(sinh(cosh(PreciseRange(5))))))).toStringExact(), equals("distanceToNearestInteger(e^(sin(cos(sinh(cosh(5))))))"));
+    CHECK(distanceToNearestInteger(ln(exp(sin(cos(sinh(cosh(PreciseRange(5)))))))).toStringExact(), equals("distanceToNearestInteger(ln(e^(sin(cos(sinh(cosh(5)))))))"));
     CHECK((2 * mod(PreciseRange(44) * PreciseRange(7), PreciseRange(5) - PreciseRange(2)) - 3).toStringExact(), equals("2*((44*7) mod (5-2))-3"));
     CHECK((((PreciseRange(2) * 3) * (PreciseRange(4) * 5)) ^ -6).toStringExact(), equals("((2*3)*(4*5))^-6"));
     CHECK((((PreciseRange(2) + 3) >> 4 << 5) + 6).toStringExact(), equals("(((2+3)>>4)<<5)+6"));
@@ -122,11 +124,11 @@ TEST(PreciseRange, DivisionBy0) {
     // doesn't throw on construction
     CHECK((PreciseRange(1) / PreciseRange(0), true), isTrue());
     CHECK((PreciseRange(1) / (PreciseRange("0.3") - PreciseRange("0.3")), true), isTrue());
-    // throws when division is evaluated
-    /* this makes the test too slow
-    CHECK_THROWS(gt(PreciseRange(1) / PreciseRange(0), PreciseRange(0)), std::domain_error);
-    CHECK_THROWS(gt(PreciseRange(1) / (PreciseRange("0.3") - PreciseRange("0.3")), PreciseRange(0)), std::domain_error);
-    // */
+    if (shouldRunSlowTests()) {
+	// throws when division is evaluated
+	CHECK_THROWS(gt(PreciseRange(1) / PreciseRange(0), PreciseRange(0)), std::domain_error);
+	CHECK_THROWS(gt(PreciseRange(1) / (PreciseRange("0.3") - PreciseRange("0.3")), PreciseRange(0)), std::domain_error);
+    }
 }
 
 TEST(PreciseRange, Mod) {
@@ -277,6 +279,55 @@ TEST(PreciseRange, ExpLarge) {
     CHECK((exp(PreciseRange(10000)) / (PreciseRange(10) ^ 4342)).toStringWithUncertaintyLog2AtMost(-200), matches(std::regex(regexEscape("[8.806818225662921587261496007644561003520004085591508936424570") + ".*")));
 
     // TODO: see why e^1000000 is slow
+}
+
+TEST(PreciseRange, Ln) {
+    CHECK(ln(PreciseRange(1)).toStringWithUncertaintyLog2AtMost(std::nullopt), equals("0"));
+    CHECK(eq(ln(PreciseRange("1.1") - PreciseRange("0.1")), 0), isTrue());
+
+    CHECK(eq(ln(exp(PreciseRange(1))), 1), isTrue());
+    CHECK(eq(ln(exp(PreciseRange(-1))), -1), isTrue());
+
+    CHECK(eq(ln(exp(PreciseRange(5))), 5), isTrue());
+    CHECK(eq(ln(exp(PreciseRange(-5))), -5), isTrue());
+
+    CHECK(eq(ln(exp(PreciseRange("2.345987"))), "2.345987"), isTrue());
+    CHECK(eq(ln(exp(PreciseRange("-7.3495874"))), "-7.3495874"), isTrue());
+
+    PreciseRange x("9.234956871");
+    PreciseRange y("5.234501204");
+    CHECK(eq(ln(x * y), ln(x) + ln(y)), isTrue());
+
+    PreciseRange xSmall("0.0000000043495873");
+    PreciseRange ySmall("0.0000000034598721");
+    CHECK(eq(ln(xSmall * ySmall), ln(xSmall) + ln(ySmall)), isTrue());
+
+    PreciseRange base("5.349587");
+    // x^10 = e^(ln(x^10)) = e^(10*ln(x))
+    CHECK(eq(base ^ 10, exp(10 * ln(base))), isTrue());
+
+    // x^y = e^(ln(x^y)) = e^(y*ln(x))
+    // 1.32495873 ^ 27.4395874 ≈ 2255.1845690
+    CHECK(strictRange("2255.1845690", exp(PreciseRange("27.4395874") * ln(PreciseRange("1.32495873"))), "2255.1845691"), isTrue());
+}
+
+TEST(PreciseRange, LnInvalidInput) {
+    // doesn't throw on construction
+    CHECK((ln(PreciseRange(0)), true), isTrue());
+    CHECK((ln(PreciseRange("0.3") - PreciseRange("0.3")), true), isTrue());
+    CHECK((ln(PreciseRange(-1)), true), isTrue());
+    CHECK((ln(PreciseRange("0.3") - PreciseRange("1.3")), true), isTrue());
+    if (shouldRunSlowTests()) {
+	// throws when ln is evaluated
+	CHECK_THROWS(gt(ln(PreciseRange(0)), PreciseRange(0)), std::domain_error);
+	CHECK_THROWS(gt(ln(PreciseRange("0.3") - PreciseRange("0.3")), PreciseRange(0)), std::domain_error);
+	CHECK_THROWS(gt(ln(PreciseRange(-1)), PreciseRange(0)), std::domain_error);
+	CHECK_THROWS(gt(ln(PreciseRange("0.3") - PreciseRange("1.3")), PreciseRange(0)), std::domain_error);
+    }
+}
+
+TEST(PreciseRange, LnLarge) {
+    CHECK(strictRange("4605.170185", ln(PreciseRange(10) ^ 2000), "4605.170186"), isTrue());
 }
 
 TEST(PreciseRange, SinCos) {
