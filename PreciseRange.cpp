@@ -1444,8 +1444,8 @@ PreciseRange exp(PreciseRange const& x) {
 }
 
 PreciseRange ln(PreciseRange const& x) {
-    // Construct a power series for -∑_{i=1}^{∞} x^i/i
-    struct LnHelper : public PowerSeriesOp<PowerSeriesCoefficients::InvExp, -1> {
+    // Construct a power series for ∑_{i=1}^{∞} x^i/i
+    struct LnHelper : public PowerSeriesOp<PowerSeriesCoefficients::InvExp, 1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "neg_shift_ln_impl";
@@ -1455,13 +1455,14 @@ PreciseRange ln(PreciseRange const& x) {
     struct LnWithPreScaling : public ImplAsAnotherRangeWithBase<LnWithPreScaling, PreciseUnaryOp> {
 	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
 
-	static PreciseRange ln(PreciseRange arg) {
+	static PreciseRange negLnOneMinusX(PreciseRange arg) {
 	    // ln(x) = -∑_{i=1}^{∞} (1-x)^i/i when 0 < x ≤ 2
-	    return std::make_shared<LnHelper>(1 - arg);
+	    // negLnOneMinusX(x) = -ln(1-x) = ∑_{i=1}^{∞} x^i/i
+	    return PreciseRange(std::make_shared<LnHelper>(arg));
 	}
 
         PreciseRange calculateImpl() {
-	    // ln(x * 2^y) = ln(x) - y*ln(1/2)
+	    // ln(x * 2^y) = ln(x) - y*ln(1/2) = y * negLnOneMinusX(1/2) - negLnOneMinusX(1-x)
 	    // First refine x within a factor of 2.
 	    // Then select y = ⌈log2(x)⌉ to shift x into [1/4, 1].
 	    auto const& [argVal, sign] = fArgImpl.refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2("ln");
@@ -1471,7 +1472,7 @@ PreciseRange ln(PreciseRange const& x) {
 	    auto y = *maxCeilLog2Abs(argVal);
 	    auto x = fArg >> y;
 	    auto half = std::make_shared<ExactValue>(BinaryShiftedInt(1, -1));
-	    return ln(x) - y * ln(half);
+	    return y * negLnOneMinusX(half) - negLnOneMinusX(1 - x);
 	}
 	std::string op() const final {
 	    return "ln";
