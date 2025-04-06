@@ -3,7 +3,6 @@
 #include "BigInt.hpp"
 #include "DigitParser.hpp"
 #include "ExitUtils.hpp"
-#include "UniqueOwnedReferenceForCPP.hpp"
 #include "Variant.hpp"
 
 #include <cstdint>
@@ -878,9 +877,9 @@ enum class OperatorPriority : std::uint8_t {
     RequireParensOnChild = 4,   // force any sub-expression to be shown in ()
 };
 
-struct AdjustablePrecisionRange {
+struct PreciseRange::Impl {
   public:
-    virtual ~AdjustablePrecisionRange() = default;
+    virtual ~Impl() = default;
 
   private:
     virtual OperatorPriority operatorPriority() const = 0;
@@ -898,7 +897,7 @@ struct AdjustablePrecisionRange {
     }
 
   public:
-    std::string toStringExact(AdjustablePrecisionRange const* parent) const {
+    std::string toStringExact(Impl const* parent) const {
 	if (parent && parent->operatorPriority() >= operatorPriorityVsParent()) {
 	    return "(" + toStringExact() + ")";
 	} else {
@@ -976,7 +975,7 @@ struct AdjustablePrecisionRange {
     std::optional<BinaryShiftedIntRange> fCachedValue;
 };
 
-struct ExactValue : public AdjustablePrecisionRange {
+struct ExactValue : public PreciseRange::Impl {
   public:
     ExactValue(BinaryShiftedInt value)
 	: fBinaryShiftedInt(std::move(value)) {}
@@ -1002,90 +1001,29 @@ struct ExactValue : public AdjustablePrecisionRange {
     BinaryShiftedInt fBinaryShiftedInt;
 };
 
-using SharedPreciseRange = std::shared_ptr<AdjustablePrecisionRange>;
-
-struct PreciseRange::Impl : public SharedPreciseRange {
-    using SharedPreciseRange::SharedPreciseRange;
-
-    Impl(SharedPreciseRange const& range)
-	: SharedPreciseRange(range) {}
-    
-    static Impl fromNumeric(std::string_view numericLiteral) {
-	B negative = false;
-	if (!numericLiteral.empty() && numericLiteral[0] == '-') {
-	    negative = true;
-	    numericLiteral.remove_prefix(1);
-	}
-	DigitParser digitParser = DecimalParser;
-	if (numericLiteral.size() >= 2 && numericLiteral[0] == '0') {
-	    if (auto parserFromPrefix = DigitParser::fromPrefixChar(numericLiteral[1])) {
-		digitParser = *parserFromPrefix;
-		numericLiteral.remove_prefix(2);
-	    }
-	}
-	BigInt numerator;
-	B encounteredDecimalPoint = false;
-	B anyDigits = false;
-        UI denomExp = 0;
-	for (C c : numericLiteral) {
-	    if (auto nextDigit = digitParser.fCharToDigit(c)) {
-		anyDigits = true;
-		numerator *= digitParser.fMultPerDigit;
-		numerator += *nextDigit;
-		if (encounteredDecimalPoint) {
-		    ++denomExp;
-		}
-	    } else if (!encounteredDecimalPoint && c == '.') {
-		encounteredDecimalPoint = true;
-	    } else {
-		throw_exception<std::invalid_argument>(std::string("Unexpected character when parsing PreciseRange: '") + c + "' (" + std::to_string(static_cast<SI>(c)) + ")");
-	    }
-	}
-	if (!anyDigits) {
-	    throw_exception<std::invalid_argument>("PreciseRange cannot be constructed from an empty string (after possible negation and base prefix and decimal point)");
-	}
-	if (negative) {
-	    numerator.negateMe();
-	}
-	if (denomExp == 0) {
-	    return std::make_shared<ExactValue>(std::move(numerator));
-	} else if (digitParser.fExactLog2) {
-	    auto exp2 = -static_cast<std::int64_t>(*digitParser.fExactLog2 * denomExp);
-	    return std::make_shared<ExactValue>(BinaryShiftedInt(std::move(numerator), exp2));
-	} else {
-	    BigInt denominator = BigInt(digitParser.fMultPerDigit) ^ denomExp;
-	    PreciseRange fraction =
-		PreciseRange(Impl(std::make_shared<ExactValue>(std::move(numerator)))) /
-		PreciseRange(Impl(std::make_shared<ExactValue>(std::move(denominator))));
-	    return fraction.impl();
-	}
-    }
-};
-
 /* Usage example: SquarePlusOne
 struct SquarePlusOne : public ImplAsAnotherRangeWithBase<SquarePlusOne, PreciseUnaryOp>
     using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
-    SharedPreciseRange calculateImpl() {
-        PreciseRange x{PreciseRange::Impl{fArg}};
-        return (x * x + 1).impl();
+    PreciseRange calculateImpl() {
+        return fArg * fArg + 1;
     }
     std::string op() const final {
         return "squarePlusOne";
     }
 };
 */
-// The derived class MUST implement a calculateImpl() method that returns SharedPreciseRange.
+// The derived class MUST implement a calculateImpl() method that returns PreciseRange.
 // It will only be called once, the first time estimate() or withUncertaintyLog2AtMost() is called.
 template<class Self, class Base>
 struct ImplAsAnotherRangeWithBase : public Base {
-    static_assert(std::is_base_of_v<AdjustablePrecisionRange, Base>, "Base class should be AdjustablePrecisionRange or something inheriting from it");
+    static_assert(std::is_base_of_v<PreciseRange::Impl, Base>, "Base class should be PreciseRange::Impl or something inheriting from it");
   public:
     using Base::Base;
 
   private:
-    AdjustablePrecisionRange& impl() {
+    PreciseRange::Impl& impl() {
 	if (!fImpl) {
-	    fImpl = static_cast<Self&>(*this).calculateImpl();
+	    fImpl = static_cast<Self&>(*this).calculateImpl().impl();
 	}
 	return *fImpl;
     }
@@ -1099,58 +1037,118 @@ struct ImplAsAnotherRangeWithBase : public Base {
     }
 
   private:
-    SharedPreciseRange fImpl;
+    PreciseRange::SharedImpl fImpl;
 };
 
-struct PreciseUnaryOp : public AdjustablePrecisionRange {
-    SharedPreciseRange fArg;
+struct PreciseUnaryOp : public PreciseRange::Impl {
+    PreciseRange fArg;
+    PreciseRange::Impl& fArgImpl;
 
     // Necessary for derived classes to be able to "using PreciseUnaryOp::PreciseUnaryOp;"
-    PreciseUnaryOp(SharedPreciseRange arg)
-	: fArg(arg) {}
+    PreciseUnaryOp(PreciseRange arg)
+	: fArg(arg)
+	, fArgImpl(*fArg.impl()) {}
     
     virtual std::string op() const = 0;
     OperatorPriority operatorPriority() const final {
 	return OperatorPriority::RequireParensOnChild;
     }
     std::string toStringExact() const final {
-	return op() + fArg->toStringExact(this);
+	return op() + fArgImpl.toStringExact(this);
     }
 };
 
-struct PreciseBinaryOp : public AdjustablePrecisionRange {
-    SharedPreciseRange fLhs;
-    SharedPreciseRange fRhs;
+struct PreciseBinaryOp : public PreciseRange::Impl {
+    PreciseRange fLhs;
+    PreciseRange fRhs;
+    PreciseRange::Impl& fLhsImpl;
+    PreciseRange::Impl& fRhsImpl;
 
     // Necessary for derived classes to be able to "using PreciseBinaryOp::PreciseBinaryOp;"
-    PreciseBinaryOp(SharedPreciseRange lhs, SharedPreciseRange rhs)
+    PreciseBinaryOp(PreciseRange lhs, PreciseRange rhs)
 	: fLhs(lhs)
-	, fRhs(rhs) {}
-    
+	, fRhs(rhs)
+	, fLhsImpl(*fLhs.impl())
+	, fRhsImpl(*fRhs.impl()) {}
+
     virtual std::string op() const = 0;
     std::string toStringExact() const final {
-	return fLhs->toStringExact(this) + op() + fRhs->toStringExact(this);
+	return fLhsImpl.toStringExact(this) + op() + fRhsImpl.toStringExact(this);
     }
 };
 
 PreciseRange::PreciseRange(std::int64_t value)
     : fImpl(std::make_shared<ExactValue>(BigInt(value))) {}
 
+static PreciseRange fromNumeric(std::string_view numericLiteral) {
+    B negative = false;
+    if (!numericLiteral.empty() && numericLiteral[0] == '-') {
+	negative = true;
+	numericLiteral.remove_prefix(1);
+    }
+    DigitParser digitParser = DecimalParser;
+    if (numericLiteral.size() >= 2 && numericLiteral[0] == '0') {
+	if (auto parserFromPrefix = DigitParser::fromPrefixChar(numericLiteral[1])) {
+	    digitParser = *parserFromPrefix;
+	    numericLiteral.remove_prefix(2);
+	}
+    }
+    BigInt numerator;
+    B encounteredDecimalPoint = false;
+    B anyDigits = false;
+    UI denomExp = 0;
+    for (C c : numericLiteral) {
+	if (auto nextDigit = digitParser.fCharToDigit(c)) {
+	    anyDigits = true;
+	    numerator *= digitParser.fMultPerDigit;
+	    numerator += *nextDigit;
+	    if (encounteredDecimalPoint) {
+		++denomExp;
+	    }
+	} else if (!encounteredDecimalPoint && c == '.') {
+	    encounteredDecimalPoint = true;
+	} else {
+	    throw_exception<std::invalid_argument>(std::string("Unexpected character when parsing PreciseRange: '") + c + "' (" + std::to_string(static_cast<SI>(c)) + ")");
+	}
+    }
+    if (!anyDigits) {
+	throw_exception<std::invalid_argument>("PreciseRange cannot be constructed from an empty string (after possible negation and base prefix and decimal point)");
+    }
+    if (negative) {
+	numerator.negateMe();
+    }
+    if (denomExp == 0) {
+	return std::make_shared<ExactValue>(std::move(numerator));
+    } else if (digitParser.fExactLog2) {
+	auto exp2 = -static_cast<std::int64_t>(*digitParser.fExactLog2 * denomExp);
+	return std::make_shared<ExactValue>(BinaryShiftedInt(std::move(numerator), exp2));
+    } else {
+	BigInt denominator = BigInt(digitParser.fMultPerDigit) ^ denomExp;
+	PreciseRange fraction =
+	    PreciseRange(std::make_shared<ExactValue>(std::move(numerator))) /
+	    PreciseRange(std::make_shared<ExactValue>(std::move(denominator)));
+	return fraction;
+    }
+}
+
 PreciseRange::PreciseRange(std::string_view numericLiteral)
-    : fImpl(Impl::fromNumeric(numericLiteral)) {}
+    : PreciseRange(fromNumeric(numericLiteral)) {}
 
-PreciseRange::PreciseRange(PreciseRange const& other)
-    : fImpl(other.impl()) {}
-
-PreciseRange& PreciseRange::operator=(PreciseRange const& other) {
-    static_cast<Impl&>(fImpl) = other.impl();
-    return *this;
+PreciseRange::PreciseRange(SharedImpl nonNullImpl /* throws if null */)
+    : fImpl(std::move(nonNullImpl)) {
+    if (!fImpl) {
+	throw_exception<std::invalid_argument>("PreciseRange cannot be constructed from null");
+    }
 }
 
 PreciseRange::~PreciseRange() = default;
 
+PreciseRange::SharedImpl const& PreciseRange::impl() const {
+    return fImpl;
+}
+
 PreciseRange PreciseRange::pi() {
-    struct Pi : public AdjustablePrecisionRange {
+    struct Pi : public PreciseRange::Impl {
       private:
 	OperatorPriority operatorPriority() const final {
 	    return OperatorPriority::ExactValue;
@@ -1170,7 +1168,7 @@ PreciseRange PreciseRange::pi() {
 	    unimpl(maxUncertaintyLog2);
 	}
     };
-    return Impl{std::make_shared<Pi>()};
+    return std::make_shared<Pi>();
 }
 
 PreciseRange PreciseRange::operator-() const {
@@ -1183,17 +1181,17 @@ PreciseRange PreciseRange::operator-() const {
 	    return "-";
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    auto result = fArg->estimate();
+	    auto result = fArgImpl.estimate();
 	    result.negateMe();
 	    return result;
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    auto result = fArg->withUncertaintyLog2AtMost(maxUncertaintyLog2);
+	    auto result = fArgImpl.withUncertaintyLog2AtMost(maxUncertaintyLog2);
 	    result.negateMe();
 	    return result;
 	}
     };
-    return Impl{std::make_shared<Negative>(impl())};
+    return std::make_shared<Negative>(*this);
 }
 
 PreciseRange sqrt(PreciseRange const& x) {
@@ -1213,14 +1211,14 @@ PreciseRange sqrt(PreciseRange const& x) {
 	    return "√";
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    auto argEst = fArg->estimate();
+	    auto argEst = fArgImpl.estimate();
 	    if (auto sign = argEst.signIfKnown(); sign && sign->fSign == Sign::Negative) {
 		throw_exception<std::domain_error>("sqrt of a negative: " + toStringExact());
 	    }
 	    return sqrt(argEst);
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    auto argEst = fArg->estimate();
+	    auto argEst = fArgImpl.estimate();
 	    if (auto sign = argEst.signIfKnown(); sign && sign->fSign == Sign::Positive) {
 		// We seek k so that, for any X,Y satisfying
 		// 0 < A ≤ X ≤ Y ≤ B, Y-X ≤ 2^k,
@@ -1242,7 +1240,7 @@ PreciseRange sqrt(PreciseRange const& x) {
 		    --floorLog2LowerBound;
 		}
 		auto k = std::max(maxUncertaintyLog2 + floorLog2LowerBound / 2, 2 * (maxUncertaintyLog2 - 1));
-		argEst = fArg->withUncertaintyLog2AtMost(k);
+		argEst = fArgImpl.withUncertaintyLog2AtMost(k);
 	    } else {
 		// We seek k so that, for any X,Y satisfying
 		// 0 ≤ X ≤ Y, Y-X ≤ 2^k,
@@ -1255,7 +1253,7 @@ PreciseRange sqrt(PreciseRange const& x) {
 		//  = 2^(k/2)
 		// We choose k ≤ 2*(maxUncertaintyLog2-1) so...
 		//  ≤ 2^(maxUncertaintyLog2-1)
-		argEst = fArg->withUncertaintyLog2AtMost(2 * (maxUncertaintyLog2 - 1));
+		argEst = fArgImpl.withUncertaintyLog2AtMost(2 * (maxUncertaintyLog2 - 1));
 	    }
 	    if (auto sign = argEst.signIfKnown(); sign && sign->fSign == Sign::Negative) {
 		throw_exception<std::domain_error>("sqrt of a negative: " + toStringExact());
@@ -1268,7 +1266,7 @@ PreciseRange sqrt(PreciseRange const& x) {
 	    return sqrt(argEst);
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Sqrt>(x.impl())};
+    return std::make_shared<Sqrt>(x);
 }
 
 PreciseRange distanceToNearestInteger(PreciseRange const& x) {
@@ -1278,14 +1276,16 @@ PreciseRange distanceToNearestInteger(PreciseRange const& x) {
 	    return "distanceToNearestInteger";
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    return distanceToNearestInteger(fArg->estimate());
+	    return distanceToNearestInteger(fArgImpl.estimate());
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    return distanceToNearestInteger(fArg->withUncertaintyLog2AtMost(maxUncertaintyLog2));
+	    return distanceToNearestInteger(fArgImpl.withUncertaintyLog2AtMost(maxUncertaintyLog2));
 	}
     };
-    return PreciseRange::Impl{std::make_shared<DistanceToNearestInteger>(x.impl())};
+    return std::make_shared<DistanceToNearestInteger>(x);
 }
+
+enum class PowerSeriesCoefficients { InvExpFactorial /* 1/n! */, InvExp /* 1/n */ };
 
 // Provide the derivatives at 0: f(0), f'(0) f''(0), ...
 // These are assumed to repeat, and must only be -1, 0, and 1.
@@ -1305,13 +1305,12 @@ struct PowerSeriesOp : public PreciseUnaryOp {
     static constexpr std::array DerivativesArray = {Derivatives...};
 
     PreciseRange computeNewTermWithoutCoefficient(std::int64_t exp) const {
-	PreciseRange::Impl arg(fArg);
 	if constexpr (CoefficientsKind == PowerSeriesCoefficients::InvExpFactorial) {
 	    // Emperical evidence for large power series (x=300) shows this multiplication + division order produces faster code than other orders
-	    return arg / exp * fTermsWithoutCoefficients.back();
+	    return fArg / exp * fTermsWithoutCoefficients.back();
 	} else {
 	    (void)exp;
-	    return arg * fTermsWithoutCoefficients.back();
+	    return fArg * fTermsWithoutCoefficients.back();
 	}
     }
 
@@ -1345,7 +1344,7 @@ struct PowerSeriesOp : public PreciseUnaryOp {
     void ensureInit() {
 	if (fTermsToSum.empty()) {
 	    // get input within a range of size 2^0 = 1 to get an accurate upper bound
-	    auto optBound = fArg->withUncertaintyLog2AtMost(0).maxUpperBoundAbs();
+	    auto optBound = fArgImpl.withUncertaintyLog2AtMost(0).maxUpperBoundAbs();
 	    if (!optBound) {
 		throw_exception<std::domain_error>("Power series is too large (more than " + std::to_string(std::numeric_limits<std::size_t>::max()) + " elements) for " + toStringExact());
 	    }
@@ -1415,22 +1414,21 @@ PreciseRange exp(PreciseRange const& x) {
     struct ExpWithPreScaling : public ImplAsAnotherRangeWithBase<ExpWithPreScaling, PreciseUnaryOp> {
 	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
 
-        SharedPreciseRange calculateImpl() {
+        PreciseRange calculateImpl() {
 	    // Choose k so |x| ≤ 2^k, 0 ≤ k
 	    // Choose k = max(⌈log2(|x|)⌉, 0) + 3 so each term of the power series will be reduced by at least a factor of 8, for extra-fast convergence.
 	    // However, even larger values of k can cost (with the final k squarings) more than they gain in power series convergence.
-	    auto k = *std::max(maxCeilLog2Abs(fArg->withUncertaintyLog2AtMost(0)), IntOrNegInf(0)) + 3;
+	    auto k = *std::max(maxCeilLog2Abs(fArgImpl.withUncertaintyLog2AtMost(0)), IntOrNegInf(0)) + 3;
 	    // y = x / 2^k, so |y| ≤ 1. This makes the power series of y converge quickly.
-	    auto y = PreciseRange(PreciseRange::Impl(fArg)) * PreciseRange::Impl{std::make_shared<ExactValue>(BinaryShiftedInt(1, -k))};
+	    auto y = fArg * std::make_shared<ExactValue>(BinaryShiftedInt(1, -k));
 	    // e^x = e^(x / 2^k * 2*k) = (e^(x / 2^k))^(2^k) = (e^y)^(2^k)
 	    // e^y:
-	    PreciseRange expY = PreciseRange::Impl{std::make_shared<RawExp>(y.impl())};
-	    PreciseRange result = expY;
+	    PreciseRange result = std::make_shared<RawExp>(y);
 	    // (e^y)^(2^k)
 	    for (auto i = k; i--; ) {
 		result = result * result;
 	    }
-	    return result.impl();
+	    return result;
 	}
 	OperatorPriority operatorPriorityVsParent() const final {
 	    return OperatorPriority::Power;
@@ -1441,8 +1439,8 @@ PreciseRange exp(PreciseRange const& x) {
     };
     // This divides the input by 2^k to get a value < 1, then raises the result to the 2^k'th power.
     // This is much more efficient than the direct power series computation:
-    // return PreciseRange::Impl{std::make_shared<RawExp>(x.impl())};
-    return PreciseRange::Impl{std::make_shared<ExpWithPreScaling>(x.impl())};
+    // return std::make_shared<RawExp>(x);
+    return std::make_shared<ExpWithPreScaling>(x);
 }
 
 PreciseRange ln(PreciseRange const& x) {
@@ -1459,28 +1457,27 @@ PreciseRange ln(PreciseRange const& x) {
 
 	static PreciseRange ln(PreciseRange arg) {
 	    // ln(x) = -∑_{i=1}^{∞} (1-x)^i/i when 0 < x ≤ 2
-	    return PreciseRange{PreciseRange::Impl{std::make_shared<LnHelper>((1 - arg).impl())}};
+	    return std::make_shared<LnHelper>(1 - arg);
 	}
 
-        SharedPreciseRange calculateImpl() {
+        PreciseRange calculateImpl() {
 	    // ln(x * 2^y) = ln(x) - y*ln(1/2)
 	    // First refine x within a factor of 2.
 	    // Then select y = ⌈log2(x)⌉ to shift x into [1/4, 1].
-	    auto const& [argVal, sign] = fArg->refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2("ln");
+	    auto const& [argVal, sign] = fArgImpl.refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2("ln");
 	    if (sign != Sign::Positive) {
 		throw_exception<std::domain_error>("ln of a non-positive number: " + toStringExact());
 	    }
 	    auto y = *maxCeilLog2Abs(argVal);
-	    auto x = PreciseRange{PreciseRange::Impl{fArg}} >> y;
-	    PreciseRange half{PreciseRange::Impl{std::make_shared<ExactValue>(BinaryShiftedInt(1, -1))}};
-	    auto result = ln(x) - y * ln(half);
-	    return result.impl();
+	    auto x = fArg >> y;
+	    auto half = std::make_shared<ExactValue>(BinaryShiftedInt(1, -1));
+	    return ln(x) - y * ln(half);
 	}
 	std::string op() const final {
 	    return "ln";
 	}
     };
-    return PreciseRange::Impl{std::make_shared<LnWithPreScaling>(x.impl())};
+    return std::make_shared<LnWithPreScaling>(x);
 }
 
 PreciseRange sin(PreciseRange const& x) {
@@ -1492,7 +1489,7 @@ PreciseRange sin(PreciseRange const& x) {
 	    return "sin";
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Sin>(x.impl())};
+    return std::make_shared<Sin>(x);
 }
 
 PreciseRange cos(PreciseRange const& x) {
@@ -1504,17 +1501,16 @@ PreciseRange cos(PreciseRange const& x) {
 	    return "cos";
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Cos>(x.impl())};
+    return std::make_shared<Cos>(x);
 }
 
 PreciseRange sinh(PreciseRange const& x) {
     struct Sinh : public ImplAsAnotherRangeWithBase<Sinh, PreciseUnaryOp> {
 	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
 
-        SharedPreciseRange calculateImpl() {
-	    PreciseRange x{PreciseRange::Impl{fArg}};
+        PreciseRange calculateImpl() {
 	    // This is much more efficient than a direct power series computation.
-	    return ((exp(x) - exp(-x)) / 2).impl();
+	    return (exp(fArg) - exp(-fArg)) >> 1;
 	}
 
 	std::string op() const final {
@@ -1529,17 +1525,16 @@ PreciseRange sinh(PreciseRange const& x) {
 	}
     };
     */
-    return PreciseRange::Impl{std::make_shared<Sinh>(x.impl())};
+    return std::make_shared<Sinh>(x);
 }
 
 PreciseRange cosh(PreciseRange const& x) {
     struct Cosh : public ImplAsAnotherRangeWithBase<Cosh, PreciseUnaryOp> {
 	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
 
-        SharedPreciseRange calculateImpl() {
-	    PreciseRange x{PreciseRange::Impl{fArg}};
+        PreciseRange calculateImpl() {
 	    // This is much more efficient than a direct power series computation.
-	    return ((exp(x) + exp(-x)) / 2).impl();
+	    return (exp(fArg) + exp(-fArg)) >> 1;
 	}
 
 	std::string op() const final {
@@ -1554,7 +1549,7 @@ PreciseRange cosh(PreciseRange const& x) {
 	}
     };
     */
-    return PreciseRange::Impl{std::make_shared<Cosh>(x.impl())};
+    return std::make_shared<Cosh>(x);
 }
 
 PreciseRange operator+(PreciseRange const& x, PreciseRange const& y) {
@@ -1567,13 +1562,13 @@ PreciseRange operator+(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::AdditionSubtraction;
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    return fLhs->estimate() + fRhs->estimate();
+	    return fLhsImpl.estimate() + fRhsImpl.estimate();
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    return fLhs->withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1) + fRhs->withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1);
+	    return fLhsImpl.withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1) + fRhsImpl.withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1);
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Sum>(x.impl(), y.impl())};
+    return std::make_shared<Sum>(x, y);
 }
 
 PreciseRange operator-(PreciseRange const& x, PreciseRange const& y) {
@@ -1586,13 +1581,13 @@ PreciseRange operator-(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::AdditionSubtraction;
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    return fLhs->estimate() - fRhs->estimate();
+	    return fLhsImpl.estimate() - fRhsImpl.estimate();
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    return fLhs->withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1) - fRhs->withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1);
+	    return fLhsImpl.withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1) - fRhsImpl.withUncertaintyLog2AtMost(maxUncertaintyLog2 - 1);
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Difference>(x.impl(), y.impl())};
+    return std::make_shared<Difference>(x, y);
 }
 
 PreciseRange operator*(PreciseRange const& x, PreciseRange const& y) {
@@ -1605,21 +1600,21 @@ PreciseRange operator*(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::MultiplicationDivision;
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    return fLhs->estimate() * fRhs->estimate();
+	    return fLhsImpl.estimate() * fRhsImpl.estimate();
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    auto productOrNecessaryArgUncertainty = productWithDesiredEstimate(fLhs->estimate(), fRhs->estimate(), maxUncertaintyLog2);
+	    auto productOrNecessaryArgUncertainty = productWithDesiredEstimate(fLhsImpl.estimate(), fRhsImpl.estimate(), maxUncertaintyLog2);
 	    auto [asProduct, asNecessaryArgUncertainty] = productOrNecessaryArgUncertainty.split();
 	    if (asProduct) {
 		return std::move(*asProduct);
 	    } else {
-		auto lhsMoreCertain = fLhs->withUncertaintyLog2AtMost(asNecessaryArgUncertainty->fMaxLhsUncertaintyLog2);
-		auto rhsMoreCertain = fRhs->withUncertaintyLog2AtMost(asNecessaryArgUncertainty->fMaxRhsUncertaintyLog2);
+		auto lhsMoreCertain = fLhsImpl.withUncertaintyLog2AtMost(asNecessaryArgUncertainty->fMaxLhsUncertaintyLog2);
+		auto rhsMoreCertain = fRhsImpl.withUncertaintyLog2AtMost(asNecessaryArgUncertainty->fMaxRhsUncertaintyLog2);
 		return lhsMoreCertain * rhsMoreCertain;
 	    }
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Product>(x.impl(), y.impl())};
+    return std::make_shared<Product>(x, y);
 }
 
 PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
@@ -1632,7 +1627,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::MultiplicationDivision;
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    return fLhs->estimate() / fRhs->refineUntilSignIsPositiveOrNegative("division").fRange;
+	    return fLhsImpl.estimate() / fRhsImpl.refineUntilSignIsPositiveOrNegative("division").fRange;
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
 	    // [a,b] / [c,d] where C = |c| ≤ |d| = D, A = |a|, B = |b|
@@ -1652,8 +1647,8 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    // 3. shifting of numerator values before performing division calculations
 	    
 	    // First we refine the denominator to guarantee C ≤ D ≤ 2C
-	    auto const& denominator = fRhs->refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2("division").fRange;
-	    if (auto result = fLhs->estimate() / denominator; result.uncertaintyLog2() <= maxUncertaintyLog2) {
+	    auto const& denominator = fRhsImpl.refineUntilSignIsPositiveOrNegativeAndRangeInFactorOf2("division").fRange;
+	    if (auto result = fLhsImpl.estimate() / denominator; result.uncertaintyLog2() <= maxUncertaintyLog2) {
 		// result from estimate is good enough!
 		return result;
 	    } else if (auto resultSign = result.signIfKnown()) {
@@ -1675,7 +1670,7 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    //  = 2^(k-⌊log2(C)⌋)
 	    // We choose k = ⌊log2(C)⌋ + maxUncertaintyLog2 - 1
 	    auto k = *minFloorLog2Abs(denominator) + maxUncertaintyLog2 - 1;
-	    auto refinedNumerator = fLhs->withUncertaintyLog2AtMost(k);
+	    auto refinedNumerator = fLhsImpl.withUncertaintyLog2AtMost(k);
 	    if (auto refinedNumeratorSign = refinedNumerator.signIfKnown()) {
 		// Case (B): numerator is on one side of 0
 		auto log2AbsResultUpperBound = ceilLog2Abs(refinedNumeratorSign->fFurtherFromZero) - *minFloorLog2Abs(denominator);
@@ -1720,9 +1715,9 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    // k = min(⌊log2(C)⌋-1, ⌊log2(C)⌋-3-max(0,⌈log2(E)⌉)+maxUncertaintyLog2)
 	    //   = ⌊log2(C)⌋-1 + min(0, maxUncertaintyLog2-2-max(0,⌈log2(E)⌉))
 	    std::int64_t zero = 0;
-	    auto k = *minFloorLog2Abs(fRhs->estimate()) - 1 + std::min(zero, maxUncertaintyLog2 - 2 - *std::max(IntOrNegInf(zero), log2AbsResultUpperBound));
-	    auto numerator = fLhs->withUncertaintyLog2AtMost(k);
-	    auto const& denominator = fRhs->withUncertaintyLog2AtMost(k);
+	    auto k = *minFloorLog2Abs(fRhsImpl.estimate()) - 1 + std::min(zero, maxUncertaintyLog2 - 2 - *std::max(IntOrNegInf(zero), log2AbsResultUpperBound));
+	    auto numerator = fLhsImpl.withUncertaintyLog2AtMost(k);
+	    auto const& denominator = fRhsImpl.withUncertaintyLog2AtMost(k);
 	    // Next we limit the uncertainty when performing rounding during division.
 	    // Specifically, the uncertainty is at most 2^(numeratorExp-denominatorExp)
 	    // We need this to be ≤ 2^(maxUncertaintyLog2-2) on each end, so the uncertainty from rounding both ends is ≤ 2^(maxUncertaintyLog2-1)
@@ -1736,19 +1731,17 @@ PreciseRange operator/(PreciseRange const& x, PreciseRange const& y) {
 	    
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Quotient>(x.impl(), y.impl())};
+    return std::make_shared<Quotient>(x, y);
 }
 
 PreciseRange mod(PreciseRange const& x, PreciseRange const& y) {
     struct Mod : public ImplAsAnotherRangeWithBase<Mod, PreciseBinaryOp> {
 	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
 
-	SharedPreciseRange calculateImpl() {
-	    PreciseRange x{PreciseRange::Impl{fLhs}};
-	    PreciseRange y{PreciseRange::Impl{fRhs}};
-	    PreciseRange div = x / y;
-	    PreciseRange multiplier{PreciseRange::Impl{std::make_shared<ExactValue>(div.impl()->withUncertaintyLog2AtMost(0).floorOfUpperBound())}};
-	    return (x - y * multiplier).impl();
+        PreciseRange calculateImpl() {
+	    PreciseRange div = fLhs / fRhs;
+	    PreciseRange multiplier{std::make_shared<ExactValue>(div.impl()->withUncertaintyLog2AtMost(0).floorOfUpperBound())};
+	    return fLhs - fRhs * multiplier;
 	}
 
 	std::string op() const final {
@@ -1765,18 +1758,18 @@ PreciseRange mod(PreciseRange const& x, PreciseRange const& y) {
 	    return OperatorPriority::AdditionSubtraction;
 	}
     };
-    return PreciseRange::Impl{std::make_shared<Mod>(x.impl(), y.impl())};
+    return std::make_shared<Mod>(x, y);
 }
 
 PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
-    struct Power : public ImplAsAnotherRangeWithBase<Power, AdjustablePrecisionRange> {
+    struct Power : public ImplAsAnotherRangeWithBase<Power, PreciseRange::Impl> {
       public:
-	Power(SharedPreciseRange base, std::int64_t exponent)
+	Power(PreciseRange base, std::int64_t exponent)
 	    : fBase(base)
 	    , fExponent(exponent) {}
 
-	SharedPreciseRange calculateImpl() {
-	    PreciseRange basePow{PreciseRange::Impl{fBase}};
+	PreciseRange calculateImpl() {
+	    PreciseRange basePow = fBase;
 	    std::optional<PreciseRange> result;
 	    for (auto e = my_abs(fExponent); e; e /= 2, basePow = basePow * basePow) {
 		if (e % 2) {
@@ -1790,12 +1783,12 @@ PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
 	    }
 	    if (result) {
 		if (fExponent < 0) {
-		    return (1 / *result).impl();
+		    return 1 / *result;
 		} else {
-		    return (*result).impl();
+		    return *result;
 		}
 	    } else {
-		return PreciseRange(1).impl();
+		return 1;
 	    }
 	}
 
@@ -1804,21 +1797,21 @@ PreciseRange operator^(PreciseRange const& x, std::int64_t exponent) {
 	    return OperatorPriority::Power;
 	}
 	std::string toStringExact() const final {
-	    return fBase->toStringExact(this) + "^" + std::to_string(fExponent);
+	    return fBase.impl()->toStringExact(this) + "^" + std::to_string(fExponent);
 	}
 
       private:
-	SharedPreciseRange fBase;
+        PreciseRange fBase;
 	std::int64_t fExponent;
     };
-    return PreciseRange::Impl{std::make_shared<Power>(x.impl(), exponent)};
+    return std::make_shared<Power>(x, exponent);
 }
 
 PreciseRange operator<<(PreciseRange const& x, std::int64_t shift) {
-    struct LeftShift : public AdjustablePrecisionRange {
+    struct LeftShift : public PreciseRange::Impl {
       public:
-	LeftShift(SharedPreciseRange value, std::int64_t shift)
-	    : fValue(value)
+	LeftShift(PreciseRange value, std::int64_t shift)
+	    : fValue(value.impl())
 	    , fShift(shift) {}
 
       private:
@@ -1841,17 +1834,17 @@ PreciseRange operator<<(PreciseRange const& x, std::int64_t shift) {
 	}
 
       private:
-	SharedPreciseRange fValue;
+        PreciseRange::SharedImpl fValue;
 	std::int64_t fShift;
     };
-    return PreciseRange::Impl{std::make_shared<LeftShift>(x.impl(), shift)};
+    return std::make_shared<LeftShift>(x, shift);
 }
 
 PreciseRange operator>>(PreciseRange const& x, std::int64_t shift) {
-    struct RightShift : public AdjustablePrecisionRange {
+    struct RightShift : public PreciseRange::Impl {
       public:
-	RightShift(SharedPreciseRange value, std::int64_t shift)
-	    : fValue(value)
+	RightShift(PreciseRange value, std::int64_t shift)
+	    : fValue(value.impl())
 	    , fShift(shift) {}
 
       private:
@@ -1874,10 +1867,10 @@ PreciseRange operator>>(PreciseRange const& x, std::int64_t shift) {
 	}
 
       private:
-	SharedPreciseRange fValue;
+        PreciseRange::SharedImpl fValue;
 	std::int64_t fShift;
     };
-    return PreciseRange::Impl{std::make_shared<RightShift>(x.impl(), shift)};
+    return std::make_shared<RightShift>(x, shift);
 }
 
 PreciseRange::Cmp cmp(PreciseRange const& x, PreciseRange const& y, std::int64_t maxUncertaintyLog2) {
@@ -1916,11 +1909,4 @@ std::string PreciseRange::toStringExact() const {
 
 std::string PreciseRange::toStringWithUncertaintyLog2AtMost(std::optional<std::int64_t> maxUncertaintyLog2) const {
     return impl()->toStringWithUncertaintyLog2AtMost(maxUncertaintyLog2);
-}
-
-PreciseRange::PreciseRange(Impl const& impl)
-    : fImpl(impl) {}
-
-PreciseRange::Impl const& PreciseRange::impl() const {
-    return fImpl;
 }

@@ -1,12 +1,13 @@
-#include "UniqueOwnedReferenceForHPP.hpp"
-
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string_view>
 
-enum class PowerSeriesCoefficients { InvExpFactorial /* 1/n! */, InvExp /* 1/n */ };
-
 struct PreciseRange {
+  public:
+    struct Impl;
+    using SharedImpl = std::shared_ptr<Impl>;
+
   public:
     // Constructors
     PreciseRange(std::int64_t value);
@@ -14,9 +15,16 @@ struct PreciseRange {
     template<std::size_t n>
     PreciseRange(char const (&stringLiteral)[n])
 	: PreciseRange(std::string_view(stringLiteral)) {}
-    PreciseRange(PreciseRange const&);
+    PreciseRange(SharedImpl nonNullImpl /* throws if null */);
+    template<class T, class = std::enable_if_t<std::is_base_of_v<Impl, T>>>
+    PreciseRange(std::shared_ptr<T> nonNullImpl /* throws if null */)
+	: PreciseRange(SharedImpl(std::move(nonNullImpl))) {}
+    PreciseRange(PreciseRange const&) = default;
+    PreciseRange& operator=(PreciseRange const&) = default;
     ~PreciseRange();
-    PreciseRange& operator=(PreciseRange const&);
+
+  public:
+    SharedImpl const& impl() const;
 
     // Constants
     static PreciseRange pi();
@@ -71,11 +79,5 @@ struct PreciseRange {
     std::string toStringWithUncertaintyLog2AtMost(std::optional<std::int64_t> maxUncertaintyLog2) const;
 
   private:
-    template<PowerSeriesCoefficients CoefficientsKind, std::int64_t... Derivatives>
-    friend struct PowerSeriesOp;
-    struct Impl;
-    friend struct Impl;
-    UniqueOwnedReference<Impl> fImpl;
-    PreciseRange(Impl const& implToCopy);
-    Impl const& impl() const;
+    SharedImpl fImpl; // always non-null
 };
