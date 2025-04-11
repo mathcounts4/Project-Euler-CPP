@@ -1590,27 +1590,47 @@ PreciseRange ln(PreciseRange const& x) {
 }
 
 PreciseRange sin(PreciseRange const& x) {
-    // TODO: should this compute the argument mod 2π before performing the power series calculation?
-    // Will this be more efficient than a direct power series computation?
-    struct Sin : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 0, 1, 0, -1> {
+    struct SinRaw : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 0, 1, 0, -1> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "sin";
 	}
     };
-    return std::make_shared<Sin>(x);
+    // Compute the argument mod 2π before performing the power series calculation.
+    // This is much more efficient than a direct power series computation.
+    struct SinWithPreMod : public ImplAsAnotherRangeWithBase<SinWithPreMod, PreciseUnaryOp> {
+	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+
+        PreciseRange calculateImpl() {
+	    return std::make_shared<SinRaw>(mod(fArg, PreciseRange::π() << 1));
+	}
+	std::string op() const final {
+	    return "sin";
+	}
+    };
+    return std::make_shared<SinWithPreMod>(x);
 }
 
 PreciseRange cos(PreciseRange const& x) {
-    // TODO: should this compute the argument mod 2π before performing the power series calculation?
-    // Will this be more efficient than a direct power series computation?
-    struct Cos : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 1, 0, -1, 0> {
+    struct CosRaw : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 1, 0, -1, 0> {
 	using PowerSeriesOp::PowerSeriesOp;
 	std::string op() const final {
 	    return "cos";
 	}
     };
-    return std::make_shared<Cos>(x);
+    // Compute the argument mod 2π before performing the power series calculation.
+    // This is much more efficient than a direct power series computation.
+    struct CosWithPreMod : public ImplAsAnotherRangeWithBase<CosWithPreMod, PreciseUnaryOp> {
+	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
+
+        PreciseRange calculateImpl() {
+	    return std::make_shared<CosRaw>(mod(fArg, PreciseRange::π() << 1));
+	}
+	std::string op() const final {
+	    return "cos";
+	}
+    };
+    return std::make_shared<CosWithPreMod>(x);
 }
 
 PreciseRange sinh(PreciseRange const& x) {
