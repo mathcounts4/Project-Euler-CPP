@@ -975,11 +975,6 @@ struct PreciseRange::Impl {
 	return {withUncertaintyLog2AtMost(maximumLog2Uncertainty), refinedWithSign.fSign};
     }
 
-    template<class... T>
-    [[noreturn]] void unimpl(T&&...) const {
-	throw_exception<PreciseRangeImplLogicError>("unimplemented: " + toStringExact());
-    }
-
   private:
     std::optional<BinaryShiftedIntRange> fCachedValue;
 };
