@@ -409,7 +409,8 @@ struct BinaryShiftedInt {
     }
 
     friend bool operator<(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
-	// TODO: write a test that hits this function (and other comparison operators)
+	// TODO: C++20: define just the <=> operator instead of all comparison operators.
+	// Not all comparison operators are invoked, but all are written for completeness.
 	auto res = comp(x, y);
 	if (!res.fResultIfDifferent) {
 	    return false;
