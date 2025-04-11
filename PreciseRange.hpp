@@ -27,7 +27,7 @@ struct PreciseRange {
     SharedImpl const& impl() const;
 
     // Constants
-    static PreciseRange pi();
+    static PreciseRange π();
 
     // Unary operators that produce another PreciseRange
     // Note: output must be continuous in input in order to maintain convergence

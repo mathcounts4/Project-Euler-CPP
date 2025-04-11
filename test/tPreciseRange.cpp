@@ -57,7 +57,7 @@ TEST(PreciseRange, Caching) {
 }
 
 TEST(PreciseRange, ToStringExact) {
-    CHECK(sqrt(-(3 * PreciseRange::pi()) + -4 / -PreciseRange(7) - PreciseRange("0.7") + PreciseRange("0xFF")).toStringExact(), equals("√(((-(3*π)+-4/(-(7)))-7/10)+255)"));
+    CHECK(sqrt(-(3 * PreciseRange::π()) + -4 / -PreciseRange(7) - PreciseRange("0.7") + PreciseRange("0xFF")).toStringExact(), equals("√(((-(3*π)+-4/(-(7)))-7/10)+255)"));
     CHECK(distanceToNearestInteger(ln(exp(sin(cos(sinh(cosh(PreciseRange(5)))))))).toStringExact(), equals("distanceToNearestInteger(ln(e^(sin(cos(sinh(cosh(5)))))))"));
     CHECK((2 * mod(PreciseRange(44) * PreciseRange(7), PreciseRange(5) - PreciseRange(2)) - 3).toStringExact(), equals("2*((44*7) mod (5-2))-3"));
     CHECK((((PreciseRange(2) * 3) * (PreciseRange(4) * 5)) ^ -6).toStringExact(), equals("((2*3)*(4*5))^-6"));
@@ -78,8 +78,9 @@ TEST(PreciseRange, Comparison) {
     CHECK(lt(PreciseRange(-3), PreciseRange(4)), isTrue());
 }
 
-TEST(PreciseRange, Pi) {
-    CHECK(PreciseRange::pi().toStringWithUncertaintyLog2AtMost(std::nullopt), equals("[3.125 ± 0.125]"));
+TEST(PreciseRange, π) {
+    CHECK(PreciseRange::π().toStringWithUncertaintyLog2AtMost(std::nullopt), equals("[3.125 ± 0.125]"));
+    CHECK(PreciseRange::π().toStringWithUncertaintyLog2AtMost(-333), matches(std::regex(regexEscape("[3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067") + ".*")));
 }
 
 TEST(PreciseRange, HighPrecisionAddition) {

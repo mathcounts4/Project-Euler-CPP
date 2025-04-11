@@ -433,19 +433,27 @@ struct BinaryShiftedInt {
 	return !(x == y);
     }
 
+    BinaryShiftedInt& operator+=(BinaryShiftedInt const& y) {
+	auto minExp = std::min(fExp2, y.fExp2);
+        fIntValue <<= fExp2 - minExp;
+	fExp2 = minExp;
+	fIntValue += y.fIntValue << (y.fExp2 - minExp);
+	return *this;
+    }
     friend BinaryShiftedInt operator+(BinaryShiftedInt x, BinaryShiftedInt const& y) {
-	auto minExp = std::min(x.fExp2, y.fExp2);
-        x.fIntValue <<= x.fExp2 - minExp;
-	x.fExp2 = minExp;
-	x.fIntValue += y.fIntValue << (y.fExp2 - minExp);
+	x += y;
 	return x;
     }
 
+    BinaryShiftedInt& operator-=(BinaryShiftedInt const& y) {
+	auto minExp = std::min(fExp2, y.fExp2);
+        fIntValue <<= fExp2 - minExp;
+	fExp2 = minExp;
+	fIntValue -= y.fIntValue << (y.fExp2 - minExp);
+	return *this;
+    }
     friend BinaryShiftedInt operator-(BinaryShiftedInt x, BinaryShiftedInt const& y) {
-	auto minExp = std::min(x.fExp2, y.fExp2);
-        x.fIntValue <<= x.fExp2 - minExp;
-	x.fExp2 = minExp;
-	x.fIntValue -= y.fIntValue << (y.fExp2 - minExp);
+	x -= y;
 	return x;
     }
 
@@ -1147,7 +1155,68 @@ PreciseRange::SharedImpl const& PreciseRange::impl() const {
     return fImpl;
 }
 
-PreciseRange PreciseRange::pi() {
+PreciseRange PreciseRange::π() {
+    // What is π?
+    // First we must define sin and cos:
+    // cos(x) = ∑_{i=0}^{∞} (-1)^i * x^(2*i) / (2*i)!
+    // sin(x) = ∑_{i=0}^{∞} (-1)^i * x^(2*i+1) / (2*i+1)!
+    // Then we can define π:
+    // π = 2 * (the smallest positive x where cos(x) = 0)
+
+    // It can be seen that sin and cos converge absolutely by comparing with a geometric series after i ≥ |x|.
+
+    // cos(0) = 1 and sin(0) = 0 by substitution.
+
+    // cos^2(x) + sin^2(x)
+    //  = ∑_{i=0}^{∞} (-1)^i * x^(2*i) / (2*i)! * ∑_{j=0}^{∞} (-1)^j * x^(2*j) / (2*j)!
+    //    + ∑_{i=0}^{∞} (-1)^i * x^(2*i+1) / (2*i+1)! * ∑_{j=0}^{∞} (-1)^j * x^(2*j+1) / (2*j+1)!
+    //  = ∑_{i=0}^{∞} ∑_{j=0}^{∞} (-1)^(i+j) * x^(2*(i+j)) / (2*i)! / (2*j)!
+    //    + ∑_{i=0}^{∞} ∑_{j=0}^{∞} (-1)^(i+j) * x^(2*(i+j+1)) / (2*i+1)! / (2*j+1)!
+    //  = ∑_{i=0}^{∞} ∑_{s=i}^{∞} (-1)^(s) * x^(2*(s)) / (2*i)! / (2*(s-i))!
+    //    + ∑_{i=0}^{∞} ∑_{s=i}^{∞} (-1)^(s) * x^(2*(s+1)) / (2*i+1)! / (2*(s-i)+1)!
+    //  = ∑_{s=0}^{∞} ∑_{i=0}^{s} (-1)^(s) * x^(2*s) / (2*i)! / (2*(s-i))!
+    //    + ∑_{s=0}^{∞} ∑_{i=0}^{s} (-1)^(s) * x^(2*(s+1)) / (2*i+1)! / (2*(s-i)+1)!
+    //  = 1
+    //    + ∑_{s=1}^{∞} ∑_{i=0}^{s} (-1)^(s) * x^(2*s) / (2*i)! / (2*(s-i))!
+    //    + ∑_{s=0}^{∞} ∑_{i=0}^{s} (-1)^(s) * x^(2*(s+1)) / (2*i+1)! / (2*(s-i)+1)!
+    //  = 1
+    //    + ∑_{s=0}^{∞} ∑_{i=0}^{s+1} (-1)^(s+1) * x^(2*(s+1)) / (2*i)! / (2*(s+1-i))!
+    //    + ∑_{s=0}^{∞} ∑_{i=0}^{s} (-1)^(s) * x^(2*(s+1)) / (2*i+1)! / (2*(s-i)+1)!
+    //  = 1
+    //    + ∑_{s=0}^{∞} (-1)^(s+1) * x^(2*(s+1)) * ( ∑_{i=0}^{s+1} 1 / (2*i)! / (2*(s+1-i))! - ∑_{i=0}^{s} 1 / (2*i+1)! / (2*(s-i)+1)! )
+    // We will show that ∑_{i=0}^{s+1} 1 / (2*i)! / (2*(s+1-i))! = ∑_{i=0}^{s} 1 / (2*i+1)! / (2*(s-i)+1)!
+    // ∑_{i=0}^{s+1} 1 / (2*i)! / (2*(s+1-i))!
+    //  = 1 / (2*s+2) * ∑_{i=0}^{s+1} (2*s+2) / (2*i)! / (2*(s+1-i))!
+    //  = 1 / (2*s+2) * [2 / (2*s+1)! + ∑_{i=1}^{s} (2*s+2) / (2*i)! / (2*(s+1-i))!]
+    //  = 1 / (2*s+2) * [2 / (2*s+1)! + ∑_{i=1}^{s} (2*i+2*s+2-2*i) / (2*i)! / (2*(s+1-i))!]
+    //  = 1 / (2*s+2) * [2 / (2*s+1)! + ∑_{i=1}^{s} (2*i) / (2*i)! / (2*(s+1-i))! + (2*s+2-2*i) / (2*i)! / (2*(s+1-i))!]
+    //  = 1 / (2*s+2) * [2 / (2*s+1)! + ∑_{i=1}^{s} 1 / (2*i-1)! / (2*(s+1-i))! + 1 / (2*i)! / (2*s+1-2*i)!]
+    //  = 1 / (2*s+2) * [2 / (2*s+1)! + ∑_{i=1}^{s} 1 / (2*i-1)! / (2*(s+1-i))! + ∑_{j=1}^{s} 1 / (2*j)! / (2*s+1-2*j)!]
+    //  = 1 / (2*s+2) * [∑_{i=1}^{s+1} 1 / (2*i-1)! / (2*(s+1-i))! + ∑_{j=0}^{s} 1 / (2*j)! / (2*s+1-2*j)!]
+    //  = 1 / (2*s+2) * [∑_{i=0}^{s} 1 / (2*i+1)! / (2*(s-i))! + ∑_{j=0}^{s} 1 / (2*j)! / (2*s+1-2*j)!]
+    //  = 1 / (2*s+2) * [∑_{i=0}^{s} 1 / (2*i+1)! / (2*(s-i))! + 1 / (2*i)! / (2*s+1-2*i)!]
+    //  = 1 / (2*s+2) * [∑_{i=0}^{s} (2*s-2*i+1) / (2*i+1)! / (2*s-2*i+1)! + (2*i+1) / (2*i+1)! / (2*s+1-2*i)!]
+    //  = 1 / (2*s+2) * ∑_{i=0}^{s} (2*s-2*i+1+2*i+1) / (2*i+1)! / (2*s-2*i+1)!
+    //  = 1 / (2*s+2) * ∑_{i=0}^{s} (2*s+2) / (2*i+1)! / (2*s-2*i+1)!
+    //  = ∑_{i=0}^{s} 1 / (2*i+1)! / (2*s-2*i+1)!
+    //  = ∑_{i=0}^{s} 1 / (2*i+1)! / (2*(s-i)+1)!
+    // Thus cos^2(x) + sin^2(x) = 1 + ∑_{s=0}^{∞} (-1)^(s+1) * x^(2*(s+1)) * 0 = 1.
+
+    // cos(x) is continuous - look up a ε-δ proof online.
+
+    // cos(2)
+    //  = ∑_{i=0}^{∞} (-1)^i * 2^(2*i) / (2*i)!
+    //  = 1 - 2^2/2! + 2^4/4! - (alternating sign terms that decrease in magnitude)
+    //  < 1 - 2^2/2! + 2^4/4!
+    //  < 1 - 2 + 16/24
+    //  < -1/3
+    //  < 0
+
+    // Since cos is continuous and cos(0) = 1 and cos(2) < 0, ∃x with 0<x<2, cos(x) = 0.
+    // sin(x) on (0,2] is positive, since ∑_{i=0}^{∞} (-1)^i * x^(2*i+1) / (2*i+1)! is alternating sign terms that decrease in amplitude (ratio of x^2/2/3, x^2/4/5, ...)
+    // (d/dx) cos(x) = -sin(x) by observation, so cos(x) is decreasing on [0,2].
+    // Therefore there is exactly one root of cos(x)=0 in [0,2].
+    // We define π as 2 * this root.
     struct Pi : public PreciseRange::Impl {
       private:
 	OperatorPriority operatorPriority() const final {
@@ -1157,16 +1226,55 @@ PreciseRange PreciseRange::pi() {
 	    return "π";
 	}
 	BinaryShiftedIntRange calculateEstimate() final {
-	    // TODO: this should just return calculateUncertaintyLog2AtMost(-2)
-	    // 3.25 = 13/4
-	    return {BinaryShiftedInt(3), BinaryShiftedInt(13, -2)};
+	    return withUncertaintyLog2AtMost(-2);
 	}
 	BinaryShiftedIntRange calculateUncertaintyLog2AtMost(std::int64_t maxUncertaintyLog2) final {
-	    // TODO
+	    // Could do something more efficient like:
 	    // https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_algorithm
 	    // https://en.wikipedia.org/wiki/Pi#Computer_era_and_iterative_algorithms
-	    unimpl(maxUncertaintyLog2);
+	    // but there's some niceness to defining the algorithm outselves.
+	    while (true) {
+		BinaryShiftedIntRange range(fLow, fHigh);
+		if (range.uncertaintyLog2() <= maxUncertaintyLog2) {
+		    return range;
+		}
+		auto midpoint = fLow + fHigh;
+		midpoint >>= 1; // approx π
+		auto sq = midpoint * midpoint;
+		sq >>= 2; // approx (π/2)^2
+		BinaryShiftedInt val{0}; // cos(midpoint/2) with a positive multiplier
+		// val = (2*k)! * ∑_{i=0}^{k} (-1)^i x^(2*i) / (2*i)!
+		// Each loop iteration increments 2 by 2.
+		BinaryShiftedInt pow{1};
+		for (UI exp = 0; true; exp += 4) {
+		    val += pow;
+		    if (val.sign() == Sign::Negative) {
+			// if we're negative after a positive term, we will always be negative
+			// Thus cos(midpoint) < 0, so low < π < midpoint
+			fHigh = std::move(midpoint);
+			break;
+		    }
+		    val = val * BinaryShiftedInt(exp + 1);
+		    val = val * BinaryShiftedInt(exp + 2);
+		    pow = pow * sq;
+
+		    val -= pow;
+		    if (val.sign() == Sign::Positive) {
+			// if we're positive after a negative term, we will always be positive
+			// Thus cos(midpoint) > 0, so midpoint < π < high
+			fLow = std::move(midpoint);
+			break;
+		    }
+		    val = val * BinaryShiftedInt(exp + 3);
+		    val = val * BinaryShiftedInt(exp + 4);
+		    pow = pow * sq;
+		}
+	    }
 	}
+
+      private:
+	BinaryShiftedInt fLow{0};
+	BinaryShiftedInt fHigh{4};
     };
     return std::make_shared<Pi>();
 }
