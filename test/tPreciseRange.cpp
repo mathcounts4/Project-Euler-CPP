@@ -371,6 +371,28 @@ TEST(PreciseRange, SinCosIdentities) {
     CHECK(eq(sin(x / 2), sqrt((1 - cos(x)) / 2)), isTrue());
 }
 
+TEST(PreciseRange, SinCosPiIdentities) {
+    auto pi = PreciseRange::π();
+    CHECK(eq(sin(pi / 2), 1), isTrue());
+    CHECK(eq(cos(pi / 2), 0), isTrue());
+    CHECK(eq(sin(pi), 0), isTrue());
+    CHECK(eq(cos(pi), -1), isTrue());
+    CHECK(eq(sin(3 * pi / 2), -1), isTrue());
+    CHECK(eq(cos(3 * pi / 2), 0), isTrue());
+    CHECK(eq(sin(2 * pi), 0), isTrue());
+    CHECK(eq(cos(2 * pi), 1), isTrue());
+    CHECK(eq(sin(5 * pi / 2), 1), isTrue());
+    CHECK(eq(cos(5 * pi / 2), 0), isTrue());
+    CHECK(eq(sin(205 * pi / 2), 1), isTrue());
+    CHECK(eq(cos(205 * pi / 2), 0), isTrue());
+    CHECK(eq(sin(-205 * pi / 2), -1), isTrue());
+    CHECK(eq(cos(-205 * pi / 2), 0), isTrue());
+    CHECK(eq(sin(-207 * pi / 2), 1), isTrue());
+    CHECK(eq(cos(-207 * pi / 2), 0), isTrue());
+    CHECK(eq(sin(-7 * pi), 0), isTrue());
+    CHECK(eq(cos(-7 * pi), -1), isTrue());
+}
+
 TEST(PreciseRange, SinCosLarge) {
     // sin(300) = -0.9997558...
     CHECK(strictRange("-0.9997559", sin(PreciseRange(300)), "-0.9997558"), isTrue());
@@ -381,7 +403,11 @@ TEST(PreciseRange, SinCosLarge) {
     CHECK(strictRange("-0.82687955", sin(PreciseRange(-1000)), "-0.82687954"), isTrue());
     // cos(-1000) = 0.56237907...
     CHECK(strictRange("0.56237907", cos(PreciseRange(-1000)), "0.56237908"), isTrue());
-    // TODO: make sin/cos more efficient (and avoid overflowing the stack) for large values of x
+
+    // sin(-1000000000) = -0.5458434494...
+    CHECK(strictRange("-0.5458434495", sin(PreciseRange(-1000000000)), "-0.5458434494"), isTrue());
+    // cos(-1000000000) = 0.8378871813...
+    CHECK(strictRange("0.8378871813", cos(PreciseRange(-1000000000)), "0.8378871814"), isTrue());
 }
 
 TEST(PreciseRange, SinhCosh) {
