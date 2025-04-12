@@ -1585,6 +1585,37 @@ PreciseRange ln(PreciseRange const& x) {
     return std::make_shared<LnWithPreScaling>(x);
 }
 
+// Here we prove sin(x+y) = sin(x)*cos(y) + cos(x)*sin(y)
+// sin(x+y)
+//  = ∑_{i=0}^{∞} (-1)^i (x+y)^(2*i+1) / (2*i+1)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{2*i+1} choose(2*i+1,j) * x^j * y^(2*i+1-j) / (2*i+1)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{2*i+1} (2*i+1)!/j!/(2*i+1-j)! * x^j * y^(2*i+1-j) / (2*i+1)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{2*i+1} x^j / j! * y^(2*i+1-j) / (2*i+1-j)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{i} x^(2*j) / (2*j)! * y^(2*i+1-2*j) / (2*i+1-2*j)! + ∑_{k=0}^{i} x^(2*k+1) / (2*k+1)! * y^(2*i+1-2*k-1) / (2*i+1-2*k-1)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{i} x^(2*j) / (2*j)! * y^(2*i+1-2*j) / (2*i+1-2*j)! + ∑_{k=0}^{i} x^(2*k+1) / (2*k+1)! * y^(2*i-2*k) / (2*i-2*k)!
+//  = ∑_{j=0}^{∞} ∑_{i=j}^{∞} (-1)^i x^(2*j) / (2*j)! * y^(2*i+1-2*j) / (2*i+1-2*j)! + ∑_{k=0}^{∞} ∑_{i=k}^{∞} (-1)^i x^(2*k+1) / (2*k+1)! * y^(2*i-2*k) / (2*i-2*k)!
+//  = ∑_{j=0}^{∞} ∑_{i=0}^{∞} (-1)^(i+j) x^(2*j) / (2*j)! * y^(2*i+1) / (2*i+1)! + ∑_{k=0}^{∞} ∑_{i=0}^{∞} (-1)^(i+k) x^(2*k+1) / (2*k+1)! * y^(2*i) / (2*i)!
+//  = ∑_{j=0}^{∞} (-1)^j x^(2*j) / (2*j)! * ∑_{i=0}^{∞} (-1)^i y^(2*i+1) / (2*i+1)! + ∑_{k=0}^{∞} (-1)^k x^(2*k+1) / (2*k+1)! * ∑_{i=0}^{∞} (-1)^i y^(2*i) / (2*i)!
+//  = cos(x) * sin(y) + sin(x) * cos(y)
+
+// Here we prove cos(x+y) = cos(x)*cos(y) - sin(x)*sin(y)
+// cos(x+y)
+//  = ∑_{i=0}^{∞} (-1)^i (x+y)^(2*i) / (2*i)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{2*i} choose(2*i,j) * x^j * y^(2*i-j) / (2*i)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{2*i} (2*i)!/j!/(2*i-j)! * x^j * y^(2*i-j) / (2*i)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{2*i} x^j / j! * y^(2*i-j) / (2*i-j)!
+//  = ∑_{i=0}^{∞} (-1)^i ∑_{j=0}^{i} x^(2*j) / (2*j)! * y^(2*i-2*j) / (2*i-2*j)! + ∑_{k=0}^{i-1} x^(2*k+1) / (2*k+1)! * y^(2*i-2*k-1) / (2*i-2*k-1)!
+//  = ∑_{j=0}^{∞} ∑_{i=j}^{∞} (-1)^i x^(2*j) / (2*j)! * y^(2*i-2*j) / (2*i-2*j)! + ∑_{k=0}^{∞} ∑_{i=k+1}^{∞} (-1)^i x^(2*k+1) / (2*k+1)! * y^(2*i-2*k-1) / (2*i-2*k-1)!
+//  = ∑_{j=0}^{∞} ∑_{i=0}^{∞} (-1)^(i+j) x^(2*j) / (2*j)! * y^(2*i) / (2*i)! + ∑_{k=0}^{∞} ∑_{i=0}^{∞} (-1)^(i+k+1) x^(2*k+1) / (2*k+1)! * y^(2*i+1) / (2*i+1)!
+//  = ∑_{j=0}^{∞} (-1)^j x^(2*j) / (2*j)! * ∑_{i=0}^{∞} (-1)^i y^(2*i) / (2*i)! - ∑_{k=0}^{∞} (-1)^k x^(2*k+1) / (2*k+1)! * ∑_{i=0}^{∞} (-1)^i y^(2*i+1) / (2*i+1)!
+//  = cos(x) * cos(y) - sin(x) * sin(y)
+
+// sin(π) = sin(π/2 + π/2) = sin(π/2)*cos(π/2) + cos(π/2)*sin(π/2) = 1*0 + 0*1 = 0
+// cos(π) = cos(π/2 + π/2) = cos(π/2)*cos(π/2) - sin(π/2)*sin(π/2) = 0*0 - 1*1 = -1
+
+// sin(2*π) = sin(π + π) = sin(π)*cos(π) + cos(π)*sin(π) = 0*-1 + -1*0 = 0
+// cos(2*π) = cos(π + π) = cos(π)*cos(π) - sin(π)*sin(π) = -1*-1 - 0*0 = 1
+
 PreciseRange sin(PreciseRange const& x) {
     struct SinRaw : public PowerSeriesOp<PowerSeriesCoefficients::InvExpFactorial, 0, 1, 0, -1> {
 	using PowerSeriesOp::PowerSeriesOp;
@@ -1594,6 +1625,8 @@ PreciseRange sin(PreciseRange const& x) {
     };
     // Compute the argument mod 2π before performing the power series calculation.
     // This is much more efficient than a direct power series computation.
+    // sin(x + 2*π) = sin(x)*cos(2*π) + cos(x)*sin(2*π) = sin(x)*1 + cos(x)*0 = sin(x)
+    // Therefore sin(x + k*2*π) = sin(x) for any integer k.
     struct SinWithPreMod : public ImplAsAnotherRangeWithBase<SinWithPreMod, PreciseUnaryOp> {
 	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
 
@@ -1616,6 +1649,8 @@ PreciseRange cos(PreciseRange const& x) {
     };
     // Compute the argument mod 2π before performing the power series calculation.
     // This is much more efficient than a direct power series computation.
+    // cos(x + 2*π) = cos(x)*cos(2*π) - sin(x)*sin(2*π) = cos(x)*1 - sin(x)*0 = cos(x)
+    // Therefore cos(x + k*2*π) = cos(x) for any integer k.
     struct CosWithPreMod : public ImplAsAnotherRangeWithBase<CosWithPreMod, PreciseUnaryOp> {
 	using ImplAsAnotherRangeWithBase::ImplAsAnotherRangeWithBase;
 
