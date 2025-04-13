@@ -79,7 +79,7 @@ TEST(PreciseRange, Comparison) {
 }
 
 TEST(PreciseRange, π) {
-    CHECK(PreciseRange::π().toStringWithUncertaintyLog2AtMost(std::nullopt), equals("[3.125 ± 0.125]"));
+    CHECK(PreciseRange::π().toStringWithUncertaintyLog2AtMost(std::nullopt), matches(std::regex(regexEscape("[3.1") + ".*")));
     CHECK(PreciseRange::π().toStringWithUncertaintyLog2AtMost(-333), matches(std::regex(regexEscape("[3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067") + ".*")));
 }
 

@@ -1272,7 +1272,8 @@ PreciseRange PreciseRange::π() {
 	BinaryShiftedInt fLow{0};
 	BinaryShiftedInt fHigh{4};
     };
-    return std::make_shared<Pi>();
+    static thread_local auto pi = std::make_shared<Pi>(); // cache via static local var
+    return pi;
 }
 
 PreciseRange PreciseRange::operator-() const {
