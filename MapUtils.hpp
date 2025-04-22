@@ -15,7 +15,7 @@ decltype(auto) getOrInsert(Map& map, Key&& key, ValueCreator&& valueCreator) {
     if (auto valPtr = findOrNull(map, key)) {
 	return (*valPtr);
     } else {
-	return (*map.emplace(std::forward<Key>(key), valueCreator()).first);
+	return (map.emplace(std::forward<Key>(key), valueCreator()).first->second);
     }
 }
 

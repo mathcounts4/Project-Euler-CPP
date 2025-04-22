@@ -16,6 +16,7 @@
 #include "tMatrix.hpp"
 #include "tMemoized.hpp"
 #include "tMod.hpp"
+#include "tNimberComputer.hpp"
 #include "tOverload.hpp"
 #include "tPermutationMapping.hpp"
 #include "tPreciseRange.hpp"
