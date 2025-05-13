@@ -2,6 +2,7 @@
 
 #include "Class.hpp"
 #include "Optional.hpp"
+#include "Math.hpp"
 
 #include <vector>
 
@@ -141,9 +142,29 @@ class Mod {
 	return m /= m.create(t);
     }
     // ^
-    Mod operator^(SL y) const;
+    template<class Integral>
+    Mod operator^(Integral y) const {
+	return Mod(*this) ^= y;
+    }
     // ^=
-    Mod& operator^=(SL pow);
+    template<class Integral>
+    Mod& operator^=(Integral pow) {
+	static_assert(std::is_integral_v<Integral>, "Exponent must be integral");
+	if constexpr (!std::is_unsigned_v<Integral>) {
+	    if (pow < Integral(0)) {
+		value = static_cast<SL>(mod_inv(value, mod));
+	    }
+	}
+
+	Mod base = create(1);
+	swap(*this, base);
+	for (auto abs_pow = my_abs(pow); abs_pow; abs_pow >>= 1) {
+	    if (abs_pow % 2)
+		(*this) *= base;
+	    base *= base;
+	}
+	return *this;
+    }
 
     friend B operator<(Mod const& x, Mod const& y);
 

@@ -196,24 +196,6 @@ Mod& Mod::operator/=(Mod const& o) {
     return *this;
 }
 
-Mod Mod::operator^(SL const y) const {
-    return Mod(*this) ^= y;
-}
-
-Mod& Mod::operator^=(SL const pow) {
-    UL real_pow = my_abs(pow);
-    if (pow < 0)
-	value = static_cast<SL>(mod_inv(value,mod));
-    Mod base = create(1);
-    swap(*this,base);
-    for (; real_pow; real_pow>>=1) {
-	if (real_pow&1)
-	    (*this) *= base;
-	base *= base;
-    }
-    return *this;
-}
-
 B operator<(Mod const& x, Mod const& y) {
     x.mod_mismatch_check(y);
     return x.value < y.value;
