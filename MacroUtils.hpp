@@ -15,9 +15,6 @@
 #define FOR_EACH_INTEGRAL_TYPE(MACRO,SEP)	\
     MACRO(bool) SEP				\
     MACRO(char) SEP				\
-    MACRO(char16_t) SEP				\
-    MACRO(char32_t) SEP				\
-    MACRO(wchar_t) SEP				\
     MACRO(signed char) SEP			\
     MACRO(unsigned char) SEP			\
     MACRO(short) SEP				\
@@ -28,6 +25,7 @@
     MACRO(unsigned long) SEP			\
     MACRO(long long) SEP			\
     MACRO(unsigned long long)
+// does NOT include char16_t, char32_t, or wchar_t, which aren't compatible with std::basic_ostream
 
 // FOR_EACH_FLOAT_TYPE(MACRO)
 #define FOR_EACH_FLOAT_TYPE(MACRO,SEP)		\

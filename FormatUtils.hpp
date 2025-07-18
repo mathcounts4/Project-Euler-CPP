@@ -12,13 +12,13 @@
 
 enum class Float_Format { Unset, Fixed, Scientific };
 template<Float_Format> extern std::ios_base::fmtflags const float_flag;
-template<> extern std::ostream& Class<Float_Format>::print(std::ostream& os, Float_Format const& fmt);
-template<> extern std::string Class<Float_Format>::name();
+template<> std::ostream& Class<Float_Format>::print(std::ostream& os, Float_Format const& fmt);
+template<> std::string Class<Float_Format>::name();
 
 enum class Adjust_Format { Left, Right, Internal };
 template<Adjust_Format> extern std::ios_base::fmtflags const adjust_flag;
-template<> extern std::ostream& Class<Adjust_Format>::print(std::ostream& os, Adjust_Format const& fmt);
-template<> extern std::string Class<Adjust_Format>::name();
+template<> std::ostream& Class<Adjust_Format>::print(std::ostream& os, Adjust_Format const& fmt);
+template<> std::string Class<Adjust_Format>::name();
 
 template<> inline constexpr std::ios_base::fmtflags float_flag<Float_Format::Unset> = {};
 template<> inline constexpr std::ios_base::fmtflags float_flag<Float_Format::Fixed> = std::ios_base::fixed;

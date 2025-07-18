@@ -13,10 +13,9 @@
 #include "StringUtils.hpp"
 
 template<class IntType> class Fraction;
-namespace std {
-    template<class IntType> struct make_unsigned<Fraction<IntType>> { using type = Fraction<IntType>; };
-    template<class IntType> struct is_signed<Fraction<IntType>> { static constexpr bool value = true; };
-}
+template<class IntType> struct detail::Make_u_S<Fraction<IntType>> {
+    using Type = Fraction<IntType>;
+};
 
 template<class IntType>
 class Fraction {

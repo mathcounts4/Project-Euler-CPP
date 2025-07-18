@@ -24,11 +24,9 @@
 #include <utility>
 
 class BigInt;
-namespace std {
-    template<> struct make_unsigned<BigInt> { using type = BigInt; };
-    template<> struct is_signed<BigInt> { static constexpr bool value = true; };
-    template<> struct is_integral<BigInt> { static constexpr bool value = true; };
-}
+template<> struct detail::Make_u_S<BigInt> {
+    using Type = BigInt;
+};
 
 class BigInt {
   private:
@@ -72,7 +70,7 @@ class BigInt {
     // constructors
     BigInt();
     BigInt(std::string const& s);
-    template<class T, class = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, BigInt>>>
+    template<class T, class = std::enable_if_t<std::is_integral_v<T>>>
     BigInt(T const& t);
 
     // infinite constants
@@ -212,10 +210,10 @@ template<class T, class>
 BigInt::BigInt(T const& t)
     : infinite{std::numeric_limits<T>::has_infinity &&
 	(t == std::numeric_limits<T>::infinity() ||
-	 (std::is_signed<T>::value &&
+	 (std::is_signed_v<T> &&
 	  t == -std::numeric_limits<T>::infinity())) ?
 	Infinite::True : Infinite::False}
-    , negative{(std::numeric_limits<T>::is_signed && t < static_cast<T>(0)) ?
+    , negative{(std::is_signed_v<T> && t < static_cast<T>(0)) ?
 	      Negative::True : Negative::False} {
     using u_T = std::make_unsigned_t<T>;
     u_T const u_0 = 0;

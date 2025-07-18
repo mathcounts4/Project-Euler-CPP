@@ -75,20 +75,20 @@ DEBUG := 0
 endif
 
 ifeq (0,$(DEBUG))
-BUILD_T := -Ofast
+BUILD_T := -O3 # -ffast-math
 else
 BUILD_T := -O0 -g -DDEBUG
 endif
 
 CC      := clang++
-VER     := -std=c++17 -stdlib=libc++
+VER     := -std=c++20 -stdlib=libc++
 # -Wall -Wextra -Werror -Wpedantic -pedantic-errors
 # These are all included in -Weverything
-GOOD_WARN := -Wshadow-field-in-constructor -Wshorten-64-to-32 -Wsign-conversion -Wmissing-noreturn -Wconversion -Wsign-conversion -Wheader-hygiene -Wcomma -Wshadow -Wrange-loop-analysis -Wdeprecated -Wundefined-func-template -Wredundant-parens -Wmissing-braces -Wunusable-partial-specialization -Wunused-variable -Wcomma -Wunused-member-function -Wunused-value -Wreturn-type -Wparentheses -Wmissing-variable-declarations -Wimplicit-int-conversion -Wreorder -Wmismatched-tags -Wunreachable-code
-BAD_WARN  := -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-exit-time-destructors -Wno-global-constructors -Wno-padded -Wno-return-std-move-in-c++11 -Wno-self-assign-overloaded -Wno-unused-lambda-capture -Wno-float-conversion -Wno-float-equal -Wno-poison-system-directories -Wno-switch-enum -Wno-weak-vtables
+GOOD_WARN := -Wshadow-field-in-constructor -Wshorten-64-to-32 -Wsign-conversion -Wmissing-noreturn -Wconversion -Wsign-conversion -Wheader-hygiene -Wcomma -Wshadow -Wrange-loop-analysis -Wdeprecated -Wundefined-func-template -Wredundant-parens -Wmissing-braces -Wunusable-partial-specialization -Wunused-variable -Wcomma -Wunused-member-function -Wunused-value -Wreturn-type -Wparentheses -Wmissing-variable-declarations -Wimplicit-int-conversion -Wreorder -Wmismatched-tags -Wunreachable-code -Wcovered-switch-default
+BAD_WARN  := -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-exit-time-destructors -Wno-global-constructors -Wno-padded -Wno-self-assign-overloaded -Wno-unused-lambda-capture -Wno-float-conversion -Wno-float-equal -Wno-poison-system-directories -Wno-switch-enum -Wno-weak-vtables -Wno-switch-default -Wno-ordered-compare-function-pointers
 OPTS    := -ferror-limit=$(ERROR_LIMIT) -ftemplate-backtrace-limit=0 -Weverything -Werror $(BAD_WARN)
 FLAGS   := $(VER) $(BUILD_T) $(OPTS)
-LNK_FLG := #-lfftw3
+LNK_FLG := # .cpp files can specify REQUIRES_LINK_FLAG to add libraries to this
 EXE     := $(abspath $(MY_PATH)/run.me)
 STARS   := **************************
 SRCS_FL := $(abspath $(MY_PATH)/.mk_src)

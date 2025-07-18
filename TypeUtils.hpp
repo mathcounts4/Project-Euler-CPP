@@ -109,15 +109,18 @@ template<class T>
 constexpr B alwaysFalse = false;
 
 /* make unsigned */
+namespace detail {
+    template<class T> struct Make_u_S {
+	using Type = std::make_unsigned_t<T>;
+    };
+    template<> struct Make_u_S<F> { using Type = F; };
+    template<> struct Make_u_S<D> { using Type = D; };
+    template<> struct Make_u_S<LD> { using Type = LD; };
+    template<> struct Make_u_S<__int128_t> { using Type = __uint128_t; };
+    template<> struct Make_u_S<__uint128_t> { using Type = __uint128_t; };
+} /* namespace detail */
 template<class T>
-using Make_u = std::make_unsigned_t<T>;
-namespace std {
-    template<> struct make_unsigned<F> { using type = F; };
-    template<> struct make_unsigned<D> { using type = D; };
-    template<> struct make_unsigned<LD> { using type = LD; };
-    template<> struct make_unsigned<__int128_t> { using type = __uint128_t; };
-    template<> struct make_unsigned<__uint128_t> { using type = __uint128_t; };
-}
+using Make_u = Type<detail::Make_u_S<T>>;
 
 /* common type between two inputs */
 template<class X, class Y>

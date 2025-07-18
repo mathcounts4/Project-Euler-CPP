@@ -254,16 +254,16 @@ RowView<T_cvref,N>& RowView<T_cvref,N>::operator=(SomeRow&& r) {
 }
 template<class T_cvref, SZ N>
 template<class SomeRow>
-bool RowView<T_cvref,N>::operator==(SomeRow const& x) {
-    for (auto&& [x,y] : zip(*this,x))
+bool RowView<T_cvref,N>::operator==(SomeRow const& other) {
+    for (auto&& [x,y] : zip(*this, other))
 	if (!(x == y))
 	    return false;
     return true;
 }
 template<class T_cvref, SZ N>
 template<class SomeRow>
-bool RowView<T_cvref,N>::operator!=(SomeRow const& x) {
-    for (auto&& [x,y] : zip(*this,x))
+bool RowView<T_cvref,N>::operator!=(SomeRow const& other) {
+    for (auto&& [x,y] : zip(*this, other))
 	if (x != y)
 	    return true;
     return false;

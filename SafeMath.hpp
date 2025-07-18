@@ -493,7 +493,6 @@ template<class X> struct Class<SafeMath<X> > {
     }
 };
 
-
-namespace std {
-    template<class T> struct make_unsigned<SafeMath<T>> { using type = SafeMath<Make_u<T>>; };
-}
+template<class T> struct detail::Make_u_S<SafeMath<T>> {
+    using Type = SafeMath<Make_u<T>>;
+};

@@ -76,6 +76,8 @@ $(LNK): %:
 	@false
 endif
 
+UNIQ_LNK_FLG   := $(sort $(LNK_FLG))
+
 # Now that sources are fixed, define object and dependency files
 OBJ            := $(call TO_PAT,$(PAT_OBJ),$(SRC))
 DEP            := $(call TO_PAT,$(PAT_DEP),$(SRC))
@@ -106,7 +108,7 @@ link l build b: $(EXE)
 $(EXE): $(OBJ) $(LNK)
 	$(call SECTION_START,"linking $(EXE)")
 	$(RUN_IF_NOT_VERBOSE) echo "Linking $(EXE)"
-	$(RUN_VERBOSE_PRINT) $(CC) $(FLAGS) $(LNK_FLG) -o $(EXE) $(OBJ) $(LNK)
+	$(RUN_VERBOSE_PRINT) $(CC) $(FLAGS) $(UNIQ_LNK_FLG) -o $(EXE) $(OBJ) $(LNK)
 	$(call SECTION_END,"linking $(EXE)")
 relink rl rebuild rb: .FORCE
 	@touch $(OBJ) $(LNK)
