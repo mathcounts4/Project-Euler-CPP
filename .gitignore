@@ -7,7 +7,7 @@ Matrix/NDimExprTemplate
 tileCache.txt
 Minesweeper/tileCache.txt
 boost*
-fftw*
+fftw-*
 bin*
 .*
 !.gitignore
