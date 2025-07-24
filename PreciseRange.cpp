@@ -408,30 +408,19 @@ struct BinaryShiftedInt {
 	return compMaybeTruncate<true>(x, y);
     }
 
-    friend bool operator<(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
+    friend std::strong_ordering operator<=>(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
 	// TODO: C++20: define just the <=> operator instead of all comparison operators.
 	// Not all comparison operators are invoked, but all are written for completeness.
 	auto res = comp(x, y);
-	if (!res.fResultIfDifferent) {
-	    return false;
+	if (res.fResultIfDifferent) {
+	    if (res.fResultIfDifferent->fFirstArgIsLess) {
+		return std::strong_ordering::less;
+	    } else {
+		return std::strong_ordering::greater;
+	    }
+	} else {
+	    return std::strong_ordering::equal;
 	}
-	return res.fResultIfDifferent->fFirstArgIsLess;
-    }
-    friend bool operator>(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
-	return y < x;
-    }
-    friend bool operator<=(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
-	return !(y < x);
-    }
-    friend bool operator>=(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
-	return !(x < y);
-    }
-    friend bool operator==(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
-	auto res = comp(x, y);
-	return !res.fResultIfDifferent;
-    }
-    friend bool operator!=(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
-	return !(x == y);
     }
 
     BinaryShiftedInt& operator+=(BinaryShiftedInt const& y) {

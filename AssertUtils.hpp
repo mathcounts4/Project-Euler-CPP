@@ -28,9 +28,9 @@ constexpr bool False_T = false;
 /* determines if a type is a value type or a const lvalue reference */
 template<class T>
 constexpr bool is_value_or_const_lref =
-    !std::is_reference<T>::value ||
-    (std::is_lvalue_reference<T>::value &&
-     std::is_const<typename std::remove_reference<T>::type>::value);
+    !std::is_reference_v<T> ||
+    (std::is_lvalue_reference_v<T> &&
+     std::is_const_v<std::remove_reference_t<T>>);
 
 
 /*
