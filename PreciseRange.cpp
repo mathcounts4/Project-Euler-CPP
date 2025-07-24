@@ -409,8 +409,6 @@ struct BinaryShiftedInt {
     }
 
     friend std::strong_ordering operator<=>(BinaryShiftedInt const& x, BinaryShiftedInt const& y) {
-	// TODO: C++20: define just the <=> operator instead of all comparison operators.
-	// Not all comparison operators are invoked, but all are written for completeness.
 	auto res = comp(x, y);
 	if (res.fResultIfDifferent) {
 	    if (res.fResultIfDifferent->fFirstArgIsLess) {
