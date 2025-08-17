@@ -1,6 +1,9 @@
-#include "../combinations.hpp"
-
+#include <algorithm>
+#include <array>
 #include <iostream>
+#include <map>
+#include <set>
+#include <type_traits>
 
 /*
 This file determines strategy and probability of success for specific scenarios in the game "Connections" by the New York Times.
@@ -12,6 +15,14 @@ Here, we investigate the optimal strategy/strategies when:
 3. You have 1, 2, 3, or 4 guesses remaining
 */
 
+template<auto VecCreator>
+constexpr auto vecToArray() {
+    auto vec = VecCreator();
+    std::array<std::remove_cvref_t<decltype(vec[0])>, VecCreator().size()> arr;
+    std::copy(vec.begin(), vec.end(), arr.begin());
+    return arr;
+}
+
 template<class T>
 static constexpr std::uint8_t numBitsSet(T t) {
     std::uint8_t bits = 0;
@@ -22,23 +33,41 @@ static constexpr std::uint8_t numBitsSet(T t) {
     return bits;
 }
 
-static constexpr std::uint8_t numCombinations = static_cast<std::uint8_t>(constChoose<8, 4>);
-using GuessSet = std::bitset<numCombinations>;
+static constexpr std::uint8_t opposite(std::uint8_t x) {
+    return static_cast<std::uint8_t>(255) - x;
+}
+
 static constexpr auto determineGroups() {
-    std::array<std::uint8_t, numCombinations> groups;
-    std::size_t i = 0;
-    for (std::uint8_t x = 0; x < 255; ++x) {
-	if (numBitsSet(x) == 4) {
-	    groups[i] = x;
-	    ++i;
+    std::vector<std::uint8_t> groups;
+    for (std::uint16_t x16 = 0; x16 <= std::numeric_limits<uint8_t>::max(); ++x16) {
+	std::uint8_t x = static_cast<std::uint8_t>(x16);
+	if (numBitsSet(x) != 4) {
+	    continue;
 	}
-    }
-    if (i != numCombinations) {
-	throw std::logic_error("Expected to produce " + std::to_string(numCombinations) + " results");
+	if (x % 2 == 0) {
+	    // Always include this bit in the group:
+	    // Since we're splitting 8 things into 2 groups of 4, and guessing either group is correct,
+	    //   guessing a group without this bit is equivalent to guessing the other 4 things, with this bit.
+	    continue;
+	}
+	groups.push_back(x);
     }
     return groups;
 }
-constexpr auto groups = determineGroups();
+constexpr auto groups = vecToArray<determineGroups>();
+using GuessSet = std::bitset<groups.size()>;
+constexpr auto guessMultFactor = []() -> uint8_t {
+    std::array<bool, 256> allGroups{};
+    for (auto group : groups) {
+	allGroups[group] = true;
+    }
+    for (auto group : groups) {
+	if (!allGroups[opposite(group)]) {
+	    return 1;
+	}
+    }
+    return 2;
+}();
 
 enum class Outcome { Correct, OneAway, Default };
 static char const* outcomeToString(Outcome outcome) {
@@ -82,7 +111,7 @@ struct Guess {
 
     Guess(std::uint8_t guess, GuessChain<numPreviousGuesses> const& previousGuesses)
 	: fCounts___InPreviousGuess(guess & previousGuesses.fGuess, previousGuesses.fPreviousGuesses)
-	, fCountsNotInPreviousGuess(guess & ~previousGuesses.fGuess, previousGuesses.fPreviousGuesses) {}
+	, fCountsNotInPreviousGuess(guess & opposite(previousGuesses.fGuess), previousGuesses.fPreviousGuesses) {}
 
     friend auto operator<=>(Guess const&, Guess const&) = default;
 
@@ -184,7 +213,7 @@ struct Strategy {
 	    for (auto const& [outcome, countAndStrategy] : outcomeToCountAndStrategy) {
 		auto const& [count, strategy] = countAndStrategy;
 		dispIndent(indent);
-		std::cout << "(" << static_cast<std::size_t>(count / 2) << "/" << static_cast<std::size_t>(totalCount / 2) << ") " << outcomeToString(outcome);
+		std::cout << "(" << static_cast<std::size_t>(count / guessMultFactor) << "/" << static_cast<std::size_t>(totalCount / guessMultFactor) << ") " << outcomeToString(outcome);
 		if (outcome == Outcome::Correct) {
 		    std::cout << " -> win" << std::endl;
 		} else {
