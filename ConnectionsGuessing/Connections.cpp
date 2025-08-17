@@ -44,7 +44,7 @@ static constexpr auto determineGroups() {
 	if (numBitsSet(x) != 4) {
 	    continue;
 	}
-	if (x % 2 == 0) {
+	if ((x & 0b1) == 0) {
 	    // Always include this bit in the group:
 	    // Since we're splitting 8 things into 2 groups of 4, and guessing either group is correct,
 	    //   guessing a group without this bit is equivalent to guessing the other 4 things, with this bit.
