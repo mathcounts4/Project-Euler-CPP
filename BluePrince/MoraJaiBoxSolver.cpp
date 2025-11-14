@@ -14,6 +14,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <stdexcept>
 
 struct Move {
     std::size_t fI;
@@ -38,26 +39,47 @@ struct State {
     void printWithMoveShown(Move const& move) const {
         for (std::size_t i = 0; i < 3; ++i) {
             for (std::size_t j = 0; j < 3; ++j) {
-                char const* data = Move{i, j} == move ? "X" /* unicode not-filled-in square */ : " ";
-                char backgroundColor = '0'; // black
+                char const* data = Move{i, j} == move ? "X" /* or unicode not-filled-in square */ : " ";
+                char const* backgroundColor = "0"; // black
+                char textColor = '1'; // red
                 switch (fTiles[i][j]) {
                   case 'B':
-                    backgroundColor = '0'; // black
+                    backgroundColor = "0"; // black
                     break;
-                  case 'P':
-                    backgroundColor = '5'; // magenta
+                  case 'b':
+                    backgroundColor = "4"; // blue
                     break;
                   case 'G':
-                    backgroundColor = '2'; // green
+                    backgroundColor = "2"; // green
+                    break;
+                  case 'g':
+                    // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+                    backgroundColor = "8;5;248"; // gray
+                    break;
+                  case 'O':
+                    // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+                    backgroundColor = "8;5;203"; // orange
+                    break;
+                  case 'P':
+                    backgroundColor = "5"; // magenta
+                    break;
+                  case 'R':
+                    backgroundColor = "1"; // red
+                    textColor = '4'; // blue
                     break;
                   case 'W':
-                    backgroundColor = '7'; // white
+                    backgroundColor = "7"; // white
                     break;
                   case 'Y':
-                    backgroundColor = '3'; // yellow
+                    // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+                    backgroundColor = "8;5;11"; // yellow
                     break;
+                  default: {
+                      auto failureString = std::string("Unknown color ") + fTiles[i][j];
+                      std::cerr << failureString << std::endl;
+                      throw std::logic_error(failureString);
+                  }
                 }
-                char textColor = '1'; // red
 		std::cout << "\x1b[3" << textColor << ";4" << backgroundColor << "m";
                 std::cout << data;
 		std::cout << "\x1b[0m"; // reset
@@ -74,30 +96,33 @@ struct State {
                 
                 switch (fTiles[i][j]) {
                   case 'B': {
+                      // Black cycles right (wrapping around)
                       auto copy = *this;
                       std::swap(copy.fTiles[i][2], copy.fTiles[i][1]);
                       std::swap(copy.fTiles[i][1], copy.fTiles[i][0]);
                       processNext(copy, move);
                       break;
                   }
-                  case 'P': {
-                      if (i < 2) {
-                          auto copy = *this;
-                          std::swap(copy.fTiles[i][j], copy.fTiles[i+1][j]);
-                          processNext(copy, move);
-                      }
+                  case 'b': {
+                      // Blue: copy color of center
+                      auto copy = *this;
+                      copy.fTiles[i][j] = copy.fTiles[1][1];
+                      processNext(copy, move);
                       break;
                   }
                   case 'G': {
+                      // green swaps with opposite tile
                       auto copy = *this;
                       std::swap(copy.fTiles[i][j], copy.fTiles[2-i][2-j]);
                       processNext(copy, move);
                       break;
                   }
-                  case 'W': {
+                  case 'g': {
+                      // gray: does nothing
                       break;
                   }
-                  case 'Y': {
+                  case 'O': {
+                      // orange becomes most common direct neighbor (not including diagonal), if exclusive
                       std::map<char, int> counts;
                       if (i > 0) {
                           ++counts[fTiles[i-1][j]];
@@ -128,29 +153,93 @@ struct State {
                       }
                       break;
                   }
+                  case 'P': {
+                      // purple moves down (stops at bottom)
+                      if (i < 2) {
+                          auto copy = *this;
+                          std::swap(copy.fTiles[i][j], copy.fTiles[i+1][j]);
+                          processNext(copy, move);
+                      }
+                      break;
+                  }
+                  case 'R': {
+                      // red: transforms black -> red, and white -> black
+                      auto copy = *this;
+                      for (std::size_t x = 0; x < 3; ++x) {
+                          for (std::size_t y = 0; y < 3; ++y) {
+                              auto& tile = copy.fTiles[x][y];
+                              switch (tile) {
+                                case 'B':
+                                  tile = 'R';
+                                  break;
+                                case 'W':
+                                  tile = 'B';
+                                  break;
+                              }
+                          }
+                      }
+                      processNext(copy, move);
+                      break;
+                  }
+                  case 'W': {
+                      // white becomes gray, and swaps gray/white among direct neighbors (not including diagonal)
+                      auto copy = *this;
+                      auto swapGrayWhite = [&copy](std::size_t x, std::size_t y) {
+                          char& c = copy.fTiles[x][y];
+                          if (c == 'g') {
+                              c = 'W';
+                          } else if (c == 'W') {
+                              c = 'g';
+                          }
+                      };
+                      swapGrayWhite(i, j);
+                      if (i > 0) {
+                          swapGrayWhite(i-1, j);
+                      }
+                      if (i < 2) {
+                          swapGrayWhite(i+1, j);
+                      }
+                      if (j > 0) {
+                          swapGrayWhite(i, j-1);
+                      }
+                      if (j < 2) {
+                          swapGrayWhite(i, j+1);
+                      }
+                      processNext(copy, move);
+                      break;
+                  }
+                  case 'Y': {
+                      // yellow moves up (stops at top)
+                      if (i > 0) {
+                          auto copy = *this;
+                          std::swap(copy.fTiles[i][j], copy.fTiles[i-1][j]);
+                          processNext(copy, move);
+                      }
+                      break;
+                  }
+                  default: {
+                    auto failureString = std::string("Unknown color ") + fTiles[i][j];
+                    std::cerr << failureString << std::endl;
+                    throw std::logic_error(failureString);
+                  }
                 }
             }
         }
     }
 };
 
-static void solveInnerSanctumRoom8() {
-    State start = {
-        {
-            {
-                { 'G', 'W', 'G' },
-                { 'W', 'Y', 'Y' },
-                { 'W', 'B', 'P' }
-            }
-        }
-    };
+struct Puzzle {
+    State fStart;
+    char fWinningColor;
+};
 
-    std::map<State, std::optional<std::pair<State, Move>>> visited{{start, std::nullopt}};
-    std::set<State> states{start};
+static void solve(Puzzle const& puzzle) {
+    std::map<State, std::optional<std::pair<State, Move>>> visited{{puzzle.fStart, std::nullopt}};
+    std::set<State> states{puzzle.fStart};
     while (!states.empty()) {
         std::set<State> newStates;
         for (auto const& state : states) {
-            if (state.wins([](char c) { return c == 'G'; })) {
+            if (state.wins([&puzzle](char c) { return c == puzzle.fWinningColor; })) {
                 std::vector<std::pair<State, Move>> moves;
                 State const* s = &state;
                 while (true) {
@@ -162,6 +251,7 @@ static void solveInnerSanctumRoom8() {
                     }
                 }
                 std::reverse(moves.begin(), moves.end());
+                std::cout << "Found solution: " << moves.size() << " moves:" << std::endl;
                 for (auto const& [st, mv] : moves) {
                     st.printWithMoveShown(mv);
                 }
@@ -178,9 +268,55 @@ static void solveInnerSanctumRoom8() {
         }
         std::swap(states, newStates);
     }
+    std::cout << "Could not find a solution for:" << std::endl;
+    puzzle.fStart.printWithMoveShown({3, 3});
+}
+
+static Puzzle innerSanctumRoom2() {
+    return {
+        {
+            {
+                {
+                    { 'g', 'G', 'g' },
+                    { 'O', 'R', 'O' },
+                    { 'W', 'G', 'B' }
+                }
+            }
+        }, 'R'};
+}
+
+static Puzzle innerSanctumRoom8() {
+    return {
+        {
+            {
+                {
+                    { 'G', 'W', 'G' },
+                    { 'W', 'O', 'O' },
+                    { 'W', 'B', 'P' }
+                }
+            }
+        },
+        'G'};
+}
+
+static Puzzle hardOneOnline() {
+    // https://www.reddit.com/r/BluePrince/comments/1kefpbv/i_made_a_puzzle_box_solver/
+    return {
+        {
+            {
+                {
+                    { 'O', 'g', 'b' },
+                    { 'b', 'O', 'B' },
+                    { 'Y', 'g', 'G' }
+                }
+            }
+        },
+        'O'};
 }
 
 int main() {
-    solveInnerSanctumRoom8();
+    solve(innerSanctumRoom2());
+    solve(innerSanctumRoom8());
+    solve(hardOneOnline());
     return 0;
 }
