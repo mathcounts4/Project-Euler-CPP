@@ -13,7 +13,10 @@ template<std::size_t Bytes, std::size_t AlignBytes> struct StackMemory {
   protected:
     alignas(AlignBytes) char fData[std::max(Bytes, static_cast<std::size_t>(1))];
     StackMemory() {} // forcefully never initialize fData
-    
+    StackMemory(StackMemory const&) = delete;
+    StackMemory(StackMemory&&) = delete;
+    StackMemory& operator=(StackMemory const&) = delete;
+    StackMemory& operator=(StackMemory&&) = delete;
 };
 
 template<std::size_t Bytes, std::size_t AlignBytes> struct HeapMemory {
@@ -21,8 +24,10 @@ template<std::size_t Bytes, std::size_t AlignBytes> struct HeapMemory {
     char* const fData;
     HeapMemory()
 	: fData(new (std::align_val_t(AlignBytes)) char[Bytes]) {}
-    HeapMemory(HeapMemory const&)
-	: HeapMemory() {}
+    HeapMemory(HeapMemory const&) = delete;
+    HeapMemory(HeapMemory&&) = delete;
+    HeapMemory& operator=(HeapMemory const&) = delete;
+    HeapMemory& operator=(HeapMemory&&) = delete;
     ~HeapMemory() {
 	delete[] fData;
     }
