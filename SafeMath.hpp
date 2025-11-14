@@ -28,7 +28,10 @@ template<class X> struct SafeMath {
     template<class Y, class = std::enable_if_t<is_same<SafeMath,No_cvref<Y>>>>
     SafeMath(Y&& y);
     SafeMath(SafeMath const&);
+    SafeMath(SafeMath&&);
     SafeMath(Fail_Construct);
+    SafeMath& operator=(SafeMath const&);
+    SafeMath& operator=(SafeMath&&);
     ~SafeMath();
     
     [[nodiscard]] bool ok() const; // returns if the value is valid
@@ -135,12 +138,53 @@ SafeMath<X>::SafeMath(SafeMath const& y)
 	}
     }
 }
-    
+
+template<class X>
+SafeMath<X>::SafeMath(SafeMath&& y)
+    : state(y.state) {
+    fastFail();
+    if (y.ok()) {
+	try {
+	    lazy_x.construct(std::move(y.x()));
+	} catch (...) {
+	    state = Failed_Construction;
+	    fastFail();
+	}
+    }
+}
 
 template<class X>
 SafeMath<X>::SafeMath(Fail_Construct)
     : state(Failed_Construction) {
     fastFail();
+}
+
+template<class X>
+SafeMath<X>& SafeMath<X>::operator=(SafeMath const& y) {
+    if (ok() && y.ok()) {
+        x() = y.value();
+    } else {
+        if (ok()) {
+            lazy_x.destroy();
+        }
+        state = y.state;
+        fastFail();
+    }
+    return *this;
+}
+
+template<class X>
+SafeMath<X>& SafeMath<X>::operator=(SafeMath&& y) {
+    if (ok() && y.ok()) {
+        x() = std::move(y.x());
+    } else {
+        if (ok()) {
+            lazy_x.destroy();
+        }
+        state = y.state;
+        fastFail();
+    }
+    return *this;
 }
 
 template<class X>
