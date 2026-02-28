@@ -13,7 +13,9 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 
 struct Move {
@@ -36,65 +38,77 @@ struct State {
         return color == fTiles[0][2] && color == fTiles[2][0] && color == fTiles[2][2];
     }
 
-    void printWithMoveShown(Move const& move) const {
+    static void printTile(char tile, bool markSquare, std::ostream& os) {
+        char const* data = markSquare ? "X" /* or unicode not-filled-in square */ : " ";
+        char const* backgroundColor = "0"; // black
+        char textColor = '1'; // red
+        switch (tile) {
+          case 'B':
+            backgroundColor = "0"; // black
+            break;
+          case 'b':
+            backgroundColor = "4"; // blue
+            break;
+          case 'G':
+            backgroundColor = "2"; // green
+            break;
+          case 'g':
+            // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+            backgroundColor = "8;5;248"; // gray
+            break;
+          case 'O':
+            // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+            backgroundColor = "8;5;214"; // orange
+            break;
+          case 'P':
+            // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+            backgroundColor = "8;5;129"; // purple
+            break;
+          case 'p':
+            // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+            backgroundColor = "8;5;219"; // pink
+            break;
+          case 'R':
+            backgroundColor = "1"; // red
+            textColor = '4'; // blue
+            break;
+          case 'W':
+            backgroundColor = "7"; // white
+            break;
+          case 'Y':
+            // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+            backgroundColor = "8;5;11"; // yellow
+            break;
+          default: {
+              auto failureString = std::string("Unknown color ") + tile;
+              std::cerr << failureString << std::endl;
+              throw std::logic_error(failureString);
+          }
+        }
+        os << "\x1b[3" << textColor << ";4" << backgroundColor << "m";
+        os << data;
+        os << "\x1b[0m"; // reset
+    }
+
+    void printWithMoveShown(std::optional<Move> const& move, std::ostream& os) const {
         for (std::size_t i = 0; i < 3; ++i) {
             for (std::size_t j = 0; j < 3; ++j) {
-                char const* data = Move{i, j} == move ? "X" /* or unicode not-filled-in square */ : " ";
-                char const* backgroundColor = "0"; // black
-                char textColor = '1'; // red
-                switch (fTiles[i][j]) {
-                  case 'B':
-                    backgroundColor = "0"; // black
-                    break;
-                  case 'b':
-                    backgroundColor = "4"; // blue
-                    break;
-                  case 'G':
-                    backgroundColor = "2"; // green
-                    break;
-                  case 'g':
-                    // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-                    backgroundColor = "8;5;248"; // gray
-                    break;
-                  case 'O':
-                    // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-                    backgroundColor = "8;5;203"; // orange
-                    break;
-                  case 'P':
-                    backgroundColor = "5"; // magenta
-                    break;
-                  case 'R':
-                    backgroundColor = "1"; // red
-                    textColor = '4'; // blue
-                    break;
-                  case 'W':
-                    backgroundColor = "7"; // white
-                    break;
-                  case 'Y':
-                    // https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-                    backgroundColor = "8;5;11"; // yellow
-                    break;
-                  default: {
-                      auto failureString = std::string("Unknown color ") + fTiles[i][j];
-                      std::cerr << failureString << std::endl;
-                      throw std::logic_error(failureString);
-                  }
-                }
-		std::cout << "\x1b[3" << textColor << ";4" << backgroundColor << "m";
-                std::cout << data;
-		std::cout << "\x1b[0m"; // reset
+                bool markForMove = Move{i, j} == move;
+                printTile(fTiles[i][j], markForMove, os);
             }
-            std::cout << std::endl;
+            os << std::endl;
         }
-        std::cout << std::endl;
+        os << std::endl;
     }
 
     void visitNext(std::function<void(State const&, Move const&)> processNext) const {
         for (std::size_t i = 0; i < 3; ++i) {
             for (std::size_t j = 0; j < 3; ++j) {
                 Move move{i, j};
-                
-                switch (fTiles[i][j]) {
+
+                // Blue: copy action of the tile in the center
+                auto tile = fTiles[i][j];
+                switch (tile == 'b' ? fTiles[1][1] : tile) {
                   case 'B': {
                       // Black cycles right (wrapping around)
                       auto copy = *this;
@@ -104,10 +118,7 @@ struct State {
                       break;
                   }
                   case 'b': {
-                      // Blue: copy color of center
-                      auto copy = *this;
-                      copy.fTiles[i][j] = copy.fTiles[1][1];
-                      processNext(copy, move);
+                      // If the attempted move is blue AND the center tile is blue, do nothing.
                       break;
                   }
                   case 'G': {
@@ -162,18 +173,50 @@ struct State {
                       }
                       break;
                   }
+                  case 'p': {
+                      // pink: rotates neighbors (including diagonal) clockwise around self
+                      auto copy = *this;
+                      int di = -1;
+                      int dj = -1;
+                      int ddi = 1;
+                      int ddj = 0;
+                      auto isValid1D = [&] (int pos) { return 0 <= pos && pos < 3; };
+                      auto isValidX = [&]() { return isValid1D(static_cast<int>(i) + di); };
+                      auto isValidY = [&]() { return isValid1D(static_cast<int>(j) + dj); };
+                      // walk counterclockwise, swapping each tile with the previous
+                      char* previous = nullptr;
+                      for (int neighbor = 0; neighbor < 8; ++neighbor) {
+                          if (isValidX() && isValidY()) {
+                              auto nx = static_cast<std::size_t>(static_cast<int>(i) + di);
+                              auto ny = static_cast<std::size_t>(static_cast<int>(j) + dj);
+                              char* cur = &copy.fTiles[nx][ny];
+                              if (previous) {
+                                  std::swap(*previous, *cur);
+                              }
+                              previous = cur;
+                          }
+                          di += ddi;
+                          dj += ddj;
+                          if (neighbor % 2) {
+                              // rotate at a corner
+                              std::swap(ddi, ddj);
+                              ddi = -ddi;
+                          }
+                      }
+                      processNext(copy, move);
+                  }
                   case 'R': {
                       // red: transforms black -> red, and white -> black
                       auto copy = *this;
                       for (std::size_t x = 0; x < 3; ++x) {
                           for (std::size_t y = 0; y < 3; ++y) {
-                              auto& tile = copy.fTiles[x][y];
-                              switch (tile) {
+                              auto& copyTile = copy.fTiles[x][y];
+                              switch (copyTile) {
                                 case 'B':
-                                  tile = 'R';
+                                  copyTile = 'R';
                                   break;
                                 case 'W':
-                                  tile = 'B';
+                                  copyTile = 'B';
                                   break;
                               }
                           }
@@ -233,7 +276,7 @@ struct Puzzle {
     char fWinningColor;
 };
 
-static void solve(Puzzle const& puzzle) {
+static void solve(Puzzle const& puzzle, std::ostream& os) {
     std::map<State, std::optional<std::pair<State, Move>>> visited{{puzzle.fStart, std::nullopt}};
     std::set<State> states{puzzle.fStart};
     while (!states.empty()) {
@@ -251,11 +294,11 @@ static void solve(Puzzle const& puzzle) {
                     }
                 }
                 std::reverse(moves.begin(), moves.end());
-                std::cout << "Found solution: " << moves.size() << " moves:" << std::endl;
+                os << "Found solution: " << moves.size() << " moves:" << std::endl;
                 for (auto const& [st, mv] : moves) {
-                    st.printWithMoveShown(mv);
+                    st.printWithMoveShown(mv, os);
                 }
-                state.printWithMoveShown({3, 3});
+                state.printWithMoveShown(std::nullopt, os);
                 return;
             }
             auto processNext = [&](State const& nextState, Move const& move) {
@@ -268,8 +311,24 @@ static void solve(Puzzle const& puzzle) {
         }
         std::swap(states, newStates);
     }
-    std::cout << "Could not find a solution for:" << std::endl;
-    puzzle.fStart.printWithMoveShown({3, 3});
+    os << "Could not find a solution for:" << std::endl;
+    puzzle.fStart.printWithMoveShown(std::nullopt, os);
+    os << "with corner color: ";
+    State::printTile(puzzle.fWinningColor, false, os);
+    os << std::endl;
+}
+
+static Puzzle innerSanctumRoom1() {
+    return {
+        {
+            {
+                {
+                    { 'G', 'B', 'G' },
+                    { 'B', 'B', 'B' },
+                    { 'G', 'Y', 'G' }
+                }
+            }
+        }, 'B'};
 }
 
 static Puzzle innerSanctumRoom2() {
@@ -299,6 +358,133 @@ static Puzzle innerSanctumRoom8() {
         'G'};
 }
 
+static Puzzle ariesCourt1() {
+    return {
+        {
+            {
+                {
+                    { 'B', 'B', 'B' },
+                    { 'G', 'B', 'g' },
+                    { 'g', 'g', 'p' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle ariesCourt2() {
+    return {
+        {
+            {
+                {
+                    { 'O', 'g', 'P' },
+                    { 'O', 'g', 'P' },
+                    { 'B', 'B', 'B' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle ariesCourt3() {
+    return {
+        {
+            {
+                {
+                    { 'B', 'B', 'B' },
+                    { 'g', 'g', 'g' },
+                    { 'p', 'P', 'O' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle ariesCourt4() {
+    return {
+        {
+            {
+                {
+                    { 'B', 'B', 'B' },
+                    { 'O', 'g', 'O' },
+                    { 'Y', 'g', 'Y' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle ariesCourt5() {
+    return {
+        {
+            {
+                {
+                    { 'O', 'g', 'p' },
+                    { 'B', 'g', 'B' },
+                    { 'G', 'g', 'O' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle ariesCourt6() {
+    return {
+        {
+            {
+                {
+                    { 'B', 'P', 'B' },
+                    { 'g', 'g', 'g' },
+                    { 'O', 'G', 'O' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle ariesCourt7() {
+    return {
+        {
+            {
+                {
+                    { 'O', 'O', 'O' },
+                    { 'B', 'G', 'B' },
+                    { 'P', 'G', 'P' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle ariesCourt8() {
+    return {
+        {
+            {
+                {
+                    { 'B', 'G', 'Y' },
+                    { 'B', 'B', 'B' },
+                    { 'g', 'g', 'g' }
+                }
+            }
+        },
+        'B'};
+}
+
+static Puzzle throneRoomAscended() {
+    // https://www.reddit.com/r/BluePrince/comments/1kefpbv/i_made_a_puzzle_box_solver/
+    return {
+        {
+            {
+                {
+                    { 'B', 'G', 'b' },
+                    { 'b', 'b', 'b' },
+                    { 'P', 'g', 'g' }
+                }
+            }
+        },
+        'b'};
+}
+
 static Puzzle hardOneOnline() {
     // https://www.reddit.com/r/BluePrince/comments/1kefpbv/i_made_a_puzzle_box_solver/
     return {
@@ -315,8 +501,19 @@ static Puzzle hardOneOnline() {
 }
 
 int main() {
-    solve(innerSanctumRoom2());
-    solve(innerSanctumRoom8());
-    solve(hardOneOnline());
+    std::ostringstream dump;
+    solve(innerSanctumRoom1(), dump);
+    solve(innerSanctumRoom2(), dump);
+    solve(innerSanctumRoom8(), dump);
+    solve(ariesCourt1(), dump);
+    solve(ariesCourt2(), dump);
+    solve(ariesCourt3(), dump);
+    solve(ariesCourt4(), dump);
+    solve(ariesCourt5(), dump);
+    solve(ariesCourt6(), dump);
+    solve(ariesCourt7(), dump);
+    solve(ariesCourt8(), dump);
+    solve(throneRoomAscended(), std::cout);
+    solve(hardOneOnline(), dump);
     return 0;
 }
