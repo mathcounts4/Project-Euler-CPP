@@ -76,14 +76,14 @@
 
 
 \pagestyle{fancy}
-\lhead{David Fink}
+\lhead{David Fern}
 \chead{Order from Infinite Chaos}
 \rhead{Page \thepage}
 
 \begin{document}
 
 \title{Order from Infinite Chaos}
-\author{David Fink}
+\author{David Fern}
 \maketitle{}
 
 
@@ -553,7 +553,7 @@ Proof:
 
 \subsubsection*{3 corners of the square}
 
-First, we show that, $\forall n\in\N$, given an infinite 2-D lattice of equally-spaced points, where each point is colored one of $n$ colors, it is always possible to find 3 points of the same color, where the 3 points form the top-left, bottom-left, and bottom-right corners of a square:
+First, we show that, $\forall C\in\N$, given an infinite 2-D lattice of equally-spaced points, where each point is colored one of $C$ colors, it is always possible to find 3 points of the same color, where the 3 points form the top-left, bottom-left, and bottom-right corners of a square:
 
 \begin{center}
 \begin{tikzpicture}[scale=\scalePic] {
@@ -561,15 +561,13 @@ First, we show that, $\forall n\in\N$, given an infinite 2-D lattice of equally-
 }\end{tikzpicture}
 \end{center}
 
-In particular, $\exists f : \N \mapsto \N$ with $f(C) = G$ meaning that, within any $G \times G$ grid within the lattice colored by $C$ colors, the above pattern of 3 same-colored points can always be found.
-
-Letting $C$ be constant, we prove the above statement by induction (but not on $C$).
+In particular, $\exists f : \N \mapsto \N$ with $f(C) = G$ meaning that, within any $G \times G$ grid of points colored by $C$ colors, the above pattern of 3 same-colored points can always be found. We show how to prove this for each number of colors $C$.
 
 $C=1$ holds trivially, as all points are the same color, so $f(1)=2$.
 
-Observe the following process for $C=2$:
+$C=2$ (note: much of this proof is written generically for any $C$):
 
-We first find how many adjacent points are needed in a line to guarantee 2 of the same color: $C+1$:
+Find how many adjacent points are needed in a line to guarantee 2 of the same color: $C+1$:
 
 \begin{center}
 \begin{tikzpicture}[scale=\scalePic] {
@@ -578,7 +576,7 @@ We first find how many adjacent points are needed in a line to guarantee 2 of th
 }\end{tikzpicture}
 \end{center}
 
-Now, for all possible pairs within this line, we append the point that would produce the desired patten of 3 points:
+Now, for all possible pairs within this line, append the point that would produce the desired patten of 3 points:
 
 \begin{center}
 \begin{tikzpicture}[scale=\scalePic] {
@@ -587,7 +585,7 @@ Now, for all possible pairs within this line, we append the point that would pro
 }\end{tikzpicture}
 \end{center}
 
-For simplicity, we complete this into a square grid of side length $X=C+1$:
+For simplicity, complete this into a square grid of side length $X=C+1$:
 
 \begin{center}
 \begin{tikzpicture}[scale=\scalePic] {
@@ -608,7 +606,7 @@ Now, partitioning our infinite grid into tiles of size $X \times X$, we treat ea
 \end{center}
 
 Now we start labeling points of interest. In both tiles, we find and label two points in the bottom row with the same color, and the third point within the grid that would complete the 3-point pattern.\\
-If the third point has the same color as the bottom two, we have found the pattern. Thus we can assume that it has the other color (for this proof, we're only working with $C=2$ colors):
+If the third point has the same color as the bottom two, we have found the pattern. Thus we can assume that it has the other color (assumes $C=2$ colors):
 
 \begin{center}
 \begin{tikzpicture}[scale=\scalePic] {
@@ -688,7 +686,7 @@ We proceed by an argument similar to the 3-corner proof:
 }\end{tikzpicture}
 \end{center}
 
-With $n$ colors, there is some $G_{n}$ where a $G_{n} \times G_{n}$ grid will contain the 3-corner pattern.\\
+With $C$ colors, there is some $G_{C}$ where a $G_{C} \times G_{C}$ grid will contain the 3-corner pattern.\\
 For tiles of size $G_{2} \times G_{2}$, there are $2^{G_{2}^2}$ possible colorings of the tile.
 
 There is some $X=G_{2^{G_{2}^2}}$ where a $X \times X$ grid, colored by $2^{G_{2}^2}$ colors, will contain the 3-corner pattern.\\
@@ -751,7 +749,7 @@ Other color:
 }\end{tikzpicture}
 \end{center}
 
-Thus, given an infinite grid colored by 2 colors, we can always find 4 corners of a coordinate-aligned square of the same color within a $Y \times Y$ grid, where $Y = X * G_{2}$.
+Thus, given an infinite grid colored by 2 colors, we can always find 4 corners of an axis-aligned square of the same color within a $Y \times Y$ grid, where $Y = X * G_{2}$.
 
 For illustrative purposes, see the following picture for finding 4 corners where the grid is colored by 4 colors (the black dot, as any of the 4 real colors, completes a square):
 \begin{center}
@@ -764,14 +762,16 @@ For illustrative purposes, see the following picture for finding 4 corners where
 \pagebreak
 \subsection*{General case}
 
-Any finite-dimensional pattern with integer coordinates can be found (at some scale) on an infinite $d$-dimensional grid of points colored by a finite number of colors.
+Any finite pattern with integer coordinates can be found (at some scale) on an infinite $d$-dimensional grid of points colored by a finite number of colors.
+
+First, fix a positive finite number of dimensions, $d$.
 
 Define a ``pattern'' as a finite sequence of $n$ distinct points:\\
-$\left\{\mathbf{p_i} = \{x_{(i,1)}, ..., x_{(i,d)}\}\right\}_{i=1...n}$ with integer coordinates in any finite ($d$)-dimensional space.
+$\left\{\mathbf{p_i} = \{x_{(i,1)}, ..., x_{(i,d)}\}\right\}_{i=1...n}$ with integer coordinates in ($d$)-dimensional space.
 
 We shall prove:
 
-For any pattern in a $d$-dimensional space, where every point in the integer lattice is colored by one of a finite number of colors $C$ via some function $c(\mathbf{p})$, there exists a ``box size'' $B$ such that, in any $B \times B \times ... \times B$ box of points selected from the integer lattice, the pattern can be found (with some positive scaling factor $a$) with all points sharing the same color:\\
+For any pattern in a $d$-dimensional space, where every point $\mathbf{P}$ in the integer lattice is colored by one of a finite number of colors $C$ via some function $c(\mathbf{P})$, there exists a ``box size'' $B$ such that, in any $B \times B \times ... \times B$ box of points selected from the integer lattice (starting at any $\mathbf{q}$), the pattern can be found (with some positive scaling factor $a$, at point $\mathbf{b}$) with all points sharing the same color:\\
 $\exists B \in \N, \forall \mathbf{q} \in \Z^{d}, \exists a \in \Z^{+}, \exists \mathbf{b} \in \Z^{d}$:
 \begin{itemize}
 \item $c(a \cdot \mathbf{p_1} + \mathbf{b}) = c(a \cdot \mathbf{p_2} + \mathbf{b}) = ... = c(a \cdot \mathbf{p_n} + \mathbf{b})$ (same color points)
